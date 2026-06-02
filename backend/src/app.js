@@ -3,8 +3,11 @@ import express from "express";
 import helmet from "helmet";
 
 import authRoutes from "./routes/auth.routes.js";
+import courierRoutes from "./routes/courier.routes.js";
 import healthRoutes from "./routes/health.routes.js";
+import parcelRegistrationRoutes from "./routes/parcelRegistration.routes.js";
 import profileRoutes from "./routes/profile.routes.js";
+import unitRoutes from "./routes/unit.routes.js";
 import userRoutes from "./routes/user.routes.js";
 
 const app = express();
@@ -12,10 +15,14 @@ const app = express();
 app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
+app.use("/uploads", express.static("uploads"));
 
 app.use("/api/auth", authRoutes);
+app.use("/api/couriers", courierRoutes);
 app.use("/api/health", healthRoutes);
+app.use("/api/parcel-registration", parcelRegistrationRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/units", unitRoutes);
 app.use("/api/users", userRoutes);
 
 app.use((req, res) => {

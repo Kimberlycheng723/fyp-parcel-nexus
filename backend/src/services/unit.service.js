@@ -70,3 +70,45 @@ export async function findOrCreateUnitByCode(fullUnitCode, client = pool) {
 
   return createdUnitResult.rows[0];
 }
+
+export async function searchUnits({ search }) {
+  const searchText = normalizeRequiredString(search);
+
+  if (!searchText) {
+    return {
+      units: []
+    };
+  }
+
+  const result = await pool.query(
+    `
+      SELECT unit_id, block, floor, unit_number, full_unit_code
+      FROM units
+      WHERE LOWER(full_unit_code) LIKE LOWER($1)
+        OR LOWER(block) LIKE LOWER($1)
+        OR LOWER(floor) LIKE LOWER($1)
+        OR LOWER(unit_number) LIKE LOWER($1)
+      ORDER BY full_unit_code ASC
+      LIMIT 20
+    `,
+    [`%${searchText}%`]
+  );
+
+  return {
+    units: result.rows
+  };
+}
+
+export async function getUnitById(unitId, client = pool) {
+  const result = await client.query(
+    `
+      SELECT unit_id, block, floor, unit_number, full_unit_code
+      FROM units
+      WHERE unit_id = $1
+      LIMIT 1
+    `,
+    [unitId]
+  );
+
+  return result.rows[0] || null;
+}
