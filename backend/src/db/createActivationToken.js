@@ -2,6 +2,7 @@ import "dotenv/config";
 
 import { pool } from "./pool.js";
 import { createActivationTokenForUser } from "../services/activation.service.js";
+import { buildActivationLink, sendActivationEmail } from "../services/email.service.js";
 
 function assertDevelopmentEnvironment() {
   if (process.env.NODE_ENV !== "development") {
@@ -42,11 +43,28 @@ async function createDevelopmentActivationToken() {
   }
 
   const activationToken = await createActivationTokenForUser(user.user_id);
+  const activationLink = buildActivationLink(activationToken.rawToken);
+
+  let emailResult;
+
+  try {
+    emailResult = await sendActivationEmail({
+      to: user.email,
+      activationLink
+    });
+  } catch (error) {
+    emailResult = {
+      sent: false,
+      error: "EMAIL_SEND_FAILED"
+    };
+  }
 
   console.log("Development activation token created.");
   console.log(`User email: ${user.email}`);
   console.log(`Expires in: ${activationToken.expiresInDays} days`);
   console.log(`Raw activation token: ${activationToken.rawToken}`);
+  console.log(`Activation link: ${activationLink}`);
+  console.log(`Email sent: ${emailResult.sent === true ? "yes" : "no"}`);
 }
 
 createDevelopmentActivationToken()

@@ -1,4 +1,5 @@
 import { pool } from "../db/pool.js";
+import { buildPasswordResetLink, sendPasswordResetEmail } from "./email.service.js";
 import { hashPassword } from "../utils/password.js";
 import { validatePasswordStrength } from "../utils/passwordValidation.js";
 import { generateSecureToken, hashToken } from "../utils/token.js";
@@ -66,6 +67,31 @@ export async function createPasswordResetToken({ email }) {
     if (process.env.NODE_ENV === "development") {
       response.developmentResetToken = rawToken;
       response.expiresInMinutes = RESET_TOKEN_EXPIRY_MINUTES;
+    }
+
+    const resetLink = buildPasswordResetLink(rawToken);
+
+    try {
+      const emailResult = await sendPasswordResetEmail({
+        to: normalizedEmail,
+        resetLink
+      });
+
+      if (process.env.NODE_ENV === "development") {
+        response.email = {
+          sent: emailResult.sent,
+          skipped: emailResult.skipped || false
+        };
+      }
+    } catch (error) {
+      console.error("Password reset email failed to send.");
+
+      if (process.env.NODE_ENV === "development") {
+        response.email = {
+          sent: false,
+          error: "EMAIL_SEND_FAILED"
+        };
+      }
     }
 
     return response;

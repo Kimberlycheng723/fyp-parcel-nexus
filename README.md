@@ -287,6 +287,51 @@ curl -X POST http://localhost:5000/api/auth/logout \
 
 The response tells the client to remove the token. This is normal for a basic JWT logout flow.
 
+## Gmail SMTP Email Setup
+
+Parcel Nexus uses Gmail SMTP with a Google App Password for backend email sending.
+
+Before testing real email sending:
+
+1. Enable Google 2-Step Verification on the Gmail account.
+2. Generate a Google App Password from your Google Account security settings.
+3. Put SMTP values only in your local root `.env` file.
+4. Do not commit `.env` to GitHub.
+
+Example local `.env` values:
+
+```text
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=systemdeveloper.gem@gmail.com
+SMTP_PASS=your_google_app_password_here
+SMTP_FROM=Parcel Nexus <systemdeveloper.gem@gmail.com>
+FRONTEND_URL=http://localhost:5173
+```
+
+Do not put real Gmail credentials in `.env.example`, README, screenshots, or GitHub commits.
+
+After changing `.env`, recreate the backend container:
+
+```bash
+docker compose up -d --build backend
+```
+
+If an email is not received, check:
+
+- Gmail App Password is correct
+- `SMTP_USER` matches the Gmail account
+- spam/junk folder
+- backend logs with `docker compose logs backend`
+
+The frontend reset and activation pages are not implemented yet, so email links currently point to future frontend routes:
+
+```text
+http://localhost:5173/reset-password?token=...
+http://localhost:5173/activate?token=...
+```
+
 ## Account Activation Backend Flow
 
 Account activation is used for accounts created with status `PENDING_ACTIVATION`.
@@ -294,6 +339,7 @@ Account activation is used for accounts created with status `PENDING_ACTIVATION`
 The backend creates a secure raw activation token, hashes it with SHA-256, and stores only the hash in `account_activation_tokens`. The raw token is meant to be sent to the user by email later.
 
 Actual email sending is not implemented yet. The User Management Module will later create users and trigger activation tokens. Until then, a development-only script can create an activation token manually for testing.
+When SMTP is configured, the development activation script can also send the activation email.
 
 ## Development Activation Token
 
@@ -318,6 +364,7 @@ docker compose exec backend npm run db:create-activation-token
 ```
 
 The script prints the raw activation token in the terminal for testing. The database stores only the SHA-256 token hash.
+If Gmail SMTP is configured, the script also sends an activation email to `DEV_ACTIVATION_EMAIL`.
 
 Do not commit `.env` to GitHub.
 
@@ -376,7 +423,7 @@ For security, the response is always generic:
 
 If the email belongs to an `ACTIVE` user, the backend creates a secure raw reset token, hashes it with SHA-256, and stores only the hash in `password_reset_tokens`. The reset token expires after 15 minutes.
 
-Actual email sending is not implemented yet. In `NODE_ENV=development`, the response also includes `developmentResetToken` so you can test with Postman. This raw token is not returned in production.
+When Gmail SMTP is configured, the backend sends a reset password email. In `NODE_ENV=development`, the response also includes `developmentResetToken` so you can test with Postman. This raw token is not returned in production.
 
 When creating a new reset token, the backend marks older unused reset tokens for the same user as used. This keeps only the latest reset token usable and avoids confusion during testing.
 
@@ -399,6 +446,7 @@ Use an active user's email:
 ```
 
 In development, copy the `developmentResetToken` from the response.
+If SMTP is configured, you should also receive a reset password email. The link points to the future frontend reset password page.
 
 Before testing, make sure your local root `.env` has the correct values and Docker has reloaded them:
 
