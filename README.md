@@ -493,6 +493,139 @@ If successful, the response is:
 
 After reset, test login using the same email and the new password.
 
+## Profile Backend API
+
+The profile API is for the currently logged-in user.
+
+All profile endpoints require a JWT Bearer token from login:
+
+```text
+Authorization: Bearer YOUR_ACCESS_TOKEN
+```
+
+View own profile:
+
+```text
+GET /api/profile
+```
+
+Update own profile:
+
+```text
+PUT /api/profile
+```
+
+Change own password:
+
+```text
+POST /api/profile/change-password
+```
+
+## Profile Fields
+
+Users may update only:
+
+- `email`
+- `phone_number`
+- `first_name`
+- `last_name`
+
+Users may not update:
+
+- `role`
+- `status`
+- `unit_id`
+- `assigned_post`
+- `created_by`
+- `password_hash`
+- password through `PUT /api/profile`
+
+Password changes must use:
+
+```text
+POST /api/profile/change-password
+```
+
+Role-specific rules:
+
+- `ADMIN`, `GUARD`, and `SUPER_ADMIN` must have `first_name` and `last_name`.
+- `RESIDENT` may have blank or null `first_name` and `last_name` because the resident account is identified by unit number.
+- Resident `unit_id` is read-only and set by management.
+- Guard `assigned_post` is read-only and set by management.
+
+Notification preferences are not implemented yet because they belong to a later Notification/Settings module.
+
+## Test Profile With Postman
+
+First log in:
+
+```text
+POST http://localhost:5000/api/auth/login
+```
+
+Copy the `accessToken` from the response.
+
+For each profile request, go to the `Authorization` tab in Postman:
+
+```text
+Type: Bearer Token
+Token: YOUR_ACCESS_TOKEN
+```
+
+View profile:
+
+```text
+GET http://localhost:5000/api/profile
+```
+
+Update profile:
+
+```text
+PUT http://localhost:5000/api/profile
+```
+
+Body -> raw -> JSON:
+
+```json
+{
+  "email": "new-email@example.com",
+  "phone_number": "0123456789",
+  "first_name": "System",
+  "last_name": "Developer"
+}
+```
+
+Try these validation checks:
+
+- Use an email already used by another account to see the uniqueness error.
+- Send a blank `phone_number` to see the required-field error.
+- Try sending `role`, `status`, `unit_id`, or `assigned_post`; they will not be updated.
+
+Change password:
+
+```text
+POST http://localhost:5000/api/profile/change-password
+```
+
+Body -> raw -> JSON:
+
+```json
+{
+  "currentPassword": "CurrentPassword123!",
+  "newPassword": "NewStrongPassword123!"
+}
+```
+
+After changing password, log in again with the new password.
+
+Before testing, make sure your local root `.env` exists and Docker has reloaded it:
+
+```bash
+docker compose up -d --build backend
+```
+
+Do not commit `.env` to GitHub.
+
 ## Useful Docker Commands
 
 Check running containers:

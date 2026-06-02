@@ -1,19 +1,28 @@
 import "dotenv/config";
 
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { pool } from "./pool.js";
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
-const schemaPath = resolve(currentDir, "migrations", "001_create_fyp1_schema.sql");
+const migrationsDir = resolve(currentDir, "migrations");
 
 async function migrate() {
-  const schemaSql = await readFile(schemaPath, "utf8");
+  const migrationFiles = (await readdir(migrationsDir))
+    .filter((fileName) => fileName.endsWith(".sql"))
+    .sort();
 
-  await pool.query(schemaSql);
-  console.log("Database schema applied successfully.");
+  for (const migrationFile of migrationFiles) {
+    const migrationPath = resolve(migrationsDir, migrationFile);
+    const migrationSql = await readFile(migrationPath, "utf8");
+
+    await pool.query(migrationSql);
+    console.log(`Applied migration: ${migrationFile}`);
+  }
+
+  console.log("Database migrations applied successfully.");
 }
 
 migrate()
