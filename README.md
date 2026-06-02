@@ -20,7 +20,6 @@ This repository currently contains only the basic project foundation:
 - Full development Docker Compose setup
 - Environment variable examples
 
-The selected modules have not been implemented yet.
 
 ## Docker Development Setup
 
@@ -62,31 +61,88 @@ Do not push `.env` files to GitHub. They may contain real passwords or secrets l
 docker compose up --build
 ```
 
-2. Open the frontend:
+2. Apply the database schema in another terminal:
+
+```bash
+docker compose exec backend npm run db:migrate
+```
+
+This command creates the FYP1 tables if they do not already exist. It does not drop existing tables.
+
+3. Open the frontend:
 
 ```text
 http://localhost:5173
 ```
 
-3. Check the backend health route:
+4. Check the backend health route:
 
 ```text
 http://localhost:5000/api/health
 ```
 
-4. Stop all services:
+5. Check the backend database connection:
+
+```text
+http://localhost:5000/api/health/db
+```
+
+The response should show that the database is connected. It does not expose sensitive database details.
+
+6. Stop all services:
 
 ```bash
 docker compose down
 ```
 
-5. Stop all services and delete the database volume:
+7. Stop all services and delete the database volume:
 
 ```bash
 docker compose down -v
 ```
 
 Only use `docker compose down -v` when you intentionally want to remove the local PostgreSQL data.
+
+## FYP1 Database Tables
+
+The current schema creates only the tables needed for the selected FYP1 modules:
+
+- `units`: condominium unit records
+- `users`: system user accounts for super admin, admin, guard, and resident
+- `courier_companies`: courier companies used during parcel registration
+- `parcels`: parcel records
+- `parcel_collections`: one QR code / one collection session
+- `parcel_collection_items`: parcels included inside a QR collection session
+- `account_activation_tokens`: account activation tokens
+- `password_reset_tokens`: forgot/reset password tokens
+
+
+## Verify That Tables Exist
+
+After running the migration, you can list tables using:
+
+```bash
+docker compose exec postgres psql -U parcel_nexus_user -d parcel_nexus -c "\dt"
+```
+
+You should see:
+
+```text
+account_activation_tokens
+courier_companies
+parcel_collection_items
+parcel_collections
+parcels
+password_reset_tokens
+units
+users
+```
+
+You can also check that PostgreSQL is running with:
+
+```bash
+docker compose ps
+```
 
 ## Useful Docker Commands
 
@@ -125,6 +181,7 @@ docker compose logs postgres
 - Frontend: `http://localhost:5173`
 - Backend: `http://localhost:5000`
 - Backend health check: `http://localhost:5000/api/health`
+- Backend database health check: `http://localhost:5000/api/health/db`
 - PostgreSQL: `localhost:5432`
 
 ## GitHub Safety
