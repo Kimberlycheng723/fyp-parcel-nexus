@@ -27,7 +27,12 @@ const USER_DETAIL_COLUMNS = `
   units.block,
   units.floor,
   units.unit_number,
-  units.full_unit_code
+  units.full_unit_code,
+  creator.user_id AS creator_user_id,
+  creator.first_name AS creator_first_name,
+  creator.last_name AS creator_last_name,
+  creator.email AS creator_email,
+  creator.role AS creator_role
 `;
 
 function allowedRolesForRequester(requesterRole) {
@@ -55,6 +60,16 @@ function toSafeUser(row) {
     phone_number: row.phone_number,
     role: row.role,
     unit_id: row.unit_id,
+    created_by: row.created_by,
+    created_by_user: row.created_by
+      ? {
+          user_id: row.creator_user_id,
+          first_name: row.creator_first_name,
+          last_name: row.creator_last_name,
+          email: row.creator_email,
+          role: row.creator_role
+        }
+      : null,
     unit: row.unit_id
       ? {
           unit_id: row.unit_id,
@@ -88,6 +103,7 @@ async function getUserRowById(userId, client = pool) {
       SELECT ${USER_DETAIL_COLUMNS}
       FROM users u
       LEFT JOIN units ON units.unit_id = u.unit_id
+      LEFT JOIN users creator ON creator.user_id = u.created_by
       WHERE u.user_id = $1
       LIMIT 1
     `,
@@ -192,6 +208,10 @@ export function getAllowedManagedRoles(requesterRole) {
 }
 
 export async function createManagedUser({ requester, input }) {
+  if (!requester?.user_id) {
+    return { error: "FORBIDDEN" };
+  }
+
   const validation = validateCreateInput({
     requesterRole: requester.role,
     input
@@ -354,6 +374,7 @@ export async function listManagedUsers({ requester, filters = {} }) {
       SELECT ${USER_DETAIL_COLUMNS}, COUNT(*) OVER() AS total_count
       FROM users u
       LEFT JOIN units ON units.unit_id = u.unit_id
+      LEFT JOIN users creator ON creator.user_id = u.created_by
       WHERE ${whereClauses.join(" AND ")}
       ORDER BY u.created_at DESC
       LIMIT $${limitIndex}

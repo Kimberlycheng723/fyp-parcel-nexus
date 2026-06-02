@@ -31,6 +31,7 @@ The project currently includes:
 - Forgot password and reset password with Gmail SMTP
 - Profile view, profile update, and change password
 - User Management backend foundation
+- User Management frontend for Super Admin and Admin account workflows
 
 The daily parcel operation modules are planned but not implemented yet.
 
@@ -118,6 +119,7 @@ The seed script uses values from your local `.env`. Real credentials are not har
 - `/reset-password`
 - `/activate`
 - `/profile`
+- `/accounts`
 
 ## Main Backend API Groups
 
@@ -140,6 +142,8 @@ Role rules:
 
 When a new account is created, the backend creates an activation token and sends an activation email if Gmail SMTP is configured. Check your local `.env` SMTP values before testing, and never commit `.env`.
 
+The `/accounts` frontend page is available for `SUPER_ADMIN` and `ADMIN` users. Super Admin manages Admin accounts only. Admin manages Guard and Resident accounts only.
+
 ## Email Sending
 
 Parcel Nexus uses Gmail SMTP with a Google App Password for system emails such as password reset and account activation.
@@ -153,7 +157,6 @@ SMTP credentials must be stored only in the local `.env` file. They should not b
 - Do not commit `node_modules`.
 - Do not use `docker compose down -v` unless you intentionally want to delete local PostgreSQL data.
 - Notification preferences in the current frontend are local placeholders only. No notification backend or database table has been implemented yet.
-- The User Management frontend is not implemented yet.
 - Parcel Registration, Parcel Management, and Parcel Collection are not implemented yet.
 
 ## Future Modules

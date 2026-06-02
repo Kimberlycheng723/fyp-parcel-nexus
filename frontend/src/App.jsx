@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { ProtectedRoute } from "./components/ProtectedRoute.jsx";
 import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
+import { AccountsPage } from "./pages/AccountsPage.jsx";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { ProfilePage } from "./pages/ProfilePage.jsx";
@@ -79,6 +80,14 @@ function Router() {
     return (
       <ProtectedRoute>
         <ProfilePage />
+      </ProtectedRoute>
+    );
+  }
+
+  if (path === "/accounts") {
+    return (
+      <ProtectedRoute>
+        <AccountsPage />
       </ProtectedRoute>
     );
   }

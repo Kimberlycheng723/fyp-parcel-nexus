@@ -4,13 +4,17 @@ import {
   ClipboardList,
   Gauge,
   LogOut,
+  Menu,
   Settings,
   User,
   Users,
-  AlertCircle
+  AlertCircle,
+  X
 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { useAuth } from "../context/AuthContext.jsx";
+import { getCurrentPath, navigate } from "../utils/navigation.js";
 
 const ROLE_LABELS = {
   SUPER_ADMIN: "Super Admin",
@@ -24,7 +28,7 @@ const MENU_GROUPS = {
     {
       label: "Directory",
       items: [
-        { key: "accounts", label: "Accounts", icon: Users, muted: true, title: "Coming soon" }
+        { key: "accounts", label: "Accounts", icon: Users, path: "/accounts" }
       ]
     }
   ],
@@ -40,7 +44,7 @@ const MENU_GROUPS = {
     {
       label: "Directory",
       items: [
-        { key: "accounts", label: "Accounts", icon: Users, muted: true, title: "Coming soon" }
+        { key: "accounts", label: "Accounts", icon: Users, path: "/accounts" }
       ]
     },
     {
@@ -84,9 +88,19 @@ const MENU_GROUPS = {
 };
 
 function initials(profile) {
-  const first = profile?.first_name?.[0] || profile?.email?.[0] || "U";
-  const last = profile?.last_name?.[0] || "";
-  return `${first}${last}`.toUpperCase();
+  const name = displayName(profile);
+
+  if (profile?.first_name || profile?.last_name) {
+    return `${profile?.first_name?.[0] || ""}${profile?.last_name?.[0] || ""}`.toUpperCase();
+  }
+
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 }
 
 function displayName(profile) {
@@ -94,25 +108,61 @@ function displayName(profile) {
     return `${profile.first_name || ""} ${profile.last_name || ""}`.trim();
   }
 
-  if (profile?.unit?.full_unit_code) {
-    return profile.unit.full_unit_code;
+  if (profile?.role && ROLE_LABELS[profile.role]) {
+    return ROLE_LABELS[profile.role];
   }
 
-  return profile?.email || "Account";
+  return profile?.email || "User";
 }
 
 export function ProtectedLayout({ profile, children }) {
   const { logout, user } = useAuth();
-  const role = profile?.role || user?.role || "ACCOUNT";
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const sidebarUser = profile || user || {};
+  const role = sidebarUser?.role || "ACCOUNT";
   const roleLabel = ROLE_LABELS[role] || role.replace("_", " ");
   const menuGroups = MENU_GROUPS[role] || [];
+  const currentPath = getCurrentPath();
+
+  useEffect(() => {
+    function closeSidebarOnEscape(event) {
+      if (event.key === "Escape") {
+        setIsSidebarOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", closeSidebarOnEscape);
+    return () => document.removeEventListener("keydown", closeSidebarOnEscape);
+  }, []);
+
+  function handleNavigate(path) {
+    if (path) {
+      navigate(path);
+      setIsSidebarOpen(false);
+    }
+  }
+
+  function handleLogout() {
+    setIsSidebarOpen(false);
+    logout();
+  }
 
   return (
     <main className="app-shell">
-      <aside className="sidebar">
+      <button
+        className={`sidebar-scrim ${isSidebarOpen ? "show" : ""}`}
+        type="button"
+        aria-label="Close menu"
+        onClick={() => setIsSidebarOpen(false)}
+      />
+
+      <aside className={`sidebar ${isSidebarOpen ? "open" : ""}`}>
         <div className="sidebar-brand">
           <strong>GEM</strong>
           <span>{roleLabel}</span>
+          <button className="sidebar-close-button" type="button" onClick={() => setIsSidebarOpen(false)} aria-label="Close menu">
+            <X size={18} />
+          </button>
         </div>
 
         <nav className="sidebar-nav" aria-label="Main navigation">
@@ -124,8 +174,9 @@ export function ProtectedLayout({ profile, children }) {
                 return (
                   <button
                     type="button"
-                    className={`nav-item ${item.muted ? "is-muted" : ""}`}
-                    title={item.title || `${item.label} coming later`}
+                    className={`nav-item ${item.path === currentPath ? "active" : ""} ${item.muted ? "is-muted" : ""}`}
+                    title={item.title || item.label}
+                    onClick={() => handleNavigate(item.path)}
                     key={item.key}
                   >
                     <Icon size={18} /> {item.label}
@@ -141,24 +192,32 @@ export function ProtectedLayout({ profile, children }) {
           <div className="nav-group">
             <p>Account</p>
           </div>
-          <button type="button" className="nav-item active">
+          <button type="button" className={`nav-item ${currentPath === "/profile" ? "active" : ""}`} onClick={() => handleNavigate("/profile")}>
             <User size={18} /> Profile
           </button>
-          <button type="button" className="nav-item danger" onClick={logout}>
+          <button type="button" className="nav-item danger" onClick={handleLogout}>
             <LogOut size={18} /> Logout
           </button>
         </nav>
 
         <div className="sidebar-footer">
-          <span className="avatar">{initials(profile)}</span>
+          <span className="avatar">{initials(sidebarUser)}</span>
           <div>
-            <strong>{displayName(profile)}</strong>
+            <strong>{displayName(sidebarUser)}</strong>
             <span>{roleLabel}</span>
           </div>
         </div>
       </aside>
 
       <section className="workspace">
+        <div className="mobile-topbar">
+          <button className="mobile-menu-button" type="button" onClick={() => setIsSidebarOpen(true)} aria-label="Open menu">
+            <Menu size={20} />
+          </button>
+          <strong>GEM</strong>
+          <span>{roleLabel}</span>
+        </div>
+
         <div className="top-actions">
           <button className="icon-button" type="button" title="Notifications coming later">
             <Bell size={18} />
