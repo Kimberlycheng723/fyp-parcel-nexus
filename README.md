@@ -19,6 +19,7 @@ This repository currently contains only the basic project foundation:
 - PostgreSQL database service
 - Full development Docker Compose setup
 - Environment variable examples
+- Basic backend authentication foundation
 
 
 ## Docker Development Setup
@@ -69,19 +70,27 @@ docker compose exec backend npm run db:migrate
 
 This command creates the FYP1 tables if they do not already exist. It does not drop existing tables.
 
-3. Open the frontend:
+3. Seed one development SUPER_ADMIN user:
+
+```bash
+docker compose exec backend npm run db:seed:superadmin
+```
+
+The seed runs only when you manually run this command. It creates the user only if the seed email does not already exist.
+
+4. Open the frontend:
 
 ```text
 http://localhost:5173
 ```
 
-4. Check the backend health route:
+5. Check the backend health route:
 
 ```text
 http://localhost:5000/api/health
 ```
 
-5. Check the backend database connection:
+6. Check the backend database connection:
 
 ```text
 http://localhost:5000/api/health/db
@@ -89,13 +98,13 @@ http://localhost:5000/api/health/db
 
 The response should show that the database is connected. It does not expose sensitive database details.
 
-6. Stop all services:
+7. Stop all services:
 
 ```bash
 docker compose down
 ```
 
-7. Stop all services and delete the database volume:
+8. Stop all services and delete the database volume:
 
 ```bash
 docker compose down -v
@@ -143,6 +152,109 @@ You can also check that PostgreSQL is running with:
 ```bash
 docker compose ps
 ```
+
+## Backend Authentication Foundation
+
+The current backend authentication foundation provides:
+
+- Password hashing with `bcryptjs`
+- JWT access token creation and verification
+- Login route
+- Current user route
+- Logout route
+- Authentication middleware
+- Role-based access middleware for future protected routes
+- Manual development SUPER_ADMIN seed script
+
+It does not yet provide:
+
+- Account activation email
+- Set new password after activation
+- Forgot password
+- Reset password email
+- Real email sending
+- Frontend login page
+- User management screens
+
+## Authentication Endpoints
+
+Login:
+
+```text
+POST /api/auth/login
+```
+
+Returns a JWT access token and safe user information when email and password are valid.
+
+Current logged-in user:
+
+```text
+GET /api/auth/me
+```
+
+Requires a Bearer token. Returns safe user profile information.
+
+Logout:
+
+```text
+POST /api/auth/logout
+```
+
+Requires a Bearer token. Because this project uses JWT access tokens, logout is handled by removing the token on the client side. No token blacklist is implemented yet.
+
+## Development SUPER_ADMIN Seed
+
+The seed values come from `.env`:
+
+```text
+SEED_SUPER_ADMIN_EMAIL=superadmin@parcelnexus.local
+SEED_SUPER_ADMIN_PASSWORD=ChangeMe_StrongPassword123!
+SEED_SUPER_ADMIN_FIRST_NAME=System
+SEED_SUPER_ADMIN_LAST_NAME=Owner
+SEED_SUPER_ADMIN_PHONE=0123456789
+```
+
+For your own development, edit `.env` and replace the seed password with a strong local password. Do not commit `.env` to GitHub.
+
+Run the seed:
+
+```bash
+docker compose exec backend npm run db:seed:superadmin
+```
+
+## Test Login With Curl
+
+Replace the email and password with the values from your `.env` file:
+
+```bash
+curl -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"superadmin@example.com","password":"replace_with_a_strong_development_password"}'
+```
+
+The response includes an `accessToken`. Copy that token for the next test.
+
+## Test Current User
+
+Use the token from login:
+
+```bash
+curl http://localhost:5000/api/auth/me \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+This should return safe user information only. It does not return `password_hash`.
+
+## Test Logout
+
+Use the token from login:
+
+```bash
+curl -X POST http://localhost:5000/api/auth/logout \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+The response tells the client to remove the token. This is normal for a basic JWT logout flow.
 
 ## Useful Docker Commands
 
