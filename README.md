@@ -20,6 +20,9 @@ This repository currently contains only the basic project foundation:
 - Full development Docker Compose setup
 - Environment variable examples
 - Basic backend authentication foundation
+- Backend account activation foundation
+
+Forgot/reset password, actual email sending, frontend authentication pages, user management, parcel registration, parcel management, and parcel collection logic are not implemented yet.
 
 
 ## Docker Development Setup
@@ -159,17 +162,19 @@ The current backend authentication foundation provides:
 
 - Password hashing with `bcryptjs`
 - JWT access token creation and verification
+- Account activation with secure token hashing
 - Login route
+- Account activation route
 - Current user route
 - Logout route
 - Authentication middleware
 - Role-based access middleware for future protected routes
 - Manual development SUPER_ADMIN seed script
+- Manual development activation token script
 
 It does not yet provide:
 
 - Account activation email
-- Set new password after activation
 - Forgot password
 - Reset password email
 - Real email sending
@@ -185,6 +190,14 @@ POST /api/auth/login
 ```
 
 Returns a JWT access token and safe user information when email and password are valid.
+
+Activate account:
+
+```text
+POST /api/auth/activate
+```
+
+Accepts an activation token and a new password. If the token is valid, unused, and not expired, the backend saves the hashed password and changes the user status to `ACTIVE`.
 
 Current logged-in user:
 
@@ -255,6 +268,77 @@ curl -X POST http://localhost:5000/api/auth/logout \
 ```
 
 The response tells the client to remove the token. This is normal for a basic JWT logout flow.
+
+## Account Activation Backend Flow
+
+Account activation is used for accounts created with status `PENDING_ACTIVATION`.
+
+The backend creates a secure raw activation token, hashes it with SHA-256, and stores only the hash in `account_activation_tokens`. The raw token is meant to be sent to the user by email later.
+
+Actual email sending is not implemented yet. The User Management Module will later create users and trigger activation tokens. Until then, a development-only script can create an activation token manually for testing.
+
+## Development Activation Token
+
+Before testing, check your local root `.env` file and add or update:
+
+```text
+DEV_ACTIVATION_EMAIL=admin@parcelnexus.local
+```
+
+Set this email to an existing user in your `users` table. The script only works when `NODE_ENV=development`.
+
+After changing `.env`, recreate the backend container so Docker picks up the new value:
+
+```bash
+docker compose up -d --build backend
+```
+
+Create a development activation token:
+
+```bash
+docker compose exec backend npm run db:create-activation-token
+```
+
+The script prints the raw activation token in the terminal for testing. The database stores only the SHA-256 token hash.
+
+Do not commit `.env` to GitHub.
+
+## Test Account Activation With Postman
+
+Create a request:
+
+```text
+POST http://localhost:5000/api/auth/activate
+```
+
+Go to `Body`, choose `raw`, and select `JSON`.
+
+Use the raw token printed by the development script:
+
+```json
+{
+  "token": "RAW_ACTIVATION_TOKEN_FROM_TERMINAL",
+  "newPassword": "NewStrongPassword123!"
+}
+```
+
+The new password must include:
+
+- At least 8 characters
+- At least one uppercase letter
+- At least one lowercase letter
+- At least one number
+- At least one special character
+
+If successful, the response is:
+
+```json
+{
+  "message": "Account activated successfully. You can now log in."
+}
+```
+
+After activation, test login using the activated user's email and new password.
 
 ## Useful Docker Commands
 

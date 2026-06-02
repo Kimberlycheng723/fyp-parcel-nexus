@@ -1,3 +1,4 @@
+import { activateAccount } from "../services/activation.service.js";
 import { getSafeUserById, loginWithEmailAndPassword } from "../services/auth.service.js";
 
 function isBlank(value) {
@@ -31,6 +32,52 @@ function loginErrorResponse(error) {
   };
 }
 
+function activationErrorResponse(result) {
+  if (result.error === "WEAK_PASSWORD") {
+    return {
+      status: 400,
+      body: {
+        message: "Password does not meet strength requirements.",
+        errors: result.passwordErrors
+      }
+    };
+  }
+
+  if (result.error === "TOKEN_USED") {
+    return {
+      status: 400,
+      body: {
+        message: "Activation token has already been used."
+      }
+    };
+  }
+
+  if (result.error === "TOKEN_EXPIRED") {
+    return {
+      status: 400,
+      body: {
+        message: "Activation token has expired."
+      }
+    };
+  }
+
+  if (result.error === "USER_DEACTIVATED") {
+    return {
+      status: 403,
+      body: {
+        message: "Account has been deactivated."
+      }
+    };
+  }
+
+  return {
+    status: 400,
+    body: {
+      message: "Activation token is invalid."
+    }
+  };
+}
+
 export async function login(req, res) {
   const { email, password } = req.body;
 
@@ -50,6 +97,27 @@ export async function login(req, res) {
   return res.json({
     accessToken: result.accessToken,
     user: result.user
+  });
+}
+
+export async function activate(req, res) {
+  const { token, newPassword } = req.body;
+
+  if (isBlank(token) || isBlank(newPassword)) {
+    return res.status(400).json({
+      message: "Activation token and new password are required."
+    });
+  }
+
+  const result = await activateAccount({ token, newPassword });
+
+  if (result.error) {
+    const response = activationErrorResponse(result);
+    return res.status(response.status).json(response.body);
+  }
+
+  return res.json({
+    message: "Account activated successfully. You can now log in."
   });
 }
 
