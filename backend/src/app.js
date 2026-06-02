@@ -5,6 +5,7 @@ import helmet from "helmet";
 import authRoutes from "./routes/auth.routes.js";
 import healthRoutes from "./routes/health.routes.js";
 import profileRoutes from "./routes/profile.routes.js";
+import userRoutes from "./routes/user.routes.js";
 
 const app = express();
 
@@ -15,6 +16,7 @@ app.use(express.json({ limit: "2mb" }));
 app.use("/api/auth", authRoutes);
 app.use("/api/health", healthRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/users", userRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
