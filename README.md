@@ -22,7 +22,7 @@ This repository currently contains only the basic project foundation:
 - Basic backend authentication foundation
 - Backend account activation foundation
 
-Forgot/reset password, actual email sending, frontend authentication pages, user management, parcel registration, parcel management, and parcel collection logic are not implemented yet.
+Actual email sending, frontend authentication pages, user management, parcel registration, parcel management, and parcel collection logic are not implemented yet.
 
 
 ## Docker Development Setup
@@ -163,8 +163,11 @@ The current backend authentication foundation provides:
 - Password hashing with `bcryptjs`
 - JWT access token creation and verification
 - Account activation with secure token hashing
+- Forgot password and reset password with secure token hashing
 - Login route
 - Account activation route
+- Forgot password route
+- Reset password route
 - Current user route
 - Logout route
 - Authentication middleware
@@ -175,7 +178,6 @@ The current backend authentication foundation provides:
 It does not yet provide:
 
 - Account activation email
-- Forgot password
 - Reset password email
 - Real email sending
 - Frontend login page
@@ -198,6 +200,22 @@ POST /api/auth/activate
 ```
 
 Accepts an activation token and a new password. If the token is valid, unused, and not expired, the backend saves the hashed password and changes the user status to `ACTIVE`.
+
+Forgot password:
+
+```text
+POST /api/auth/forgot-password
+```
+
+Accepts an email address. For security, it always returns a generic message so the system does not reveal whether the email exists.
+
+Reset password:
+
+```text
+POST /api/auth/reset-password
+```
+
+Accepts a reset token and a new password. If the token is valid, unused, and not expired, the backend saves the new hashed password and marks the token as used.
 
 Current logged-in user:
 
@@ -339,6 +357,93 @@ If successful, the response is:
 ```
 
 After activation, test login using the activated user's email and new password.
+
+## Forgot Password Backend Flow
+
+The forgot password endpoint accepts an email address:
+
+```text
+POST http://localhost:5000/api/auth/forgot-password
+```
+
+For security, the response is always generic:
+
+```json
+{
+  "message": "If the email is registered and active, password reset instructions will be sent."
+}
+```
+
+If the email belongs to an `ACTIVE` user, the backend creates a secure raw reset token, hashes it with SHA-256, and stores only the hash in `password_reset_tokens`. The reset token expires after 15 minutes.
+
+Actual email sending is not implemented yet. In `NODE_ENV=development`, the response also includes `developmentResetToken` so you can test with Postman. This raw token is not returned in production.
+
+When creating a new reset token, the backend marks older unused reset tokens for the same user as used. This keeps only the latest reset token usable and avoids confusion during testing.
+
+## Test Forgot Password With Postman
+
+Create a request:
+
+```text
+POST http://localhost:5000/api/auth/forgot-password
+```
+
+Go to `Body`, choose `raw`, and select `JSON`.
+
+Use an active user's email:
+
+```json
+{
+  "email": "your-email@example.com"
+}
+```
+
+In development, copy the `developmentResetToken` from the response.
+
+Before testing, make sure your local root `.env` has the correct values and Docker has reloaded them:
+
+```bash
+docker compose up -d --build backend
+```
+
+Do not commit `.env` to GitHub.
+
+## Test Reset Password With Postman
+
+Create a request:
+
+```text
+POST http://localhost:5000/api/auth/reset-password
+```
+
+Go to `Body`, choose `raw`, and select `JSON`.
+
+Use the reset token from the forgot password response:
+
+```json
+{
+  "token": "RAW_RESET_TOKEN_FROM_FORGOT_PASSWORD",
+  "newPassword": "AnotherStrongPassword123!"
+}
+```
+
+The new password must include:
+
+- At least 8 characters
+- At least one uppercase letter
+- At least one lowercase letter
+- At least one number
+- At least one special character
+
+If successful, the response is:
+
+```json
+{
+  "message": "Password reset successfully. You can now log in with the new password."
+}
+```
+
+After reset, test login using the same email and the new password.
 
 ## Useful Docker Commands
 
