@@ -33,8 +33,9 @@ The project currently includes:
 - User Management backend foundation
 - User Management frontend for Super Admin and Admin account workflows
 - Parcel Registration backend foundation
+- Parcel Management backend foundation for Admin and Guard users
 
-Parcel Management and Parcel Collection are planned but not implemented yet.
+Parcel Management frontend and Parcel Collection are planned but not implemented yet.
 
 ## Environment Setup
 
@@ -132,6 +133,7 @@ The seed script uses values from your local `.env`. Real credentials are not har
 - `/api/couriers`
 - `/api/units`
 - `/api/parcel-registration`
+- `/api/parcels`
 
 Detailed API testing steps are maintained separately during development.
 
@@ -167,6 +169,24 @@ Parcel photos are stored locally in `backend/uploads/parcels/` during developmen
 
 The `/parcels/new` frontend route is available for `GUARD` users only. It supports the two-step courier session flow, unit lookup, optional parcel photo capture/upload, and physical barcode scanner input through normal keyboard-style scanning. Units must already exist before a guard can register parcels. Camera access depends on browser permission and normally requires HTTPS in real deployment.
 
+## Parcel Management Backend
+
+The `/api/parcels` API group supports the Admin/Guard parcel management workflow.
+
+Role rules:
+
+- `ADMIN` can view, edit, export, and soft delete parcel records.
+- `GUARD` can view and edit parcel records, but cannot delete or export.
+- `SUPER_ADMIN` and `RESIDENT` cannot access operational parcel management APIs.
+
+Parcel display statuses are:
+
+- Pending Collection
+- Overdue
+- Collected
+
+`OVERDUE` is calculated from `collection_deadline`; it is not manually stored as a parcel status. Parcel deletion uses soft delete fields so records are hidden from normal lists without being physically removed from the database.
+
 ## Email Sending
 
 Parcel Nexus uses Gmail SMTP with a Google App Password for system emails such as password reset and account activation.
@@ -180,7 +200,7 @@ SMTP credentials must be stored only in the local `.env` file. They should not b
 - Do not commit `node_modules`.
 - Do not use `docker compose down -v` unless you intentionally want to delete local PostgreSQL data.
 - Notification preferences in the current frontend are local placeholders only. No notification backend or database table has been implemented yet.
-- Parcel Management and Parcel Collection are not implemented yet.
+- Parcel Management frontend and Parcel Collection are not implemented yet.
 
 ## Future Modules
 

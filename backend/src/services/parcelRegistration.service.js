@@ -61,7 +61,8 @@ function toSafeParcel(row) {
     },
     delivery_person_contact: row.delivery_person_contact,
     parcel_photo_url: row.parcel_photo_url,
-    parcel_status: row.status,
+    parcel_status: row.status === "PENDING" ? "PENDING_COLLECTION" : row.status,
+    collection_deadline: row.collection_deadline,
     registered_at: row.created_at,
     updated_at: row.updated_at
   };
@@ -192,9 +193,10 @@ export async function registerParcelSession({ requester, input }) {
             registered_by,
             delivery_person_contact,
             parcel_photo_url,
-            status
+            status,
+            collection_deadline
           )
-          VALUES ($1, $2, $3, $4, $5, $6, 'PENDING')
+          VALUES ($1, $2, $3, $4, $5, $6, 'PENDING_COLLECTION', NOW() + INTERVAL '7 days')
           RETURNING parcel_id
         `,
         [
