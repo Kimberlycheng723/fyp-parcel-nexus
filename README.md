@@ -34,8 +34,9 @@ The project currently includes:
 - User Management frontend for Super Admin and Admin account workflows
 - Parcel Registration backend foundation
 - Parcel Management backend foundation for Admin and Guard users
+- Parcel Management frontend for Admin and Guard users
 
-Parcel Management frontend and Parcel Collection are planned but not implemented yet.
+Resident parcel viewing and Parcel Collection are planned but not implemented yet.
 
 ## Environment Setup
 
@@ -187,6 +188,8 @@ Parcel display statuses are:
 
 `OVERDUE` is calculated from `collection_deadline`; it is not manually stored as a parcel status. Parcel deletion uses soft delete fields so records are hidden from normal lists without being physically removed from the database.
 
+The `/parcels` frontend route is available for `ADMIN` and `GUARD` users. Admin can view, edit, delete, and export parcel records. Guard can view and edit parcel records and can navigate to `/parcels/new` to log new parcels. Verify Collection, Resident parcel viewing, and QR collection are future steps.
+
 ## Email Sending
 
 Parcel Nexus uses Gmail SMTP with a Google App Password for system emails such as password reset and account activation.
@@ -200,7 +203,7 @@ SMTP credentials must be stored only in the local `.env` file. They should not b
 - Do not commit `node_modules`.
 - Do not use `docker compose down -v` unless you intentionally want to delete local PostgreSQL data.
 - Notification preferences in the current frontend are local placeholders only. No notification backend or database table has been implemented yet.
-- Parcel Management frontend and Parcel Collection are not implemented yet.
+- Resident parcel viewing and Parcel Collection are not implemented yet.
 
 ## Future Modules
 

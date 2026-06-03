@@ -37,7 +37,7 @@ const MENU_GROUPS = {
       label: "Operations",
       items: [
         { key: "dashboard", label: "Dashboard", icon: Gauge, muted: true },
-        { key: "parcels", label: "Parcels", icon: Box, muted: true, count: "312" },
+        { key: "parcels", label: "Parcels", icon: Box, path: "/parcels", count: "312" },
         { key: "disputes", label: "Disputes", icon: AlertCircle, muted: true, count: "4", darkCount: true }
       ]
     },
@@ -65,7 +65,7 @@ const MENU_GROUPS = {
       label: "Operations",
       items: [
         { key: "dashboard", label: "Dashboard", icon: Gauge, muted: true },
-        { key: "parcels", label: "Parcels", icon: Box, path: "/parcels/new" },
+        { key: "parcels", label: "Parcels", icon: Box, path: "/parcels", count: "312" },
         { key: "disputes", label: "Disputes", icon: AlertCircle, muted: true, count: "4", darkCount: true }
       ]
     },
@@ -171,10 +171,11 @@ export function ProtectedLayout({ profile, children, hideTopActions = false }) {
               <p>{group.label}</p>
               {group.items.map((item) => {
                 const Icon = item.icon;
+                const isActive = item.path === currentPath || (item.path === "/parcels" && currentPath.startsWith("/parcels"));
                 return (
                   <button
                     type="button"
-                    className={`nav-item ${item.path === currentPath ? "active" : ""} ${item.muted ? "is-muted" : ""}`}
+                    className={`nav-item ${isActive ? "active" : ""} ${item.muted ? "is-muted" : ""}`}
                     title={item.title || item.label}
                     onClick={() => handleNavigate(item.path)}
                     key={item.key}

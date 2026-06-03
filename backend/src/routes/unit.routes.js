@@ -8,8 +8,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 const router = Router();
 
 router.use(requireAuth);
-router.use(requireRole("GUARD"));
 
-router.get("/search", asyncHandler(searchUnitsForRegistration));
+router.get("/search", requireRole("ADMIN", "GUARD"), asyncHandler(searchUnitsForRegistration));
 
 export default router;

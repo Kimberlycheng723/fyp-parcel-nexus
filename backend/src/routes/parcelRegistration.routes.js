@@ -12,15 +12,15 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 const router = Router();
 
 router.use(requireAuth);
-router.use(requireRole("GUARD"));
 
 router.post(
   "/photos",
+  requireRole("ADMIN", "GUARD"),
   parcelPhotoUpload.single("photo"),
   handleUploadError,
   asyncHandler(uploadParcelPhoto)
 );
 
-router.post("/sessions", asyncHandler(createParcelRegistrationSession));
+router.post("/sessions", requireRole("GUARD"), asyncHandler(createParcelRegistrationSession));
 
 export default router;

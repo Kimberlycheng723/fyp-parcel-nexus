@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
+import path from "node:path";
 
 import authRoutes from "./routes/auth.routes.js";
 import courierRoutes from "./routes/courier.routes.js";
@@ -12,11 +13,12 @@ import unitRoutes from "./routes/unit.routes.js";
 import userRoutes from "./routes/user.routes.js";
 
 const app = express();
+const uploadsDirectory = path.resolve("uploads");
 
 app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
-app.use("/uploads", express.static("uploads"));
+app.use("/uploads", express.static(uploadsDirectory));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/couriers", courierRoutes);

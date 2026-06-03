@@ -703,7 +703,7 @@ export function ParcelRegistrationPage() {
           <button
             className="parcel-back-button"
             type="button"
-            onClick={() => (step === 2 ? setStep(1) : navigate("/profile"))}
+            onClick={() => (step === 2 ? setStep(1) : navigate("/parcels"))}
             aria-label="Back"
           >
             <ArrowLeft size={20} />
@@ -827,7 +827,7 @@ export function ParcelRegistrationPage() {
               {formError && <p className="parcel-form-error">{formError}</p>}
 
               <div className="courier-info-actions">
-                <button className="plain-cancel-button" type="button" onClick={() => navigate("/profile")}>
+                <button className="plain-cancel-button" type="button" onClick={() => navigate("/parcels")}>
                   Cancel
                 </button>
                 <button className="parcel-primary-button" type="button" onClick={continueToParcelDetails}>

@@ -8,9 +8,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 const router = Router();
 
 router.use(requireAuth);
-router.use(requireRole("GUARD"));
 
-router.get("/", asyncHandler(listCouriers));
-router.post("/", asyncHandler(createCourierCompany));
+router.get("/", requireRole("ADMIN", "GUARD"), asyncHandler(listCouriers));
+router.post("/", requireRole("GUARD"), asyncHandler(createCourierCompany));
 
 export default router;

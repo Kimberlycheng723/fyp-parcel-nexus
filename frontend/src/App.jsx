@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
 import { AccountsPage } from "./pages/AccountsPage.jsx";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
+import { ParcelManagementPage } from "./pages/ParcelManagementPage.jsx";
 import { ParcelRegistrationPage } from "./pages/ParcelRegistrationPage.jsx";
 import { ProfilePage } from "./pages/ProfilePage.jsx";
 import { ActivateAccountPage, ResetPasswordPage } from "./pages/ResetPasswordPage.jsx";
@@ -89,6 +90,14 @@ function Router() {
     return (
       <ProtectedRoute>
         <AccountsPage />
+      </ProtectedRoute>
+    );
+  }
+
+  if (path === "/parcels") {
+    return (
+      <ProtectedRoute>
+        <ParcelManagementPage />
       </ProtectedRoute>
     );
   }
