@@ -7,7 +7,6 @@ function registrationErrorResponse(error) {
     PARCELS_REQUIRED: [400, "At least one parcel is required."],
     UNIT_REQUIRED: [400, "Unit is required for each parcel."],
     TRACKING_NUMBER_REQUIRED: [400, "Tracking number is required for each parcel."],
-    PARCEL_PHOTO_REQUIRED: [400, "Parcel photo is required for each parcel."],
     DUPLICATE_TRACKING_IN_SESSION: [409, "The same tracking number cannot be added twice in one session."],
     COURIER_NOT_FOUND: [404, "Courier company was not found or is not active."],
     UNIT_NOT_FOUND: [404, "Unit not found. Please ask Admin to create the resident/unit account first."],

@@ -2,11 +2,14 @@ import { getAccessToken } from "./tokenStorage.js";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
-function buildHeaders(options = {}) {
+function buildHeaders(options = {}, isFormData = false) {
   const headers = {
-    "Content-Type": "application/json",
     ...(options.headers || {})
   };
+
+  if (!isFormData) {
+    headers["Content-Type"] = "application/json";
+  }
 
   const token = getAccessToken();
 
@@ -18,10 +21,12 @@ function buildHeaders(options = {}) {
 }
 
 export async function apiRequest(path, options = {}) {
+  const isFormData = options.body instanceof FormData;
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
-    headers: buildHeaders(options),
-    body: options.body ? JSON.stringify(options.body) : undefined
+    headers: buildHeaders(options, isFormData),
+    body: options.body ? (isFormData ? options.body : JSON.stringify(options.body)) : undefined
   });
 
   const data = await response.json().catch(() => ({}));

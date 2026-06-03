@@ -65,7 +65,7 @@ const MENU_GROUPS = {
       label: "Operations",
       items: [
         { key: "dashboard", label: "Dashboard", icon: Gauge, muted: true },
-        { key: "parcels", label: "Parcels", icon: Box, muted: true, count: "312" },
+        { key: "parcels", label: "Parcels", icon: Box, path: "/parcels/new" },
         { key: "disputes", label: "Disputes", icon: AlertCircle, muted: true, count: "4", darkCount: true }
       ]
     },
@@ -115,7 +115,7 @@ function displayName(profile) {
   return profile?.email || "User";
 }
 
-export function ProtectedLayout({ profile, children }) {
+export function ProtectedLayout({ profile, children, hideTopActions = false }) {
   const { logout, user } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const sidebarUser = profile || user || {};
@@ -218,12 +218,14 @@ export function ProtectedLayout({ profile, children }) {
           <span>{roleLabel}</span>
         </div>
 
-        <div className="top-actions">
-          <button className="icon-button" type="button" title="Notifications coming later">
-            <Bell size={18} />
-            <span />
-          </button>
-        </div>
+        {!hideTopActions && (
+          <div className="top-actions">
+            <button className="icon-button" type="button" title="Notifications coming later">
+              <Bell size={18} />
+              <span />
+            </button>
+          </div>
+        )}
         {children}
       </section>
     </main>

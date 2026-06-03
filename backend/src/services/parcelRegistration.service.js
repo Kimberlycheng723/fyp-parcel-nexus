@@ -87,7 +87,7 @@ function validateSessionInput(input) {
   const normalizedParcels = parcels.map((parcel) => ({
     unit_id: normalizeRequiredString(parcel.unit_id),
     tracking_number: normalizeRequiredString(parcel.tracking_number),
-    parcel_photo_url: normalizeRequiredString(parcel.parcel_photo_url)
+    parcel_photo_url: normalizeRequiredString(parcel.parcel_photo_url) || null
   }));
 
   for (const parcel of normalizedParcels) {
@@ -99,9 +99,6 @@ function validateSessionInput(input) {
       return { error: "TRACKING_NUMBER_REQUIRED" };
     }
 
-    if (!parcel.parcel_photo_url) {
-      return { error: "PARCEL_PHOTO_REQUIRED" };
-    }
   }
 
   const trackingNumbers = normalizedParcels.map((parcel) => parcel.tracking_number.toLowerCase());

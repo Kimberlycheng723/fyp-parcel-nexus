@@ -121,6 +121,7 @@ The seed script uses values from your local `.env`. Real credentials are not har
 - `/activate`
 - `/profile`
 - `/accounts`
+- `/parcels/new`
 
 ## Main Backend API Groups
 
@@ -163,6 +164,8 @@ Current backend support includes:
 Units must already exist before parcel registration. If a unit is missing, Admin should create the resident/unit account first through User Management.
 
 Parcel photos are stored locally in `backend/uploads/parcels/` during development. The frontend camera capture flow will be implemented later; the backend already supports receiving the captured or selected image file. Notification sending for registered parcels is also a future module.
+
+The `/parcels/new` frontend route is available for `GUARD` users only. It supports the two-step courier session flow, unit lookup, optional parcel photo capture/upload, and physical barcode scanner input through normal keyboard-style scanning. Units must already exist before a guard can register parcels. Camera access depends on browser permission and normally requires HTTPS in real deployment.
 
 ## Email Sending
 

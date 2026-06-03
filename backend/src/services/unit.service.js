@@ -82,13 +82,23 @@ export async function searchUnits({ search }) {
 
   const result = await pool.query(
     `
-      SELECT unit_id, block, floor, unit_number, full_unit_code
+      SELECT
+        units.unit_id,
+        units.block,
+        units.floor,
+        units.unit_number,
+        units.full_unit_code,
+        resident.user_id AS resident_user_id,
+        resident.status AS resident_status
       FROM units
-      WHERE LOWER(full_unit_code) LIKE LOWER($1)
-        OR LOWER(block) LIKE LOWER($1)
-        OR LOWER(floor) LIKE LOWER($1)
-        OR LOWER(unit_number) LIKE LOWER($1)
-      ORDER BY full_unit_code ASC
+      LEFT JOIN users resident
+        ON resident.unit_id = units.unit_id
+        AND resident.role = 'RESIDENT'
+      WHERE LOWER(units.full_unit_code) LIKE LOWER($1)
+        OR LOWER(units.block) LIKE LOWER($1)
+        OR LOWER(units.floor) LIKE LOWER($1)
+        OR LOWER(units.unit_number) LIKE LOWER($1)
+      ORDER BY units.full_unit_code ASC
       LIMIT 20
     `,
     [`%${searchText}%`]
