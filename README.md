@@ -202,6 +202,8 @@ Only `ADMIN` users can access the Admin dashboard endpoint. `SUPER_ADMIN`, `GUAR
 
 The `/dashboard` frontend route shows the Admin analytical dashboard. It uses real `/api/dashboard/admin` data only, supports Day/Week/Month period switching, and does not use fake dashboard numbers.
 
+Admin report export is available through `/api/dashboard/admin/reports/export`. It supports dashboard summary, parcel records, and user account summary reports in CSV or PDF format. Reports are Admin-only and exclude sensitive fields such as password hashes, token hashes, reset tokens, activation tokens, SMTP values, and local environment secrets.
+
 ## Email Sending
 
 Parcel Nexus uses Gmail SMTP with a Google App Password for system emails such as password reset and account activation.
