@@ -35,8 +35,9 @@ The project currently includes:
 - Parcel Registration backend foundation
 - Parcel Management backend foundation for Admin and Guard users
 - Parcel Management frontend for Admin and Guard users
+- Resident parcel viewing backend foundation
 
-Resident parcel viewing and Parcel Collection are planned but not implemented yet.
+Resident parcel collection and QR verification are planned but not implemented yet.
 
 ## Environment Setup
 
@@ -137,6 +138,7 @@ The seed script uses values from your local `.env`. Real credentials are not har
 - `/api/parcel-registration`
 - `/api/parcels`
 - `/api/dashboard`
+- `/api/resident`
 
 Detailed API testing steps are maintained separately during development.
 
@@ -208,6 +210,12 @@ The `/api/dashboard/guard` endpoint provides the Guard operational dashboard. It
 
 For `GUARD` users, the `/dashboard` frontend route shows the Guard operational dashboard. It uses real `/api/dashboard/guard` data, links Log new parcel to `/parcels/new`, and keeps Verify Collection as a future Parcel Collection step.
 
+## Resident Parcel Viewing Backend
+
+The `/api/resident/parcels` API group is available to `RESIDENT` users only.
+
+Residents can view parcel summaries, pending parcel records, collected parcel history, and parcel details for their own unit only. The backend scopes every resident parcel query through the resident account’s assigned `unit_id`, excludes soft-deleted parcels, and prepares the pending/history data needed for future QR collection.
+
 ## Email Sending
 
 Parcel Nexus uses Gmail SMTP with a Google App Password for system emails such as password reset and account activation.
@@ -221,7 +229,7 @@ SMTP credentials must be stored only in the local `.env` file. They should not b
 - Do not commit `node_modules`.
 - Do not use `docker compose down -v` unless you intentionally want to delete local PostgreSQL data.
 - Notification preferences in the current frontend are local placeholders only. No notification backend or database table has been implemented yet.
-- Resident parcel viewing and Parcel Collection are not implemented yet.
+- Resident parcel collection and QR verification are not implemented yet.
 
 ## Future Modules
 

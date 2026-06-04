@@ -578,10 +578,10 @@ export function ParcelManagementPage() {
 
 function SummaryCards({ summary, isLoading }) {
   const cards = [
-    { label: "TOTAL PARCELS", value: summary?.total_parcels, helper: "across active records", icon: Package },
-    { label: "PENDING", value: summary?.pending_collection_parcels, helper: "awaiting collection", dot: "amber" },
-    { label: "COLLECTED THIS MONTH", value: summary?.collected_this_month, helper: "completed collections", dot: "green" },
-    { label: "OVERDUE PARCELS", value: summary?.overdue_parcels, helper: "action needed", dot: "red" }
+    { label: "TOTAL PARCELS LOGGED", value: summary?.total_parcels, helper: "all active records" },
+    { label: "PENDING COLLECTION", value: summary?.pending_collection_parcels, helper: "current waiting pickup", dot: "amber" },
+    { label: "TOTAL PARCELS COLLECTED", value: summary?.collected_parcels, helper: "all collected records", dot: "green" },
+    { label: "OVERDUE PARCELS", value: summary?.overdue_parcels, helper: "current past deadline", dot: "red" }
   ];
 
   return (

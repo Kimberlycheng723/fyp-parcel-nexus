@@ -346,9 +346,7 @@ export async function getParcelSummary({ requester }) {
         )::int AS pending_collection_parcels,
         COUNT(*) FILTER (
           WHERE status = 'COLLECTED'
-            AND COALESCE(collected_at, updated_at) >= date_trunc('month', NOW())
-            AND COALESCE(collected_at, updated_at) < date_trunc('month', NOW()) + INTERVAL '1 month'
-        )::int AS collected_this_month,
+        )::int AS collected_parcels,
         COUNT(*) FILTER (
           WHERE status IN ('PENDING', 'PENDING_COLLECTION')
             AND collection_deadline IS NOT NULL

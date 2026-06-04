@@ -8,6 +8,7 @@ function dashboardErrorResponse(error) {
   const responses = {
     FORBIDDEN: [403, "Only Admin can access the admin dashboard."],
     INVALID_PERIOD: [400, "Period must be day, week, or month."],
+    INVALID_GUARD_PERIOD: [400, "Period must be today, week, or month."],
     INVALID_START_DATE: [400, "Start date must use YYYY-MM-DD format."],
     INVALID_REPORT_TYPE: [400, "Report type must be dashboard_summary, parcel_records, or user_account_summary."],
     INVALID_FORMAT: [400, "Format must be csv or pdf."],
@@ -35,7 +36,9 @@ export async function getAdminDashboardData(req, res) {
 
 export async function getGuardDashboardData(req, res) {
   const result = await getGuardDashboard({
-    requester: req.user
+    requester: req.user,
+    period: req.query.period || "today",
+    startDate: req.query.start_date
   });
 
   if (result.error) {

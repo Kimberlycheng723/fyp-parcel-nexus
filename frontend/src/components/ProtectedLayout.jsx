@@ -64,7 +64,7 @@ const MENU_GROUPS = {
     {
       label: "Operations",
       items: [
-        { key: "dashboard", label: "Dashboard", icon: Gauge, muted: true },
+        { key: "dashboard", label: "Dashboard", icon: Gauge, path: "/dashboard" },
         { key: "parcels", label: "Parcels", icon: Box, path: "/parcels" },
         { key: "disputes", label: "Disputes", icon: AlertCircle, muted: true }
       ]

@@ -3,6 +3,7 @@ import PDFDocument from "pdfkit";
 import { pool } from "../db/pool.js";
 
 const VALID_PERIODS = ["day", "week", "month"];
+const VALID_GUARD_PERIODS = ["today", "day", "week", "month"];
 const VALID_REPORT_TYPES = ["dashboard_summary", "parcel_records", "user_account_summary"];
 const VALID_REPORT_FORMATS = ["csv", "pdf"];
 
@@ -274,6 +275,48 @@ function getPeriodConfig(period, { startDate } = {}) {
     comparisonLabel: "vs yesterday",
     trendStep: "1 hour",
     trendFormat: "HH24:00"
+  };
+}
+
+function getGuardPeriodConfig(period = "today", { startDate } = {}) {
+  const normalizedPeriod = period === "day" ? "today" : period;
+
+  if (!VALID_GUARD_PERIODS.includes(period)) {
+    return { error: "INVALID_GUARD_PERIOD" };
+  }
+
+  const selectedStart = startDate ? parseDateInput(startDate) : startOfDay(new Date());
+
+  if (startDate && !selectedStart) {
+    return { error: "INVALID_START_DATE" };
+  }
+
+  if (normalizedPeriod === "week") {
+    return {
+      period: "week",
+      selected: "week",
+      label: "Selected 7 days",
+      start: selectedStart,
+      end: addDays(selectedStart, 7)
+    };
+  }
+
+  if (normalizedPeriod === "month") {
+    return {
+      period: "month",
+      selected: "month",
+      label: "Selected month range",
+      start: selectedStart,
+      end: addCalendarMonths(selectedStart, 1)
+    };
+  }
+
+  return {
+    period: "day",
+    selected: "today",
+    label: "Selected day",
+    start: selectedStart,
+    end: addDays(selectedStart, 1)
   };
 }
 
@@ -585,17 +628,14 @@ function mapGuardParcelRow(row) {
   };
 }
 
-async function getGuardSummary(guardId) {
-  const todayStart = startOfDay(new Date());
-  const tomorrowStart = addDays(todayStart, 1);
+async function getGuardSummary({ start, end }) {
   const result = await pool.query(
     `
       SELECT
         COUNT(*) FILTER (
           WHERE created_at >= $1
             AND created_at < $2
-            AND registered_by = $3
-        )::int AS total_parcels_today,
+        )::int AS parcels_logged,
         COUNT(*) FILTER (
           WHERE status IN ('PENDING', 'PENDING_COLLECTION')
         )::int AS pending_collection,
@@ -603,7 +643,7 @@ async function getGuardSummary(guardId) {
           WHERE status = 'COLLECTED'
             AND COALESCE(collected_at, updated_at) >= $1
             AND COALESCE(collected_at, updated_at) < $2
-        )::int AS collected_today,
+        )::int AS collected_parcels,
         COUNT(*) FILTER (
           WHERE status IN ('PENDING', 'PENDING_COLLECTION')
             AND collection_deadline IS NOT NULL
@@ -612,19 +652,19 @@ async function getGuardSummary(guardId) {
       FROM parcels
       WHERE deleted_at IS NULL
     `,
-    [todayStart, tomorrowStart, guardId]
+    [start, end]
   );
   const row = result.rows[0] || {};
 
   return {
-    total_parcels_today: numberValue(row.total_parcels_today),
+    parcels_logged: numberValue(row.parcels_logged),
     pending_collection: numberValue(row.pending_collection),
-    collected_today: numberValue(row.collected_today),
+    collected_parcels: numberValue(row.collected_parcels),
     overdue_parcels: numberValue(row.overdue_parcels)
   };
 }
 
-async function getLatestLoggedParcelsForGuard(guardId) {
+async function getLatestLoggedParcelsForGuard() {
   const result = await pool.query(
     `
       SELECT
@@ -645,11 +685,9 @@ async function getLatestLoggedParcelsForGuard(guardId) {
       LEFT JOIN units u ON u.unit_id = p.unit_id
       LEFT JOIN courier_companies c ON c.courier_id = p.courier_id
       WHERE p.deleted_at IS NULL
-        AND p.registered_by = $1
       ORDER BY p.created_at DESC
       LIMIT 5
-    `,
-    [guardId]
+    `
   );
 
   return result.rows.map(mapGuardParcelRow);
@@ -795,9 +833,9 @@ function buildDashboardSummaryCsv({ metadata, dashboard }) {
     csvSection("Report Metadata", metadataRows(metadata)),
     csvSection("KPI Summary", [
       ["Metric", "Value"],
-      ["Total Parcels", numberValue(kpis.total_parcels?.value)],
+      ["Parcels Logged", numberValue(kpis.total_parcels?.value)],
       ["Pending Collection", numberValue(kpis.pending_collection?.value)],
-      ["Collected", numberValue(kpis.collected?.value)],
+      ["Collected Parcels", numberValue(kpis.collected?.value)],
       ["Overdue Parcels", numberValue(kpis.pending_collection?.overdue_count)],
       ["Open Disputes", numberValue(kpis.open_disputes?.value)],
       ["Dispute Data Available", kpis.open_disputes?.available === false ? "No" : "Yes"]
@@ -992,9 +1030,9 @@ function buildDashboardSummaryPdf({ metadata, dashboard }) {
 
     addPdfSectionTitle(doc, "KPI Summary");
     addPdfRows(doc, ["Metric", "Value"], [
-      ["Total Parcels", numberValue(kpis.total_parcels?.value)],
+      ["Parcels Logged", numberValue(kpis.total_parcels?.value)],
       ["Pending Collection", numberValue(kpis.pending_collection?.value)],
-      ["Collected", numberValue(kpis.collected?.value)],
+      ["Collected Parcels", numberValue(kpis.collected?.value)],
       ["Overdue Parcels", numberValue(kpis.pending_collection?.overdue_count)],
       ["Open Disputes", numberValue(kpis.open_disputes?.value)]
     ]);
@@ -1180,12 +1218,7 @@ export async function getAdminDashboard({ requester, period = "day", startDate }
     },
     kpis: {
       total_parcels: {
-        label:
-          normalizedPeriod === "day"
-            ? "Total Parcels Today"
-            : normalizedPeriod === "week"
-              ? "Total Parcels This Week"
-              : "Total Parcels This Month",
+        label: "Parcels Logged",
         value: totalParcels,
         comparison_label: config.comparisonLabel,
         comparison_value: previousTotalParcels,
@@ -1201,12 +1234,7 @@ export async function getAdminDashboard({ requester, period = "day", startDate }
         message: "Pending collection is a current operational count, not a historical snapshot."
       },
       collected: {
-        label:
-          normalizedPeriod === "day"
-            ? "Collected Today"
-            : normalizedPeriod === "week"
-              ? "Collected This Week"
-              : "Collected This Month",
+        label: "Collected Parcels",
         value: collected,
         comparison_label: config.comparisonLabel,
         comparison_value: previousCollected,
@@ -1237,14 +1265,21 @@ export async function getAdminDashboard({ requester, period = "day", startDate }
   };
 }
 
-export async function getGuardDashboard({ requester }) {
+export async function getGuardDashboard({ requester, period = "today", startDate }) {
   if (requester.role !== "GUARD") {
     return { error: "GUARD_FORBIDDEN" };
   }
 
+  const normalizedPeriod = String(period || "today").trim().toLowerCase();
+  const config = getGuardPeriodConfig(normalizedPeriod, { startDate });
+
+  if (config.error) {
+    return { error: config.error };
+  }
+
   const [summary, latestLoggedParcels, pendingCollectionParcels] = await Promise.all([
-    getGuardSummary(requester.user_id),
-    getLatestLoggedParcelsForGuard(requester.user_id),
+    getGuardSummary(config),
+    getLatestLoggedParcelsForGuard(),
     getPendingCollectionParcelsForGuard()
   ]);
   const overdueCount = numberValue(summary.overdue_parcels);
@@ -1255,6 +1290,12 @@ export async function getGuardDashboard({ requester }) {
       email: requester.email,
       assigned_post: requester.assigned_post || null,
       parcel_room: null
+    },
+    period: {
+      selected: config.selected,
+      start: toIso(config.start),
+      end: toIso(config.end),
+      label: config.label
     },
     summary,
     alert:
@@ -1270,7 +1311,11 @@ export async function getGuardDashboard({ requester }) {
             message: ""
           },
     latest_logged_parcels: latestLoggedParcels,
-    pending_collection_parcels: pendingCollectionParcels
+    pending_collection_parcels: pendingCollectionParcels,
+    dispute_summary: {
+      available: false,
+      message: "Dispute module is not implemented yet."
+    }
   };
 }
 

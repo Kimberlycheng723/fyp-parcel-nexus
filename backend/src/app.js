@@ -10,6 +10,7 @@ import healthRoutes from "./routes/health.routes.js";
 import parcelRoutes from "./routes/parcel.routes.js";
 import parcelRegistrationRoutes from "./routes/parcelRegistration.routes.js";
 import profileRoutes from "./routes/profile.routes.js";
+import residentParcelRoutes from "./routes/residentParcel.routes.js";
 import unitRoutes from "./routes/unit.routes.js";
 import userRoutes from "./routes/user.routes.js";
 
@@ -30,6 +31,7 @@ app.use("/api/health", healthRoutes);
 app.use("/api/parcels", parcelRoutes);
 app.use("/api/parcel-registration", parcelRegistrationRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/resident", residentParcelRoutes);
 app.use("/api/units", unitRoutes);
 app.use("/api/users", userRoutes);
 

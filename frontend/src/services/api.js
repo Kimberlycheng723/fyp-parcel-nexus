@@ -40,3 +40,23 @@ export async function apiRequest(path, options = {}) {
 
   return data;
 }
+
+export async function apiDownload(path, options = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: buildHeaders(options, true)
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    const error = new Error(data.message || "Download failed. Please try again.");
+    error.status = response.status;
+    throw error;
+  }
+
+  return {
+    blob: await response.blob(),
+    filename: response.headers.get("Content-Disposition") || "",
+    contentType: response.headers.get("Content-Type") || ""
+  };
+}
