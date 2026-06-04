@@ -135,6 +135,7 @@ The seed script uses values from your local `.env`. Real credentials are not har
 - `/api/units`
 - `/api/parcel-registration`
 - `/api/parcels`
+- `/api/dashboard`
 
 Detailed API testing steps are maintained separately during development.
 
@@ -189,6 +190,14 @@ Parcel display statuses are:
 `OVERDUE` is calculated from `collection_deadline`; it is not manually stored as a parcel status. Parcel deletion uses soft delete fields so records are hidden from normal lists without being physically removed from the database.
 
 The `/parcels` frontend route is available for `ADMIN` and `GUARD` users. Admin can view, edit, delete, and export parcel records. Guard can view and edit parcel records and can navigate to `/parcels/new` to log new parcels. Verify Collection, Resident parcel viewing, and QR collection are future steps.
+
+## Dashboard Backend
+
+The `/api/dashboard/admin` endpoint provides real database analytics for the Admin dashboard.
+
+It supports `period=day`, `period=week`, and `period=month`. Values are calculated from existing parcel, user, and unit records only. If future modules such as disputes are not implemented yet, the response returns safe zero or empty values with `available: false` instead of fake data.
+
+Only `ADMIN` users can access the Admin dashboard endpoint. `SUPER_ADMIN`, `GUARD`, and `RESIDENT` users are rejected.
 
 ## Email Sending
 

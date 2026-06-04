@@ -5,6 +5,7 @@ import path from "node:path";
 
 import authRoutes from "./routes/auth.routes.js";
 import courierRoutes from "./routes/courier.routes.js";
+import dashboardRoutes from "./routes/dashboard.routes.js";
 import healthRoutes from "./routes/health.routes.js";
 import parcelRoutes from "./routes/parcel.routes.js";
 import parcelRegistrationRoutes from "./routes/parcelRegistration.routes.js";
@@ -22,6 +23,7 @@ app.use("/uploads", express.static(uploadsDirectory));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/couriers", courierRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/health", healthRoutes);
 app.use("/api/parcels", parcelRoutes);
 app.use("/api/parcel-registration", parcelRegistrationRoutes);
