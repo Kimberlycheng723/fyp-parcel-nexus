@@ -36,9 +36,9 @@ const MENU_GROUPS = {
     {
       label: "Operations",
       items: [
-        { key: "dashboard", label: "Dashboard", icon: Gauge, muted: true },
-        { key: "parcels", label: "Parcels", icon: Box, path: "/parcels", count: "312" },
-        { key: "disputes", label: "Disputes", icon: AlertCircle, muted: true, count: "4", darkCount: true }
+        { key: "dashboard", label: "Dashboard", icon: Gauge, path: "/dashboard" },
+        { key: "parcels", label: "Parcels", icon: Box, path: "/parcels" },
+        { key: "disputes", label: "Disputes", icon: AlertCircle, muted: true }
       ]
     },
     {
@@ -65,8 +65,8 @@ const MENU_GROUPS = {
       label: "Operations",
       items: [
         { key: "dashboard", label: "Dashboard", icon: Gauge, muted: true },
-        { key: "parcels", label: "Parcels", icon: Box, path: "/parcels", count: "312" },
-        { key: "disputes", label: "Disputes", icon: AlertCircle, muted: true, count: "4", darkCount: true }
+        { key: "parcels", label: "Parcels", icon: Box, path: "/parcels" },
+        { key: "disputes", label: "Disputes", icon: AlertCircle, muted: true }
       ]
     },
     {
@@ -80,7 +80,7 @@ const MENU_GROUPS = {
     {
       label: "Operations",
       items: [
-        { key: "parcels", label: "Parcels", icon: Box, muted: true, count: "3" },
+        { key: "parcels", label: "Parcels", icon: Box, muted: true },
         { key: "disputes", label: "Disputes", icon: AlertCircle, muted: true }
       ]
     }

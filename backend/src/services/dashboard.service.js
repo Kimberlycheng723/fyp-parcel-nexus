@@ -26,6 +26,39 @@ function addMonths(date, months) {
   return new Date(date.getFullYear(), date.getMonth() + months, 1);
 }
 
+function addCalendarMonths(date, months) {
+  const day = date.getDate();
+  const result = new Date(date.getFullYear(), date.getMonth() + months, 1);
+  const lastDay = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
+  result.setDate(Math.min(day, lastDay));
+  result.setHours(date.getHours(), date.getMinutes(), date.getSeconds(), date.getMilliseconds());
+  return result;
+}
+
+function parseDateInput(value) {
+  if (!value) {
+    return null;
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return null;
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
 function calculateChangePercent(currentValue, comparisonValue) {
   if (comparisonValue === null || comparisonValue === undefined) {
     return null;
@@ -42,8 +75,56 @@ function numberValue(value) {
   return Number(value || 0);
 }
 
-function getPeriodConfig(period) {
+function getPeriodConfig(period, { startDate } = {}) {
   const now = new Date();
+  const selectedStart = startDate ? parseDateInput(startDate) : null;
+
+  if (startDate && !selectedStart) {
+    return { error: "INVALID_START_DATE" };
+  }
+
+  if (selectedStart) {
+    if (period === "week") {
+      return {
+        period,
+        label: "Selected 7 days",
+        start: selectedStart,
+        end: addDays(selectedStart, 7),
+        previousStart: addDays(selectedStart, -7),
+        previousEnd: selectedStart,
+        comparisonLabel: "vs previous 7 days",
+        trendStep: "1 day",
+        trendFormat: "Dy, DD Mon"
+      };
+    }
+
+    if (period === "month") {
+      const end = addCalendarMonths(selectedStart, 1);
+      return {
+        period,
+        label: "Selected month range",
+        start: selectedStart,
+        end,
+        previousStart: addCalendarMonths(selectedStart, -1),
+        previousEnd: selectedStart,
+        comparisonLabel: "vs previous month",
+        trendStep: "1 day",
+        trendFormat: "DD Mon"
+      };
+    }
+
+    return {
+      period: "day",
+      label: "Selected day",
+      start: selectedStart,
+      end: addDays(selectedStart, 1),
+      previousStart: addDays(selectedStart, -1),
+      previousEnd: selectedStart,
+      comparisonLabel: "vs previous day",
+      trendStep: "1 hour",
+      trendFormat: "HH24:00"
+    };
+  }
 
   if (period === "week") {
     const start = addDays(now, -6);
@@ -380,7 +461,7 @@ async function getRecentActivity() {
   }));
 }
 
-export async function getAdminDashboard({ requester, period = "day" }) {
+export async function getAdminDashboard({ requester, period = "day", startDate }) {
   if (requester.role !== "ADMIN") {
     return { error: "FORBIDDEN" };
   }
@@ -391,7 +472,11 @@ export async function getAdminDashboard({ requester, period = "day" }) {
     return { error: "INVALID_PERIOD" };
   }
 
-  const config = getPeriodConfig(normalizedPeriod);
+  const config = getPeriodConfig(normalizedPeriod, { startDate });
+
+  if (config.error) {
+    return { error: config.error };
+  }
   const [totalParcels, previousTotalParcels, collected, previousCollected, pendingData] = await Promise.all([
     getRangeParcelCount(config),
     getRangeParcelCount({
@@ -471,7 +556,10 @@ export async function getAdminDashboard({ requester, period = "day" }) {
         ? {
             type: "overdue",
             overdue_count: pendingData.overdueCount,
-            message: `${pendingData.overdueCount} parcels are overdue today. Overdue reminders should be reviewed.`
+            message:
+              pendingData.overdueCount === 1
+                ? "1 parcel is overdue."
+                : `${pendingData.overdueCount} parcels are overdue.`
           }
         : {
             type: "none",

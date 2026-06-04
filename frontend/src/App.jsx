@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { ProtectedRoute } from "./components/ProtectedRoute.jsx";
 import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
 import { AccountsPage } from "./pages/AccountsPage.jsx";
+import { DashboardPage } from "./pages/DashboardPage.jsx";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { ParcelManagementPage } from "./pages/ParcelManagementPage.jsx";
@@ -90,6 +91,14 @@ function Router() {
     return (
       <ProtectedRoute>
         <AccountsPage />
+      </ProtectedRoute>
+    );
+  }
+
+  if (path === "/dashboard") {
+    return (
+      <ProtectedRoute>
+        <DashboardPage />
       </ProtectedRoute>
     );
   }

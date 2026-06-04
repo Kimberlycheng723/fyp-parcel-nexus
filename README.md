@@ -121,6 +121,7 @@ The seed script uses values from your local `.env`. Real credentials are not har
 - `/forgot-password`
 - `/reset-password`
 - `/activate`
+- `/dashboard`
 - `/profile`
 - `/accounts`
 - `/parcels/new`
@@ -198,6 +199,8 @@ The `/api/dashboard/admin` endpoint provides real database analytics for the Adm
 It supports `period=day`, `period=week`, and `period=month`. Values are calculated from existing parcel, user, and unit records only. If future modules such as disputes are not implemented yet, the response returns safe zero or empty values with `available: false` instead of fake data.
 
 Only `ADMIN` users can access the Admin dashboard endpoint. `SUPER_ADMIN`, `GUARD`, and `RESIDENT` users are rejected.
+
+The `/dashboard` frontend route shows the Admin analytical dashboard. It uses real `/api/dashboard/admin` data only, supports Day/Week/Month period switching, and does not use fake dashboard numbers.
 
 ## Email Sending
 

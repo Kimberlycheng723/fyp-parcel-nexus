@@ -1,6 +1,7 @@
 @import "./styles/base.css";
 @import "./styles/auth.css";
 @import "./styles/layout.css";
+@import "./styles/dashboard.css";
 @import "./styles/profile.css";
 @import "./styles/accounts.css";
 @import "./styles/parcel-registration.css";
