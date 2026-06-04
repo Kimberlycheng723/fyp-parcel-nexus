@@ -17,7 +17,9 @@ const app = express();
 const uploadsDirectory = path.resolve("uploads");
 
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  exposedHeaders: ["Content-Disposition"]
+}));
 app.use(express.json({ limit: "2mb" }));
 app.use("/uploads", express.static(uploadsDirectory));
 

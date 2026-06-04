@@ -204,6 +204,10 @@ The `/dashboard` frontend route shows the Admin analytical dashboard. It uses re
 
 Admin report export is available through `/api/dashboard/admin/reports/export`. It supports dashboard summary, parcel records, and user account summary reports in CSV or PDF format. Reports are Admin-only and exclude sensitive fields such as password hashes, token hashes, reset tokens, activation tokens, SMTP values, and local environment secrets.
 
+The `/api/dashboard/guard` endpoint provides the Guard operational dashboard. It is available to `GUARD` users only and uses real parcel records for today’s registrations, pending collection, collected today, overdue parcels, latest logged parcels, and pending collection parcels.
+
+For `GUARD` users, the `/dashboard` frontend route shows the Guard operational dashboard. It uses real `/api/dashboard/guard` data, links Log new parcel to `/parcels/new`, and keeps Verify Collection as a future Parcel Collection step.
+
 ## Email Sending
 
 Parcel Nexus uses Gmail SMTP with a Google App Password for system emails such as password reset and account activation.

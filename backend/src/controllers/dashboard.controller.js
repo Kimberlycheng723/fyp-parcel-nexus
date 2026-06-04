@@ -1,4 +1,8 @@
-import { generateAdminReport, getAdminDashboard } from "../services/dashboard.service.js";
+import {
+  generateAdminReport,
+  getAdminDashboard,
+  getGuardDashboard
+} from "../services/dashboard.service.js";
 
 function dashboardErrorResponse(error) {
   const responses = {
@@ -6,7 +10,8 @@ function dashboardErrorResponse(error) {
     INVALID_PERIOD: [400, "Period must be day, week, or month."],
     INVALID_START_DATE: [400, "Start date must use YYYY-MM-DD format."],
     INVALID_REPORT_TYPE: [400, "Report type must be dashboard_summary, parcel_records, or user_account_summary."],
-    INVALID_FORMAT: [400, "Format must be csv or pdf."]
+    INVALID_FORMAT: [400, "Format must be csv or pdf."],
+    GUARD_FORBIDDEN: [403, "Only Guard can access the guard dashboard."]
   };
 
   const [status, message] = responses[error] || [500, "Unable to load dashboard data."];
@@ -18,6 +23,19 @@ export async function getAdminDashboardData(req, res) {
     requester: req.user,
     period: req.query.period || "day",
     startDate: req.query.start_date
+  });
+
+  if (result.error) {
+    const response = dashboardErrorResponse(result.error);
+    return res.status(response.status).json(response.body);
+  }
+
+  return res.json(result);
+}
+
+export async function getGuardDashboardData(req, res) {
+  const result = await getGuardDashboard({
+    requester: req.user
   });
 
   if (result.error) {

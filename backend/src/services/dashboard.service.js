@@ -559,6 +559,138 @@ async function getRecentActivity() {
   }));
 }
 
+function getParcelDisplayStatus(row) {
+  if (row.status === "COLLECTED") {
+    return "Collected";
+  }
+
+  if (row.is_overdue) {
+    return "Overdue";
+  }
+
+  return "Pending Collection";
+}
+
+function mapGuardParcelRow(row) {
+  return {
+    parcel_id: row.parcel_id,
+    tracking_number: row.tracking_number,
+    unit_full_code: row.unit_full_code,
+    courier_name: row.courier_name,
+    courier_code: row.courier_code,
+    display_status: getParcelDisplayStatus(row),
+    is_overdue: Boolean(row.is_overdue),
+    collection_deadline: row.collection_deadline,
+    created_at: row.created_at
+  };
+}
+
+async function getGuardSummary(guardId) {
+  const todayStart = startOfDay(new Date());
+  const tomorrowStart = addDays(todayStart, 1);
+  const result = await pool.query(
+    `
+      SELECT
+        COUNT(*) FILTER (
+          WHERE created_at >= $1
+            AND created_at < $2
+            AND registered_by = $3
+        )::int AS total_parcels_today,
+        COUNT(*) FILTER (
+          WHERE status IN ('PENDING', 'PENDING_COLLECTION')
+        )::int AS pending_collection,
+        COUNT(*) FILTER (
+          WHERE status = 'COLLECTED'
+            AND COALESCE(collected_at, updated_at) >= $1
+            AND COALESCE(collected_at, updated_at) < $2
+        )::int AS collected_today,
+        COUNT(*) FILTER (
+          WHERE status IN ('PENDING', 'PENDING_COLLECTION')
+            AND collection_deadline IS NOT NULL
+            AND collection_deadline < NOW()
+        )::int AS overdue_parcels
+      FROM parcels
+      WHERE deleted_at IS NULL
+    `,
+    [todayStart, tomorrowStart, guardId]
+  );
+  const row = result.rows[0] || {};
+
+  return {
+    total_parcels_today: numberValue(row.total_parcels_today),
+    pending_collection: numberValue(row.pending_collection),
+    collected_today: numberValue(row.collected_today),
+    overdue_parcels: numberValue(row.overdue_parcels)
+  };
+}
+
+async function getLatestLoggedParcelsForGuard(guardId) {
+  const result = await pool.query(
+    `
+      SELECT
+        p.parcel_id,
+        p.tracking_number,
+        p.status,
+        (
+          p.status IN ('PENDING', 'PENDING_COLLECTION')
+          AND p.collection_deadline IS NOT NULL
+          AND p.collection_deadline < NOW()
+        ) AS is_overdue,
+        u.full_unit_code AS unit_full_code,
+        c.courier_name,
+        c.courier_code,
+        p.collection_deadline,
+        p.created_at
+      FROM parcels p
+      LEFT JOIN units u ON u.unit_id = p.unit_id
+      LEFT JOIN courier_companies c ON c.courier_id = p.courier_id
+      WHERE p.deleted_at IS NULL
+        AND p.registered_by = $1
+      ORDER BY p.created_at DESC
+      LIMIT 5
+    `,
+    [guardId]
+  );
+
+  return result.rows.map(mapGuardParcelRow);
+}
+
+async function getPendingCollectionParcelsForGuard() {
+  const result = await pool.query(
+    `
+      SELECT
+        p.parcel_id,
+        p.tracking_number,
+        p.status,
+        (
+          p.status IN ('PENDING', 'PENDING_COLLECTION')
+          AND p.collection_deadline IS NOT NULL
+          AND p.collection_deadline < NOW()
+        ) AS is_overdue,
+        u.full_unit_code AS unit_full_code,
+        c.courier_name,
+        c.courier_code,
+        p.collection_deadline,
+        p.created_at
+      FROM parcels p
+      LEFT JOIN units u ON u.unit_id = p.unit_id
+      LEFT JOIN courier_companies c ON c.courier_id = p.courier_id
+      WHERE p.deleted_at IS NULL
+        AND p.status IN ('PENDING', 'PENDING_COLLECTION')
+      ORDER BY
+        CASE
+          WHEN p.collection_deadline IS NOT NULL AND p.collection_deadline < NOW() THEN 0
+          ELSE 1
+        END,
+        p.collection_deadline ASC NULLS LAST,
+        p.created_at DESC
+      LIMIT 5
+    `
+  );
+
+  return result.rows.map(mapGuardParcelRow);
+}
+
 async function getParcelRecordsForReport(config) {
   const result = await pool.query(
     `
@@ -1102,6 +1234,43 @@ export async function getAdminDashboard({ requester, period = "day", startDate }
     dispute_summary: disputeData.summary,
     system_summary: systemSummary,
     recent_activity: recentActivity
+  };
+}
+
+export async function getGuardDashboard({ requester }) {
+  if (requester.role !== "GUARD") {
+    return { error: "GUARD_FORBIDDEN" };
+  }
+
+  const [summary, latestLoggedParcels, pendingCollectionParcels] = await Promise.all([
+    getGuardSummary(requester.user_id),
+    getLatestLoggedParcelsForGuard(requester.user_id),
+    getPendingCollectionParcelsForGuard()
+  ]);
+  const overdueCount = numberValue(summary.overdue_parcels);
+
+  return {
+    guard: {
+      name: displayUserName(requester),
+      email: requester.email,
+      assigned_post: requester.assigned_post || null,
+      parcel_room: null
+    },
+    summary,
+    alert:
+      overdueCount > 0
+        ? {
+            type: "overdue",
+            count: overdueCount,
+            message: overdueCount === 1 ? "1 parcel is overdue." : `${overdueCount} parcels are overdue.`
+          }
+        : {
+            type: "none",
+            count: 0,
+            message: ""
+          },
+    latest_logged_parcels: latestLoggedParcels,
+    pending_collection_parcels: pendingCollectionParcels
   };
 }
 
