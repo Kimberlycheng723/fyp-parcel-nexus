@@ -1,6 +1,7 @@
 import {
   Bell,
   Box,
+  Building2,
   ClipboardList,
   Gauge,
   LogOut,
@@ -80,8 +81,7 @@ const MENU_GROUPS = {
     {
       label: "Operations",
       items: [
-        { key: "parcels", label: "Parcels", icon: Box, muted: true },
-        { key: "disputes", label: "Disputes", icon: AlertCircle, muted: true }
+        { key: "dashboard", label: "Dashboard", icon: Gauge, path: "/dashboard" }
       ]
     }
   ]
@@ -123,6 +123,8 @@ export function ProtectedLayout({ profile, children, hideTopActions = false }) {
   const roleLabel = ROLE_LABELS[role] || role.replace("_", " ");
   const menuGroups = MENU_GROUPS[role] || [];
   const currentPath = getCurrentPath();
+  const residentUnitCode = sidebarUser?.unit?.full_unit_code || sidebarUser?.unit_full_code;
+  const mobileTitle = role === "RESIDENT" && currentPath === "/dashboard" ? "Parcels" : "GEM";
 
   useEffect(() => {
     function closeSidebarOnEscape(event) {
@@ -193,6 +195,11 @@ export function ProtectedLayout({ profile, children, hideTopActions = false }) {
           <div className="nav-group">
             <p>Account</p>
           </div>
+          {role === "RESIDENT" && (
+            <button type="button" className="nav-item is-muted" title="Dispute Management coming later">
+              <AlertCircle size={18} /> Disputes
+            </button>
+          )}
           <button type="button" className={`nav-item ${currentPath === "/profile" ? "active" : ""}`} onClick={() => handleNavigate("/profile")}>
             <User size={18} /> Profile
           </button>
@@ -201,13 +208,23 @@ export function ProtectedLayout({ profile, children, hideTopActions = false }) {
           </button>
         </nav>
 
-        <div className="sidebar-footer">
-          <span className="avatar">{initials(sidebarUser)}</span>
-          <div>
-            <strong>{displayName(sidebarUser)}</strong>
-            <span>{roleLabel}</span>
+        {role === "RESIDENT" && residentUnitCode ? (
+          <div className="sidebar-footer resident-unit-footer">
+            <span className="resident-unit-icon"><Building2 size={20} /></span>
+            <div>
+              <span>Unit</span>
+              <strong>{residentUnitCode}</strong>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="sidebar-footer">
+            <span className="avatar">{initials(sidebarUser)}</span>
+            <div>
+              <strong>{displayName(sidebarUser)}</strong>
+              <span>{roleLabel}</span>
+            </div>
+          </div>
+        )}
       </aside>
 
       <section className="workspace">

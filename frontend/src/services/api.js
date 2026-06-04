@@ -60,3 +60,25 @@ export async function apiDownload(path, options = {}) {
     contentType: response.headers.get("Content-Type") || ""
   };
 }
+
+export function getResidentParcelSummary() {
+  return apiRequest("/resident/parcels/summary");
+}
+
+export function getResidentParcels({ tab = "pending", search = "", page = 1, limit = 10 } = {}) {
+  const params = new URLSearchParams({
+    tab,
+    page: String(page),
+    limit: String(limit)
+  });
+
+  if (search) {
+    params.set("search", search);
+  }
+
+  return apiRequest(`/resident/parcels?${params.toString()}`);
+}
+
+export function getResidentParcelDetails(parcelId) {
+  return apiRequest(`/resident/parcels/${parcelId}`);
+}

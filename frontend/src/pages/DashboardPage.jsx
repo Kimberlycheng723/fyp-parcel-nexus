@@ -7,6 +7,8 @@ import {
   FileText,
   Package,
   Plus,
+  QrCode,
+  Search,
   ShieldAlert,
   Users,
   UserCheck,
@@ -18,7 +20,12 @@ import { useEffect, useMemo, useState } from "react";
 import { ProtectedLayout } from "../components/ProtectedLayout.jsx";
 import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { apiDownload, apiRequest } from "../services/api.js";
+import {
+  apiDownload,
+  apiRequest,
+  getResidentParcels,
+  getResidentParcelSummary
+} from "../services/api.js";
 import { navigate } from "../utils/navigation.js";
 
 const PERIODS = [
@@ -160,6 +167,42 @@ function formatShortDate(value) {
     day: "2-digit",
     month: "short",
     year: "numeric"
+  }).format(date);
+}
+
+function formatCompactDate(value) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  }).format(date);
+}
+
+function formatCompactTime(value) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
   }).format(date);
 }
 
@@ -875,6 +918,432 @@ function GuardDashboard() {
   );
 }
 
+function ResidentSummaryCard({ icon: Icon, tone, label, value, helper }) {
+  return (
+    <article className={`resident-summary-card ${tone}`}>
+      <div>
+        <span className="resident-summary-dot" />
+        <p>{label}</p>
+      </div>
+      <strong>{numberValue(value)}</strong>
+      <small>{helper}</small>
+      <em>
+        <Icon size={17} />
+      </em>
+    </article>
+  );
+}
+
+function ResidentCourier({ parcel }) {
+  return (
+    <span className="resident-courier">
+      {parcel?.courier_code && <i>{courierCode(parcel.courier_code, parcel.courier_name)}</i>}
+      <span>{parcel?.courier_name || "Unknown courier"}</span>
+    </span>
+  );
+}
+
+function ResidentStatusBadge({ status }) {
+  return <em className={`dashboard-status resident-status ${statusClassName(status)}`}>{statusLabel(status)}</em>;
+}
+
+function ResidentParcelList({
+  tab,
+  parcels,
+  selectedParcelIds,
+  onToggleParcel,
+  isLoading,
+  search
+}) {
+  const isPending = tab === "pending";
+
+  if (isLoading) {
+    return (
+      <div className="resident-parcel-empty">
+        <Spinner />
+        <span>Loading parcels...</span>
+      </div>
+    );
+  }
+
+  if (parcels.length === 0) {
+    return (
+      <div className="resident-parcel-empty">
+        {search ? "No parcels match your search." : isPending ? "No pending parcels." : "No collected parcel history."}
+      </div>
+    );
+  }
+
+  return (
+    <div className="resident-table-wrap">
+      <table className={`resident-parcel-table ${isPending ? "pending" : "history"}`}>
+        <thead>
+          <tr>
+            {isPending && (
+              <th aria-label="Select parcels">
+                <span className="resident-check-placeholder" />
+              </th>
+            )}
+            <th>Date Registered</th>
+            <th>Tracking Number</th>
+            <th>Courier</th>
+            <th>Status</th>
+            {!isPending && <th>Collected At</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {parcels.map((parcel) => {
+            const checked = selectedParcelIds.includes(parcel.parcel_id);
+            const isOverdue = statusLabel(parcel.display_status) === "Overdue";
+
+            return (
+              <tr
+                className={`${checked ? "selected" : ""} ${isOverdue ? "overdue" : ""}`}
+                key={parcel.parcel_id}
+              >
+                {isPending && (
+                  <td>
+                    <button
+                      className={`resident-row-check ${checked ? "checked" : ""}`}
+                      type="button"
+                      aria-label={checked ? "Deselect parcel" : "Select parcel"}
+                      onClick={() => onToggleParcel(parcel.parcel_id)}
+                    >
+                      {checked && <Check size={14} />}
+                    </button>
+                  </td>
+                )}
+                <td>
+                  <strong>{formatCompactDate(parcel.created_at)}</strong>
+                  <span>
+                    {formatRelativeTime(parcel.created_at)}
+                    {formatCompactTime(parcel.created_at) ? ` · ${formatCompactTime(parcel.created_at)}` : ""}
+                  </span>
+                </td>
+                <td className="resident-tracking-cell" title={parcel.tracking_number || ""}>
+                  {parcel.tracking_number || "No tracking number"}
+                </td>
+                <td>
+                  <ResidentCourier parcel={parcel} />
+                </td>
+                <td>
+                  <ResidentStatusBadge status={parcel.display_status} />
+                </td>
+                {!isPending && (
+                  <td>
+                    <span>{parcel.collected_at ? formatCompactDate(parcel.collected_at) : "Not recorded"}</span>
+                  </td>
+                )}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      <div className="resident-mobile-list">
+        {parcels.map((parcel) => {
+          const checked = selectedParcelIds.includes(parcel.parcel_id);
+          const isOverdue = statusLabel(parcel.display_status) === "Overdue";
+
+          return (
+            <article
+              className={`${checked ? "selected" : ""} ${isOverdue ? "overdue" : ""}`}
+              key={`mobile-${parcel.parcel_id}`}
+            >
+              {isPending && (
+                <button
+                  className={`resident-row-check ${checked ? "checked" : ""}`}
+                  type="button"
+                  aria-label={checked ? "Deselect parcel" : "Select parcel"}
+                  onClick={() => onToggleParcel(parcel.parcel_id)}
+                >
+                  {checked && <Check size={14} />}
+                </button>
+              )}
+              <div>
+                <strong>{parcel.courier_name || "Unknown courier"}</strong>
+                <span>{parcel.tracking_number || "No tracking number"}</span>
+                {!isPending && (
+                  <span>Collected: {parcel.collected_at ? formatCompactDate(parcel.collected_at) : "Not recorded"}</span>
+                )}
+              </div>
+              <ResidentStatusBadge status={parcel.display_status} />
+            </article>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ResidentDashboard() {
+  const { user } = useAuth();
+  const [summary, setSummary] = useState(null);
+  const [activeTab, setActiveTab] = useState("pending");
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [parcelData, setParcelData] = useState({ items: [], pagination: { page: 1, limit: 10, total: 0, total_pages: 0 } });
+  const [selectedParcelIds, setSelectedParcelIds] = useState([]);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(true);
+  const [isParcelsLoading, setIsParcelsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [toastMessage, setToastMessage] = useState("");
+
+  async function loadSummary() {
+    setIsSummaryLoading(true);
+    setError("");
+
+    try {
+      const data = await getResidentParcelSummary();
+      setSummary(data);
+    } catch (requestError) {
+      setError(requestError.message || "Unable to load your parcel summary.");
+    } finally {
+      setIsSummaryLoading(false);
+    }
+  }
+
+  async function loadParcels() {
+    setIsParcelsLoading(true);
+    setError("");
+
+    try {
+      const data = await getResidentParcels({
+        tab: activeTab,
+        search: debouncedSearch,
+        page,
+        limit: 10
+      });
+      setParcelData(data);
+    } catch (requestError) {
+      setError(requestError.message || "Unable to load your parcels.");
+    } finally {
+      setIsParcelsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadSummary();
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 280);
+
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    loadParcels();
+  }, [activeTab, debouncedSearch, page]);
+
+  useEffect(() => {
+    setSelectedParcelIds([]);
+  }, [activeTab, debouncedSearch]);
+
+  useEffect(() => {
+    if (!toastMessage) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => setToastMessage(""), 3000);
+    return () => window.clearTimeout(timer);
+  }, [toastMessage]);
+
+  function handleTabChange(tab) {
+    setActiveTab(tab);
+    setPage(1);
+  }
+
+  function toggleParcel(parcelId) {
+    setSelectedParcelIds((current) =>
+      current.includes(parcelId)
+        ? current.filter((id) => id !== parcelId)
+        : [...current, parcelId]
+    );
+  }
+
+  function handleGenerateQr() {
+    setToastMessage("QR collection will be available in the Parcel Collection step.");
+  }
+
+  const residentProfile = summary?.unit
+    ? {
+        ...user,
+        unit: {
+          full_unit_code: summary.unit.unit_full_code
+        }
+      }
+    : user;
+  const pendingCount = numberValue(summary?.summary?.pending_collection) + numberValue(summary?.summary?.overdue_parcels);
+  const historyCount = numberValue(summary?.summary?.collected_parcels);
+  const pagination = parcelData.pagination || {};
+  const total = numberValue(pagination.total);
+  const limit = numberValue(pagination.limit || 10);
+  const start = total === 0 ? 0 : (numberValue(pagination.page || page) - 1) * limit + 1;
+  const end = total === 0 ? 0 : Math.min(start + limit - 1, total);
+
+  return (
+    <ProtectedLayout profile={residentProfile} hideTopActions>
+      <section className="dashboard-page resident-dashboard-page animate-rise">
+        <header className="dashboard-header resident-dashboard-header">
+          <div>
+            <span>OPERATIONS / DASHBOARD</span>
+            <h1>
+              {greeting()}, {displayName(user)}
+            </h1>
+            <p>Here&apos;s an overview of your parcels.</p>
+          </div>
+          <div className="dashboard-header-actions">
+            <button className="dashboard-bell" type="button" title="Notifications coming later">
+              <Bell size={17} />
+              <i />
+            </button>
+          </div>
+        </header>
+
+        {toastMessage && (
+          <div className="dashboard-toast success" role="status">
+            {toastMessage}
+          </div>
+        )}
+
+        {error && (
+          <div className="dashboard-error" role="alert">
+            {error}
+          </div>
+        )}
+
+        {isSummaryLoading && !summary ? (
+          <div className="dashboard-loading">
+            <Spinner />
+            <span>Loading your parcel dashboard...</span>
+          </div>
+        ) : (
+          <>
+            <div className="resident-summary-grid">
+              <ResidentSummaryCard
+                icon={Clock3}
+                tone="amber"
+                label="Pending Collection"
+                value={summary?.summary?.pending_collection}
+                helper="awaiting pickup at parcel room"
+              />
+              <ResidentSummaryCard
+                icon={AlertTriangle}
+                tone="red"
+                label="Overdue Parcels"
+                value={summary?.summary?.overdue_parcels}
+                helper="action needed"
+              />
+              <ResidentSummaryCard
+                icon={Check}
+                tone="green"
+                label="Collected Parcels"
+                value={summary?.summary?.collected_parcels}
+                helper="all-time collected parcels"
+              />
+            </div>
+
+            <section className="resident-parcels-section">
+              <div className="resident-parcels-heading">
+                <h2>My Parcels</h2>
+                <p>Tick parcels, then generate a QR code for the guard.</p>
+              </div>
+
+              <div className="resident-tabs" role="tablist" aria-label="Resident parcel tabs">
+                <button
+                  className={activeTab === "pending" ? "active" : ""}
+                  type="button"
+                  onClick={() => handleTabChange("pending")}
+                >
+                  <Clock3 size={15} />
+                  Pending
+                  <span>{pendingCount}</span>
+                </button>
+                <button
+                  className={activeTab === "history" ? "active" : ""}
+                  type="button"
+                  onClick={() => handleTabChange("history")}
+                >
+                  <Check size={15} />
+                  History
+                  <span>{historyCount}</span>
+                </button>
+              </div>
+
+              <label className="resident-search">
+                <Search size={16} />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search by tracking number or courier..."
+                />
+              </label>
+
+              <ResidentParcelList
+                tab={activeTab}
+                parcels={parcelData.items || []}
+                selectedParcelIds={selectedParcelIds}
+                onToggleParcel={toggleParcel}
+                isLoading={isParcelsLoading}
+                search={debouncedSearch}
+              />
+
+              <div className="resident-pagination">
+                <span>
+                  Showing {start}-{end} of {total}
+                </span>
+                <div>
+                  <button
+                    type="button"
+                    disabled={numberValue(pagination.page || page) <= 1}
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  >
+                    ‹
+                  </button>
+                  <strong>{numberValue(pagination.page || page)}</strong>
+                  <button
+                    type="button"
+                    disabled={numberValue(pagination.page || page) >= numberValue(pagination.total_pages)}
+                    onClick={() => setPage((current) => current + 1)}
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            {selectedParcelIds.length > 0 && (
+              <div className="resident-selected-bar" role="status">
+                <div>
+                  <strong>{selectedParcelIds.length}</strong>
+                  <span>
+                    {selectedParcelIds.length === 1 ? "parcel selected" : "parcels selected"} — ready to collect
+                  </span>
+                </div>
+                <div>
+                  <button type="button" onClick={() => setSelectedParcelIds([])}>
+                    Clear
+                  </button>
+                  <button className="primary" type="button" onClick={handleGenerateQr}>
+                    <QrCode size={15} />
+                    Generate QR Code
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </section>
+    </ProtectedLayout>
+  );
+}
+
 export function DashboardPage() {
   const { user } = useAuth();
   const [summaryPeriod, setSummaryPeriod] = useState("day");
@@ -897,6 +1366,7 @@ export function DashboardPage() {
 
   const isAdmin = user?.role === "ADMIN";
   const isGuard = user?.role === "GUARD";
+  const isResident = user?.role === "RESIDENT";
   const adminName = displayName(user);
 
   async function loadDashboard(selectedPeriod, selectedStartDate) {
@@ -1025,6 +1495,10 @@ export function DashboardPage() {
 
   if (isGuard) {
     return <GuardDashboard />;
+  }
+
+  if (isResident) {
+    return <ResidentDashboard />;
   }
 
   if (!isAdmin) {
