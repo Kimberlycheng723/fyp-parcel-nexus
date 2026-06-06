@@ -11,13 +11,14 @@ import { ParcelRegistrationPage } from "./pages/ParcelRegistrationPage.jsx";
 import { ProfilePage } from "./pages/ProfilePage.jsx";
 import { ActivateAccountPage, ResetPasswordPage } from "./pages/ResetPasswordPage.jsx";
 import { getCurrentPath, navigate, replaceNavigate } from "./utils/navigation.js";
+import { landingPathForRole } from "./utils/roleLanding.js";
 
 function PublicAuthRoute({ children }) {
   const { token, user, isCheckingSession } = useAuth();
 
   useEffect(() => {
     if (!isCheckingSession && token && user) {
-      replaceNavigate("/dashboard");
+      replaceNavigate(landingPathForRole(user.role));
     }
   }, [token, user, isCheckingSession]);
 
@@ -51,7 +52,13 @@ function Router() {
 
   useEffect(() => {
     if (path === "/" && !isCheckingSession) {
-      navigate(token && user ? "/dashboard" : "/login");
+      navigate(token && user ? landingPathForRole(user.role) : "/login");
+    }
+  }, [path, token, user, isCheckingSession]);
+
+  useEffect(() => {
+    if (path === "/dashboard" && !isCheckingSession && token && user?.role === "SUPER_ADMIN") {
+      replaceNavigate("/accounts");
     }
   }, [path, token, user, isCheckingSession]);
 

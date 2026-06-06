@@ -68,6 +68,8 @@
 
 .dashboard-report-button:hover {
   background: #102c49;
+  box-shadow: 0 12px 24px rgba(8, 29, 51, 0.14);
+  transform: translateY(-1px);
 }
 
 .dashboard-period-toggle {
@@ -98,6 +100,11 @@
 .dashboard-period-toggle button.active {
   background: var(--navy);
   color: #fff;
+}
+
+.dashboard-period-toggle button:not(.active):hover {
+  background: #f2f5f8;
+  color: var(--navy);
 }
 
 .dashboard-trend-filter {
@@ -197,6 +204,7 @@
   place-items: center;
   background: rgba(12, 20, 30, 0.48);
   padding: 24px;
+  animation: dashboardBackdropIn 180ms ease-out both;
 }
 
 .dashboard-report-modal {
@@ -207,6 +215,7 @@
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 30px 80px rgba(8, 16, 28, 0.28);
+  animation: dashboardModalIn 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .dashboard-report-modal-header {
@@ -459,11 +468,41 @@
   border-radius: 12px;
   background: #fff;
   box-shadow: 0 12px 26px rgba(8, 16, 28, 0.03);
+  transition:
+    border-color 200ms ease,
+    box-shadow 220ms ease,
+    transform 220ms ease;
+}
+
+.dashboard-kpi-card:hover,
+.dashboard-card:hover,
+.resident-summary-card:hover,
+.guard-table-card:hover {
+  border-color: #cbd2da;
+  box-shadow: 0 18px 36px rgba(8, 16, 28, 0.07);
+  transform: translateY(-2px);
 }
 
 .dashboard-kpi-card {
   min-height: 146px;
   padding: 18px 18px 15px;
+  animation: dashboardItemIn 420ms ease-out both;
+}
+
+.dashboard-kpi-card:nth-child(1) {
+  animation-delay: 40ms;
+}
+
+.dashboard-kpi-card:nth-child(2) {
+  animation-delay: 90ms;
+}
+
+.dashboard-kpi-card:nth-child(3) {
+  animation-delay: 140ms;
+}
+
+.dashboard-kpi-card:nth-child(4) {
+  animation-delay: 190ms;
 }
 
 .dashboard-kpi-label {
@@ -568,6 +607,7 @@
   padding: 14px 16px;
   font-size: 13px;
   font-weight: 800;
+  animation: dashboardItemIn 360ms ease-out both;
 }
 
 .dashboard-alert svg {
@@ -583,6 +623,25 @@
 
 .dashboard-card {
   padding: 16px;
+  animation: dashboardItemIn 460ms ease-out both;
+}
+
+.dashboard-main-grid .dashboard-card:nth-child(1),
+.guard-dashboard-grid .guard-table-card:nth-child(1) {
+  animation-delay: 80ms;
+}
+
+.dashboard-main-grid .dashboard-card:nth-child(2),
+.guard-dashboard-grid .guard-table-card:nth-child(2) {
+  animation-delay: 130ms;
+}
+
+.dashboard-main-grid .dashboard-card:nth-child(3) {
+  animation-delay: 180ms;
+}
+
+.dashboard-main-grid .dashboard-card:nth-child(4) {
+  animation-delay: 230ms;
 }
 
 .dashboard-card-heading {
@@ -633,6 +692,7 @@
 .dashboard-card-action:not(:disabled):hover {
   background: #f5f8fb;
   border-color: #b9c2cc;
+  transform: translateY(-1px);
 }
 
 .dashboard-card-action:disabled {
@@ -674,6 +734,7 @@
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 3;
+  animation: chartLineIn 620ms ease-out both;
 }
 
 .trend-line.received {
@@ -688,6 +749,9 @@
 .trend-point {
   fill: #fff;
   stroke-width: 2;
+  animation: chartPointIn 360ms ease-out both;
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
 .trend-point.received {
@@ -710,6 +774,7 @@
   color: #1f2730;
   padding: 9px 11px;
   pointer-events: none;
+  animation: tooltipIn 150ms ease-out both;
 }
 
 .dashboard-chart-tooltip strong,
@@ -797,11 +862,15 @@
   fill: none;
   stroke-width: 34;
   cursor: pointer;
-  transition: opacity 160ms ease;
+  animation: donutIn 520ms ease-out both;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: opacity 160ms ease, stroke-width 160ms ease;
 }
 
 .donut-segment:hover {
   opacity: 0.78;
+  stroke-width: 36;
 }
 
 .dashboard-donut-center,
@@ -892,6 +961,88 @@
   text-align: center;
   font-size: 13px;
   font-weight: 700;
+}
+
+@keyframes dashboardBackdropIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dashboardModalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.975) translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes dashboardItemIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes chartLineIn {
+  from {
+    opacity: 0;
+    stroke-dashoffset: 26;
+  }
+
+  to {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes chartPointIn {
+  from {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes donutIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) rotate(-2deg);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes tooltipIn {
+  from {
+    opacity: 0;
+    transform: translate(10px, -4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(10px, -10px);
+  }
 }
 
 .dashboard-system-grid {

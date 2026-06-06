@@ -45,6 +45,7 @@ export function ProfilePage() {
   const passwordEmailCooldown = useResendCooldown(60);
 
   const isResident = profile?.role === "RESIDENT";
+  const isSuperAdmin = profile?.role === "SUPER_ADMIN";
   const isNamedRole = profile && profile.role !== "RESIDENT";
 
   async function loadProfile() {
@@ -131,7 +132,7 @@ export function ProfilePage() {
         <div className="page-heading">
           <span>ACCOUNT / PROFILE</span>
           <h1>Profile & Settings</h1>
-          <p>Manage your account information and notification preferences.</p>
+          <p>{isSuperAdmin ? "Manage your account information." : "Manage your account information and notification preferences."}</p>
         </div>
 
         <section className="settings-card">
@@ -209,7 +210,7 @@ export function ProfilePage() {
           </form>
         </section>
 
-        <NotificationPreferences />
+        {!isSuperAdmin && <NotificationPreferences />}
       </main>
 
       {isPasswordModalOpen && (

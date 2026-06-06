@@ -6,6 +6,7 @@ import { PasswordField } from "../components/PasswordField.jsx";
 import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { navigate } from "../utils/navigation.js";
+import { landingPathForRole } from "../utils/roleLanding.js";
 
 const SESSION_NOTICE_KEY = "parcel_nexus_session_notice";
 
@@ -37,8 +38,8 @@ export function LoginPage() {
 
     try {
       setIsLoading(true);
-      await login({ email, password });
-      navigate("/dashboard");
+      const loggedInUser = await login({ email, password });
+      navigate(landingPathForRole(loggedInUser.role));
     } catch (requestError) {
       setError(requestError.message);
     } finally {
