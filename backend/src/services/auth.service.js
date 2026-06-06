@@ -10,7 +10,6 @@ const SAFE_USER_COLUMNS = `
   phone_number,
   role,
   unit_id,
-  assigned_post,
   status
 `;
 
@@ -23,7 +22,6 @@ function toSafeUser(userRow) {
     last_name: userRow.last_name,
     phone_number: userRow.phone_number,
     unit_id: userRow.unit_id,
-    assigned_post: userRow.assigned_post,
     status: userRow.status
   };
 }

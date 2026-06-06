@@ -20,7 +20,6 @@ const USER_DETAIL_COLUMNS = `
   u.role,
   u.unit_id,
   u.created_by,
-  u.assigned_post,
   u.status,
   u.created_at,
   u.updated_at,
@@ -79,7 +78,6 @@ function toSafeUser(row) {
           full_unit_code: row.full_unit_code
         }
       : null,
-    assigned_post: row.assigned_post,
     status: row.status,
     created_at: row.created_at,
     updated_at: row.updated_at
@@ -151,7 +149,6 @@ function validateCreateInput({ requesterRole, input }) {
   const phoneNumber = normalizeRequiredString(input.phone_number);
   const firstName = normalizeOptionalString(input.first_name);
   const lastName = normalizeOptionalString(input.last_name);
-  const assignedPost = normalizeOptionalString(input.assigned_post);
   const fullUnitCode = getUnitCodeFromInput(input);
 
   if (!role) {
@@ -182,10 +179,6 @@ function validateCreateInput({ requesterRole, input }) {
     return { error: "NAME_REQUIRED" };
   }
 
-  if (role === "GUARD" && !assignedPost) {
-    return { error: "ASSIGNED_POST_REQUIRED" };
-  }
-
   if (role === "RESIDENT" && !fullUnitCode) {
     return { error: "UNIT_REQUIRED" };
   }
@@ -197,7 +190,6 @@ function validateCreateInput({ requesterRole, input }) {
       phoneNumber,
       firstName,
       lastName,
-      assignedPost: role === "GUARD" ? assignedPost : null,
       fullUnitCode
     }
   };
@@ -256,10 +248,9 @@ export async function createManagedUser({ requester, input }) {
           role,
           unit_id,
           created_by,
-          status,
-          assigned_post
+          status
         )
-        VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, 'PENDING_ACTIVATION', $8)
+        VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, 'PENDING_ACTIVATION')
         RETURNING user_id
       `,
       [
@@ -269,8 +260,7 @@ export async function createManagedUser({ requester, input }) {
         data.phoneNumber,
         data.role,
         unitId,
-        requester.user_id,
-        data.assignedPost
+        requester.user_id
       ]
     );
 
@@ -358,7 +348,6 @@ export async function listManagedUsers({ requester, filters = {} }) {
         OR LOWER(COALESCE(u.first_name, '')) LIKE $${params.length}
         OR LOWER(COALESCE(u.last_name, '')) LIKE $${params.length}
         OR LOWER(COALESCE(u.phone_number, '')) LIKE $${params.length}
-        OR LOWER(COALESCE(u.assigned_post, '')) LIKE $${params.length}
         OR LOWER(COALESCE(units.full_unit_code, '')) LIKE $${params.length}
       )
     `);
@@ -427,7 +416,6 @@ export async function updateManagedUser({ requester, userId, updates }) {
   const phoneNumber = normalizeRequiredString(updates.phone_number ?? currentUser.phone_number);
   const firstName = normalizeOptionalString(updates.first_name ?? currentUser.first_name);
   const lastName = normalizeOptionalString(updates.last_name ?? currentUser.last_name);
-  const assignedPost = normalizeOptionalString(updates.assigned_post ?? currentUser.assigned_post);
   const fullUnitCode = getUnitCodeFromInput(updates);
 
   if (!email) {
@@ -444,10 +432,6 @@ export async function updateManagedUser({ requester, userId, updates }) {
 
   if ((currentUser.role === "ADMIN" || currentUser.role === "GUARD") && (!firstName || !lastName)) {
     return { error: "NAME_REQUIRED" };
-  }
-
-  if (currentUser.role === "GUARD" && !assignedPost) {
-    return { error: "ASSIGNED_POST_REQUIRED" };
   }
 
   const client = await pool.connect();
@@ -480,16 +464,14 @@ export async function updateManagedUser({ requester, userId, updates }) {
           phone_number = $2,
           first_name = $3,
           last_name = $4,
-          assigned_post = $5,
-          unit_id = $6
-        WHERE user_id = $7
+          unit_id = $5
+        WHERE user_id = $6
       `,
       [
         email,
         phoneNumber,
         currentUser.role === "RESIDENT" ? null : firstName,
         currentUser.role === "RESIDENT" ? null : lastName,
-        currentUser.role === "GUARD" ? assignedPost : null,
         currentUser.role === "RESIDENT" ? unitId : null,
         userId
       ]

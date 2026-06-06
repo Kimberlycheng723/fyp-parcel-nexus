@@ -1287,9 +1287,7 @@ export async function getGuardDashboard({ requester, period = "today", startDate
   return {
     guard: {
       name: displayUserName(requester),
-      email: requester.email,
-      assigned_post: requester.assigned_post || null,
-      parcel_room: null
+      email: requester.email
     },
     period: {
       selected: config.selected,

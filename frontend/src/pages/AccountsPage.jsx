@@ -46,7 +46,6 @@ function emptyCreateForm(role) {
     last_name: "",
     email: "",
     phone_number: "",
-    assigned_post: "",
     full_unit_code: "",
     createAnother: false
   };
@@ -150,7 +149,6 @@ function buildCsvRows(role, rows) {
       "full_name",
       "phone_number",
       "status",
-      "assigned_post",
       "unit_id",
       "unit_full_code",
       "unit_block",
@@ -172,7 +170,6 @@ function buildCsvRows(role, rows) {
       `${user.first_name || ""} ${user.last_name || ""}`.trim(),
       user.phone_number,
       user.status,
-      user.assigned_post,
       user.unit_id,
       user.unit?.full_unit_code,
       user.unit?.block,
@@ -630,7 +627,7 @@ function AccountsTable({
 }) {
   const columns = role === "RESIDENT"
     ? ["UNIT", "EMAIL", "PHONE NUMBER", "STATUS", "DATE CREATED", "ACTIONS"]
-    : ["NAME", "EMAIL", role === "GUARD" ? "ASSIGNED POST" : "PHONE NUMBER", "STATUS", "DATE CREATED", "ACTIONS"];
+    : ["NAME", "EMAIL", "PHONE NUMBER", "STATUS", "DATE CREATED", "ACTIONS"];
 
   return (
     <section className={`accounts-table-card ${openMenuId ? "menu-open" : ""}`}>
@@ -673,12 +670,11 @@ function AccountsTable({
                       <span>{userInitials(user)}</span>
                       <div>
                         <strong>{accountName(user)}</strong>
-                        {role === "GUARD" && <small>{user.assigned_post || "No assigned post"}</small>}
                       </div>
                     </div>
                   </td>
                   <td className="mono-cell" data-label="Email">{user.email}</td>
-                  <td data-label={role === "GUARD" ? "Assigned post" : "Phone number"}>{role === "GUARD" ? user.assigned_post || "-" : user.phone_number}</td>
+                  <td data-label="Phone number">{user.phone_number}</td>
                 </>
               )}
 
@@ -762,7 +758,6 @@ function AccountFormModal({ mode, role, user, onClose, onSaved }) {
       last_name: user.last_name || "",
       email: user.email || "",
       phone_number: user.phone_number || "",
-      assigned_post: user.assigned_post || "",
       full_unit_code: user.unit?.full_unit_code || "",
       createAnother: false
     };
@@ -804,8 +799,7 @@ function AccountFormModal({ mode, role, user, onClose, onSaved }) {
       first_name: nameParts.first_name,
       last_name: nameParts.last_name,
       email: form.email.trim(),
-      phone_number: form.phone_number.trim(),
-      ...(role === "GUARD" ? { assigned_post: form.assigned_post.trim() } : {})
+      phone_number: form.phone_number.trim()
     };
   }
 
@@ -827,11 +821,6 @@ function AccountFormModal({ mode, role, user, onClose, onSaved }) {
 
     if (role === "RESIDENT" && !payload.full_unit_code) {
       setError("Unit is required.");
-      return;
-    }
-
-    if (role === "GUARD" && !payload.assigned_post) {
-      setError("Assigned post is required.");
       return;
     }
 
@@ -902,16 +891,6 @@ function AccountFormModal({ mode, role, user, onClose, onSaved }) {
             placeholder="name@gem-residences.my"
             onChange={(value) => updateField("email", value)}
           />
-          {role === "GUARD" && (
-            <ModalField
-              label="Assigned post"
-              required
-              wide
-              value={form.assigned_post}
-              placeholder="Tower A parcel room"
-              onChange={(value) => updateField("assigned_post", value)}
-            />
-          )}
         </div>
 
         <RoleDisplay role={role} />
@@ -983,7 +962,6 @@ function DetailsModal({ user, onClose }) {
         <Detail label="Role" value={ROLE_LABELS[user.role]} />
         <Detail label="Status" value={statusMeta(user.status).label} />
 	        {user.role === "RESIDENT" && <Detail label="Unit" value={user.unit?.full_unit_code || "-"} />}
-	        {user.role === "GUARD" && <Detail label="Assigned Post" value={user.assigned_post || "-"} />}
 	        <Detail label="Created By" value={creatorDisplay(user)} />
 	        <Detail label="Created" value={formatDate(user.created_at)} />
         <Detail label="Updated" value={formatDate(user.updated_at)} />

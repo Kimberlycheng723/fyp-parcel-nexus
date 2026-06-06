@@ -598,15 +598,7 @@ function ActivityFeed({ activities = [] }) {
 }
 
 function guardSubtitle(guard = {}) {
-  if (guard.parcel_room) {
-    return guard.parcel_room;
-  }
-
-  if (guard.assigned_post) {
-    return `Guard · #${guard.assigned_post}`;
-  }
-
-  return "Guard dashboard";
+  return guard.name ? "Parcel room operations" : "Guard dashboard";
 }
 
 function courierCode(code, name) {
@@ -912,7 +904,6 @@ function GuardDashboard() {
                 <div className="guard-table-heading">
                   <div>
                     <h2>Pending collection</h2>
-                    <p>Waiting for resident pickup</p>
                   </div>
                   <span>{numberValue(dashboard?.summary?.pending_collection)} pending</span>
                 </div>

@@ -17,7 +17,6 @@ function validationResponse(error) {
     INVALID_EMAIL: [400, "Email format is invalid."],
     PHONE_REQUIRED: [400, "Phone number is required."],
     NAME_REQUIRED: [400, "First name and last name are required for this role."],
-    ASSIGNED_POST_REQUIRED: [400, "Assigned post is required for guard accounts."],
     UNIT_REQUIRED: [400, "Unit code is required for resident accounts."],
     EMAIL_ALREADY_EXISTS: [409, "Email is already used by another account."],
     UNIT_ALREADY_HAS_RESIDENT: [409, "This unit already has a resident account."],

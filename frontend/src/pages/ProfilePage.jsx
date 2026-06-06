@@ -43,7 +43,6 @@ export function ProfilePage() {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
   const isResident = profile?.role === "RESIDENT";
-  const isGuard = profile?.role === "GUARD";
   const isNamedRole = profile && profile.role !== "RESIDENT";
 
   async function loadProfile() {
@@ -182,15 +181,6 @@ export function ProfilePage() {
                   label="Unit"
                   value={unitLabel(profile)}
                   note="Unit is set by management. Contact the office to request a change."
-                  wide
-                />
-              )}
-
-              {isGuard && (
-                <ReadOnlyField
-                  label="Assigned Post"
-                  value={profile.assigned_post || "Not assigned"}
-                  note="Assigned post is set by management."
                   wide
                 />
               )}
