@@ -4,9 +4,7 @@ Web-based Parcel Management System for GEM Condominium.
 
 ## Project Overview
 
-Parcel Nexus digitalises the parcel handling process at GEM Condominium. The system is being built to replace the manual logbook process with a clearer workflow for account access, parcel registration, parcel management, and parcel collection.
-
-For FYP1, the project is being developed step by step so each module is understandable and easy to explain during viva.
+Parcel Nexus digitalises the parcel handling process at GEM Condominium. The system is being built to replace the manual logbook process with a clearer workflow for account access, parcel registration, parcel management and parcel collection.
 
 ## Tech Stack
 
@@ -48,12 +46,6 @@ cp .env.example .env
 ```
 
 Then update `.env` with your own local development values, such as database credentials, JWT secrets, seed user values, and Gmail SMTP values.
-
-Important:
-
-- Do not commit `.env` to GitHub.
-- Do not put real passwords or Gmail App Passwords inside `.env.example`.
-- Do not share `docker compose config` output publicly because it may reveal secrets from `.env`.
 
 ## Running The Project
 
@@ -231,12 +223,3 @@ SMTP credentials must be stored only in the local `.env` file. They should not b
 - Notification preferences in the current frontend are local placeholders only. No notification backend or database table has been implemented yet.
 - Resident parcel collection and QR verification are not implemented yet.
 
-## Future Modules
-
-The next planned modules are:
-
-- User Management
-- Parcel Registration
-- Parcel Management
-- Parcel Collection
-- Notifications, Disputes, Audit Log, and Reporting in later phases
