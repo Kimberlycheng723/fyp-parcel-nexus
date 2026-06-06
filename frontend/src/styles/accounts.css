@@ -106,15 +106,28 @@
 
 .accounts-status-filter {
   position: relative;
+  min-width: 148px;
   font-size: 13px;
   font-weight: 700;
 }
 
+.accounts-status-filter svg {
+  flex: 0 0 auto;
+}
+
+.accounts-status-filter svg:last-child {
+  margin-left: auto;
+  color: #4f5a66;
+  pointer-events: none;
+}
+
 .accounts-status-filter span {
   color: #1f2730;
+  white-space: nowrap;
 }
 
 .accounts-status-filter select {
+  min-width: 58px;
   appearance: none;
   border: 0;
   background: transparent;
@@ -122,7 +135,7 @@
   font-size: 13px;
   font-weight: 700;
   outline: 0;
-  padding-right: 6px;
+  padding: 0 22px 0 0;
 }
 
 .accounts-toolbar-actions {
@@ -255,6 +268,90 @@
   table-layout: fixed;
 }
 
+.admin-accounts-table th:nth-child(1),
+.admin-accounts-table td:nth-child(1),
+.super_admin-accounts-table th:nth-child(1),
+.super_admin-accounts-table td:nth-child(1),
+.guard-accounts-table th:nth-child(1),
+.guard-accounts-table td:nth-child(1) {
+  width: 20%;
+}
+
+.admin-accounts-table th:nth-child(2),
+.admin-accounts-table td:nth-child(2),
+.super_admin-accounts-table th:nth-child(2),
+.super_admin-accounts-table td:nth-child(2),
+.guard-accounts-table th:nth-child(2),
+.guard-accounts-table td:nth-child(2) {
+  width: 32%;
+}
+
+.admin-accounts-table th:nth-child(3),
+.admin-accounts-table td:nth-child(3),
+.super_admin-accounts-table th:nth-child(3),
+.super_admin-accounts-table td:nth-child(3),
+.guard-accounts-table th:nth-child(3),
+.guard-accounts-table td:nth-child(3) {
+  width: 15%;
+}
+
+.admin-accounts-table th:nth-child(4),
+.admin-accounts-table td:nth-child(4),
+.super_admin-accounts-table th:nth-child(4),
+.super_admin-accounts-table td:nth-child(4),
+.guard-accounts-table th:nth-child(4),
+.guard-accounts-table td:nth-child(4) {
+  width: 10%;
+}
+
+.admin-accounts-table th:nth-child(5),
+.admin-accounts-table td:nth-child(5),
+.super_admin-accounts-table th:nth-child(5),
+.super_admin-accounts-table td:nth-child(5),
+.guard-accounts-table th:nth-child(5),
+.guard-accounts-table td:nth-child(5) {
+  width: 14%;
+}
+
+.admin-accounts-table th:nth-child(6),
+.admin-accounts-table td:nth-child(6),
+.super_admin-accounts-table th:nth-child(6),
+.super_admin-accounts-table td:nth-child(6),
+.guard-accounts-table th:nth-child(6),
+.guard-accounts-table td:nth-child(6) {
+  width: 9%;
+}
+
+.resident-accounts-table th:nth-child(1),
+.resident-accounts-table td:nth-child(1) {
+  width: 14%;
+}
+
+.resident-accounts-table th:nth-child(2),
+.resident-accounts-table td:nth-child(2) {
+  width: 34%;
+}
+
+.resident-accounts-table th:nth-child(3),
+.resident-accounts-table td:nth-child(3) {
+  width: 15%;
+}
+
+.resident-accounts-table th:nth-child(4),
+.resident-accounts-table td:nth-child(4) {
+  width: 10%;
+}
+
+.resident-accounts-table th:nth-child(5),
+.resident-accounts-table td:nth-child(5) {
+  width: 15%;
+}
+
+.resident-accounts-table th:nth-child(6),
+.resident-accounts-table td:nth-child(6) {
+  width: 12%;
+}
+
 .accounts-table th {
   background: #eef1f4;
   color: #7d858e;
@@ -271,6 +368,8 @@
 
 .accounts-table th:last-child {
   border-top-right-radius: 9px;
+  padding-right: 18px;
+  text-align: right;
 }
 
 .accounts-table td {
@@ -278,6 +377,11 @@
   color: #17202b;
   padding: 12px 14px;
   vertical-align: middle;
+}
+
+.accounts-table td:last-child {
+  padding-right: 18px;
+  text-align: right;
 }
 
 .accounts-table tbody tr:last-child td {
@@ -391,6 +495,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  justify-content: flex-end;
 }
 
 .accounts-table .icon-only-button {
@@ -684,7 +789,8 @@
 
 .modal-footer-actions.end {
   justify-content: flex-end;
-  margin-top: 18px;
+  margin: 22px 24px 24px;
+  padding-top: 0;
 }
 
 .details-grid {
@@ -797,6 +903,16 @@
     width: 100%;
   }
 
+  .accounts-status-filter {
+    justify-content: flex-start;
+    min-width: 0;
+  }
+
+  .accounts-status-filter select {
+    flex: 1;
+    min-width: 0;
+  }
+
   .accounts-toolbar-actions {
     align-items: stretch;
     flex-direction: column;
@@ -821,7 +937,7 @@
   .accounts-table tr,
   .accounts-table td {
     display: block;
-    width: 100%;
+    width: 100% !important;
   }
 
   .accounts-table {
@@ -866,6 +982,7 @@
 
   .accounts-table td:last-child {
     border-bottom: 0;
+    text-align: left;
   }
 
   .accounts-table tr:hover td {
@@ -926,6 +1043,11 @@
     align-items: stretch;
     flex-direction: column;
     margin-left: 0;
+  }
+
+  .modal-footer-actions.end {
+    width: auto;
+    margin: 20px 16px 16px;
   }
 
   .modal-footer-actions .secondary-button,

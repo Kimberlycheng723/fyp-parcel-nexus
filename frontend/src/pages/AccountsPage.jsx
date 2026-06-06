@@ -631,7 +631,7 @@ function AccountsTable({
 
   return (
     <section className={`accounts-table-card ${openMenuId ? "menu-open" : ""}`}>
-      <table className="accounts-table">
+      <table className={`accounts-table ${role.toLowerCase()}-accounts-table`}>
         <thead>
           <tr>
             {columns.map((column) => <th key={column}>{column}</th>)}
