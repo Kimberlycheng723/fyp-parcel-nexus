@@ -1202,7 +1202,6 @@ export function ParcelRegistrationPage() {
               <div className="camera-preview-area">
                 {cameraError ? (
                   <div className="camera-error-state">
-                    <Camera size={30} />
                     <strong>Camera unavailable</strong>
                     <p>{cameraError}</p>
                   </div>
@@ -1214,22 +1213,8 @@ export function ParcelRegistrationPage() {
               </div>
 
               <footer>
-                <button className="parcel-secondary-button" type="button" onClick={() => fileInputRef.current?.click()}>
-                  <UploadCloud size={16} /> Upload file
-                </button>
                 {capturedPhoto?.previewUrl ? (
                   <>
-                    <button
-                      className="parcel-secondary-button"
-                      type="button"
-                      onClick={() => {
-                        URL.revokeObjectURL(capturedPhoto.previewUrl);
-                        objectUrlsRef.current.delete(capturedPhoto.previewUrl);
-                        setCapturedPhoto(null);
-                      }}
-                    >
-                      Retake
-                    </button>
                     <button className="parcel-primary-button compact" type="button" onClick={useCapturedPhoto} disabled={isUploadingPhoto}>
                       {isUploadingPhoto ? <Spinner label="Uploading" /> : <><Check size={16} /> Use photo</>}
                     </button>

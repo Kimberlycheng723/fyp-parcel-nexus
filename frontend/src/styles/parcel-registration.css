@@ -1288,10 +1288,28 @@
 .parcel-camera-modal footer {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
   border-top: 1px solid #e5e8ec;
   background: #f6f8fa;
   padding: 14px 22px;
+}
+
+.parcel-camera-modal footer .parcel-secondary-button,
+.parcel-camera-modal footer .parcel-primary-button {
+  flex: 0 1 220px;
+  min-width: 190px;
+  min-height: 48px;
+  height: 48px;
+  justify-content: center;
+  padding: 0 20px;
+  font-size: 13.5px;
+}
+
+.parcel-camera-modal footer .parcel-primary-button.compact {
+  min-height: 48px;
+  height: 48px;
+  padding: 0 20px;
+  font-size: 13.5px;
 }
 
 .no-photo-thumb {
@@ -1718,7 +1736,10 @@
 
   .parcel-camera-modal footer .parcel-secondary-button,
   .parcel-camera-modal footer .parcel-primary-button {
+    flex: 0 0 auto;
+    min-width: 0;
     width: 100%;
+    max-width: none;
   }
 
   .courier-colour-options {
