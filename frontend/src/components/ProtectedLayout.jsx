@@ -126,6 +126,7 @@ export function ProtectedLayout({ profile, children, hideTopActions = false }) {
   const currentPath = getCurrentPath();
   const residentUnitCode = sidebarUser?.unit?.full_unit_code || sidebarUser?.unit_full_code;
   const mobileTitle = role === "RESIDENT" && currentPath === "/dashboard" ? "Parcels" : "GEM";
+  const shouldShowNotifications = role !== "SUPER_ADMIN";
 
   useEffect(() => {
     function closeSidebarOnEscape(event) {
@@ -242,13 +243,15 @@ export function ProtectedLayout({ profile, children, hideTopActions = false }) {
             <strong>{mobileTitle}</strong>
             <span>{roleLabel}</span>
           </div>
-          <button className="mobile-topbar-bell" type="button" title="Notifications coming later" aria-label="Notifications">
-            <Bell size={17} />
-            <i />
-          </button>
+          {shouldShowNotifications && (
+            <button className="mobile-topbar-bell" type="button" title="Notifications coming later" aria-label="Notifications">
+              <Bell size={17} />
+              <i />
+            </button>
+          )}
         </div>
 
-        {!hideTopActions && (
+        {!hideTopActions && shouldShowNotifications && (
           <div className="top-actions">
             <button className="icon-button" type="button" title="Notifications coming later">
               <Bell size={18} />
