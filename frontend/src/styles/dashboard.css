@@ -192,7 +192,7 @@
 .dashboard-modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 70;
+  z-index: 120;
   display: grid;
   place-items: center;
   background: rgba(12, 20, 30, 0.48);

@@ -1086,7 +1086,7 @@
 .parcel-modal-backdrop {
   background: rgba(3, 10, 18, 0.76);
   backdrop-filter: blur(4px);
-  z-index: 90;
+  z-index: 120;
 }
 
 .parcel-small-modal {

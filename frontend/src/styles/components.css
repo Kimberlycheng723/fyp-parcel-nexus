@@ -5,7 +5,12 @@
   place-items: center;
   background: rgba(8, 16, 28, 0.42);
   padding: 24px;
-  z-index: 20;
+  z-index: 120;
+}
+
+.modal-backdrop > * {
+  position: relative;
+  z-index: 1;
 }
 
 .password-modal {
@@ -17,7 +22,7 @@
 }
 
 .logout-modal-backdrop {
-  z-index: 90;
+  z-index: 120;
 }
 
 .logout-confirm-modal {

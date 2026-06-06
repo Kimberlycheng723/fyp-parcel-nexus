@@ -585,7 +585,7 @@
 }
 
 .parcel-management-modal-backdrop {
-  z-index: 80;
+  z-index: 120;
 }
 
 .parcel-edit-modal-backdrop {
