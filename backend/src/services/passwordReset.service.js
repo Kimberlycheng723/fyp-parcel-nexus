@@ -1,6 +1,6 @@
 import { pool } from "../db/pool.js";
 import { buildPasswordResetLink, sendPasswordResetEmail } from "./email.service.js";
-import { hashPassword } from "../utils/password.js";
+import { comparePassword, hashPassword } from "../utils/password.js";
 import { validatePasswordStrength } from "../utils/passwordValidation.js";
 import { generateSecureToken, hashToken } from "../utils/token.js";
 
@@ -158,7 +158,7 @@ export async function resetPassword({ token, newPassword }) {
 
     const userResult = await client.query(
       `
-        SELECT user_id, status
+        SELECT user_id, status, password_hash
         FROM users
         WHERE user_id = $1
         LIMIT 1
@@ -179,6 +179,15 @@ export async function resetPassword({ token, newPassword }) {
       await client.query("ROLLBACK");
       return {
         error: "USER_DEACTIVATED"
+      };
+    }
+
+    const isSamePassword = await comparePassword(newPassword, user.password_hash);
+
+    if (isSamePassword) {
+      await client.query("ROLLBACK");
+      return {
+        error: "SAME_PASSWORD"
       };
     }
 

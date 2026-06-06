@@ -28,7 +28,7 @@ function parcelErrorResponse(error) {
     UNIT_REQUIRED: [400, "Unit is required."],
     COURIER_NOT_FOUND: [404, "Courier company was not found or is not active."],
     UNIT_NOT_FOUND: [404, "Unit was not found."],
-    TRACKING_ALREADY_EXISTS: [409, "Tracking number already exists."],
+    TRACKING_ALREADY_EXISTS: [409, "This tracking number already exists for the selected courier company."],
     INVALID_COLLECTION_DEADLINE: [400, "Collection deadline must be a valid date and time."]
   };
 

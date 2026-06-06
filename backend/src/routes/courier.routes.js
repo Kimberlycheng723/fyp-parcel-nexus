@@ -1,6 +1,6 @@
 import { Router } from "express";
 
-import { createCourierCompany, listCouriers } from "../controllers/courier.controller.js";
+import { createCourierCompany, listCouriers, updateCourierCompany } from "../controllers/courier.controller.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/role.middleware.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -11,5 +11,6 @@ router.use(requireAuth);
 
 router.get("/", requireRole("ADMIN", "GUARD"), asyncHandler(listCouriers));
 router.post("/", requireRole("GUARD"), asyncHandler(createCourierCompany));
+router.put("/:courierId", requireRole("ADMIN", "GUARD"), asyncHandler(updateCourierCompany));
 
 export default router;

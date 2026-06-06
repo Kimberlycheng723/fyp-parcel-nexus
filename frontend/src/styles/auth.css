@@ -165,6 +165,12 @@
   transform: translateY(-1px);
 }
 
+.primary-button:disabled {
+  background: #c8d0d9;
+  color: #5f6b78;
+  box-shadow: none;
+}
+
 .login-auth-form .primary-button {
   margin-top: 22px;
 }

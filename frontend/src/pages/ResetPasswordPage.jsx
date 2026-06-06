@@ -1,9 +1,10 @@
 import { ArrowRight, CheckCircle } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AuthLayout } from "../components/AuthLayout.jsx";
 import { PasswordField } from "../components/PasswordField.jsx";
 import { Spinner } from "../components/Spinner.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 import { apiRequest } from "../services/api.js";
 import { getQueryParam, navigate } from "../utils/navigation.js";
 
@@ -25,7 +26,21 @@ export function ResetPasswordPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccessful, setIsSuccessful] = useState(false);
+  const { clearSession } = useAuth();
   const token = getQueryParam("token");
+
+  useEffect(() => {
+    if (!isSuccessful) {
+      return undefined;
+    }
+
+    const timerId = window.setTimeout(() => {
+      clearSession();
+      navigate("/login");
+    }, 1500);
+
+    return () => window.clearTimeout(timerId);
+  }, [clearSession, isSuccessful]);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -61,7 +76,7 @@ export function ResetPasswordPage() {
     return (
       <SuccessPanel
         title="Password reset successful!"
-        body="Your password has been reset successfully. You can now sign in with your new password."
+        body="Password reset successful. Please log in with your new password."
       />
     );
   }

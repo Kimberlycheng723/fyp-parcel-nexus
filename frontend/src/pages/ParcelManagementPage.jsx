@@ -127,6 +127,13 @@ function courierCode(courier) {
   return (courier?.courier_code || courier?.courier_name?.slice(0, 3) || "COU").toUpperCase();
 }
 
+function courierBadgeStyle(courier) {
+  return {
+    backgroundColor: courier?.badge_color || "#EF4444",
+    color: courier?.badge_color === "#F4B400" ? "#111820" : "#fff"
+  };
+}
+
 function userName(user) {
   if (!user) {
     return "-";
@@ -675,7 +682,7 @@ function ParcelTable({
                 <td><span className="parcel-unit-chip">{parcel.unit?.full_unit_code || "-"}</span></td>
                 <td>
                   <div className="parcel-courier-cell">
-                    <span>{courierCode(parcel.courier)}</span>
+                    <span style={courierBadgeStyle(parcel.courier)}>{courierCode(parcel.courier)}</span>
                     <strong>{parcel.courier?.courier_name || "-"}</strong>
                   </div>
                 </td>
@@ -1284,7 +1291,7 @@ function ParcelEditModal({ parcel, onClose, onSaved, onError }) {
             >
               {selectedCourier ? (
                 <>
-                  <b>{courierCode(selectedCourier)}</b>
+                  <b style={courierBadgeStyle(selectedCourier)}>{courierCode(selectedCourier)}</b>
                   <strong>{selectedCourier.courier_name}</strong>
                 </>
               ) : (
@@ -1303,7 +1310,7 @@ function ParcelEditModal({ parcel, onClose, onSaved, onError }) {
                       setIsCourierOpen(false);
                     }}
                   >
-                    <b>{courierCode(courier)}</b>
+                    <b style={courierBadgeStyle(courier)}>{courierCode(courier)}</b>
                     <strong>{courier.courier_name}</strong>
                   </button>
                 ))}

@@ -19,6 +19,7 @@ const PARCEL_DETAIL_COLUMNS = `
   c.courier_name,
   c.courier_code,
   c.contact_number AS courier_contact_number,
+  c.badge_color AS courier_badge_color,
   c.status AS courier_status,
   units.block,
   units.floor,
@@ -41,6 +42,7 @@ function toSafeParcel(row) {
       courier_name: row.courier_name,
       courier_code: row.courier_code,
       contact_number: row.courier_contact_number,
+      badge_color: row.courier_badge_color,
       status: row.courier_status
     },
     unit_id: row.unit_id,
@@ -174,9 +176,11 @@ export async function registerParcelSession({ requester, input }) {
           SELECT parcel_id
           FROM parcels
           WHERE LOWER(tracking_number) = LOWER($1)
+            AND courier_id = $2
+            AND deleted_at IS NULL
           LIMIT 1
         `,
-        [parcel.tracking_number]
+        [parcel.tracking_number, data.courierId]
       );
 
       if (existingTracking.rows[0]) {

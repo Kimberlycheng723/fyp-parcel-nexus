@@ -41,6 +41,7 @@ const PARCEL_DETAIL_COLUMNS = `
   c.courier_name,
   c.courier_code,
   c.contact_number AS courier_contact_number,
+  c.badge_color AS courier_badge_color,
   c.status AS courier_status,
   registered_user.user_id AS registered_user_id,
   registered_user.first_name AS registered_user_first_name,
@@ -153,6 +154,7 @@ function toSafeParcel(row, { includeDeleted = false } = {}) {
       courier_name: row.courier_name,
       courier_code: row.courier_code,
       contact_number: row.courier_contact_number,
+      badge_color: row.courier_badge_color,
       status: row.courier_status
     },
     registered_by: row.registered_by,
@@ -288,16 +290,18 @@ async function getParcelRowById(parcelId, { includeDeleted = false } = {}, clien
   return result.rows[0] || null;
 }
 
-async function trackingExists(trackingNumber, excludedParcelId = null, client = pool) {
+async function trackingExists(trackingNumber, courierId, excludedParcelId = null, client = pool) {
   const result = await client.query(
     `
       SELECT parcel_id
       FROM parcels
       WHERE LOWER(tracking_number) = LOWER($1)
-        AND ($2::uuid IS NULL OR parcel_id <> $2::uuid)
+        AND courier_id = $2
+        AND deleted_at IS NULL
+        AND ($3::uuid IS NULL OR parcel_id <> $3::uuid)
       LIMIT 1
     `,
-    [trackingNumber, excludedParcelId]
+    [trackingNumber, courierId, excludedParcelId]
   );
 
   return Boolean(result.rows[0]);
@@ -500,7 +504,7 @@ export async function updateParcel({ requester, parcelId, updates }) {
   try {
     await client.query("BEGIN");
 
-    if (await trackingExists(trackingNumber, parcelId, client)) {
+    if (await trackingExists(trackingNumber, courierId, parcelId, client)) {
       await client.query("ROLLBACK");
       return { error: "TRACKING_ALREADY_EXISTS" };
     }

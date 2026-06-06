@@ -145,6 +145,7 @@ export function AuthProvider({ children }) {
       isCheckingSession,
       login,
       logout,
+      clearSession,
       refreshUser
     }),
     [token, user, isCheckingSession]

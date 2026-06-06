@@ -10,10 +10,10 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { PasswordField } from "../components/PasswordField.jsx";
 import { ProtectedLayout } from "../components/ProtectedLayout.jsx";
 import { Spinner } from "../components/Spinner.jsx";
-import { apiRequest } from "../services/api.js";
+import { useResendCooldown } from "../hooks/useResendCooldown.js";
+import { apiRequest, sendPasswordResetLink } from "../services/api.js";
 
 function emptyProfileForm(profile) {
   return {
@@ -41,6 +41,8 @@ export function ProfilePage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [hasPasswordEmailSent, setHasPasswordEmailSent] = useState(false);
+  const passwordEmailCooldown = useResendCooldown(60);
 
   const isResident = profile?.role === "RESIDENT";
   const isNamedRole = profile && profile.role !== "RESIDENT";
@@ -211,7 +213,13 @@ export function ProfilePage() {
       </main>
 
       {isPasswordModalOpen && (
-        <ChangePasswordModal onClose={() => setIsPasswordModalOpen(false)} />
+        <ChangePasswordModal
+          email={profile?.email}
+          hasSentEmail={hasPasswordEmailSent}
+          onEmailSent={() => setHasPasswordEmailSent(true)}
+          cooldown={passwordEmailCooldown}
+          onClose={() => setIsPasswordModalOpen(false)}
+        />
       )}
     </ProtectedLayout>
   );
@@ -328,41 +336,29 @@ function NotificationPreferences() {
   );
 }
 
-function ChangePasswordModal({ onClose }) {
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+function ChangePasswordModal({ email, hasSentEmail, onEmailSent, cooldown, onClose }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const { secondsRemaining, isCoolingDown, startCooldown } = cooldown;
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+  async function handleSendEmail() {
     setMessage("");
     setError("");
 
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setError("All password fields are required.");
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setError("New passwords do not match.");
+    if (!email) {
+      setError("Registered email is not available for this account.");
       return;
     }
 
     try {
       setIsLoading(true);
-      await apiRequest("/profile/change-password", {
-        method: "POST",
-        body: { currentPassword, newPassword }
-      });
-      setMessage("Password changed successfully.");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
+      await sendPasswordResetLink(email);
+      onEmailSent();
+      setMessage("Password reset link sent to your registered email.");
+      startCooldown();
     } catch (requestError) {
-      setError(requestError.errors?.join(" ") || requestError.message);
+      setError(requestError.message);
     } finally {
       setIsLoading(false);
     }
@@ -374,45 +370,39 @@ function ChangePasswordModal({ onClose }) {
         <div className="modal-heading">
           <div>
             <h2 id="change-password-title">Change password</h2>
-            <p>Use a strong password that you do not use elsewhere.</p>
+            <p>A password reset link will be sent to your registered email address.</p>
           </div>
           <button className="icon-button" type="button" onClick={onClose}>
             <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <PasswordField
-            id="current-password"
-            label="Current Password"
-            value={currentPassword}
-            onChange={setCurrentPassword}
-            autoComplete="current-password"
-          />
-          <PasswordField
-            id="profile-new-password"
-            label="New Password"
-            value={newPassword}
-            onChange={setNewPassword}
-            autoComplete="new-password"
-          />
-          <PasswordField
-            id="profile-confirm-password"
-            label="Confirm New Password"
-            value={confirmPassword}
-            onChange={setConfirmPassword}
-            autoComplete="new-password"
-          />
-          <p className="password-guidance">
-            Password must contain at least 8 characters, uppercase and lowercase letters, a number,
-            and a special character.
-          </p>
+        <div className="password-email-panel">
+          {email && <span>Registered email: {email}</span>}
           {message && <p className="form-success compact">{message}</p>}
           {error && <p className="form-error compact">{error}</p>}
-          <button className="primary-button" type="submit" disabled={isLoading}>
-            {isLoading ? <Spinner label="Changing" /> : "Change password"}
-          </button>
-        </form>
+          <div className="password-email-actions">
+            <button className="secondary-button" type="button" onClick={onClose} disabled={isLoading}>
+              Cancel
+            </button>
+            <button
+              className="save-button"
+              type="button"
+              onClick={handleSendEmail}
+              disabled={isLoading || isCoolingDown}
+            >
+              {isLoading ? (
+                <Spinner label="Sending..." />
+              ) : isCoolingDown ? (
+                `Resend email in ${secondsRemaining}s`
+              ) : hasSentEmail ? (
+                "Resend email"
+              ) : (
+                "Send email"
+              )}
+            </button>
+          </div>
+        </div>
       </section>
     </div>
   );

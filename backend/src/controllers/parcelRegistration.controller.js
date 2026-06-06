@@ -7,10 +7,13 @@ function registrationErrorResponse(error) {
     PARCELS_REQUIRED: [400, "At least one parcel is required."],
     UNIT_REQUIRED: [400, "Unit is required for each parcel."],
     TRACKING_NUMBER_REQUIRED: [400, "Tracking number is required for each parcel."],
-    DUPLICATE_TRACKING_IN_SESSION: [409, "The same tracking number cannot be added twice in one session."],
+    DUPLICATE_TRACKING_IN_SESSION: [
+      409,
+      "This tracking number is already in this courier registration session."
+    ],
     COURIER_NOT_FOUND: [404, "Courier company was not found or is not active."],
     UNIT_NOT_FOUND: [404, "Unit not found. Please ask Admin to create the resident/unit account first."],
-    TRACKING_ALREADY_EXISTS: [409, "Tracking number already exists."],
+    TRACKING_ALREADY_EXISTS: [409, "This tracking number already exists for the selected courier company."],
     FORBIDDEN: [403, "You do not have permission to register parcels."]
   };
 

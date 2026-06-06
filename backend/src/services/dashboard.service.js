@@ -621,6 +621,7 @@ function mapGuardParcelRow(row) {
     unit_full_code: row.unit_full_code,
     courier_name: row.courier_name,
     courier_code: row.courier_code,
+    courier_badge_color: row.courier_badge_color,
     display_status: getParcelDisplayStatus(row),
     is_overdue: Boolean(row.is_overdue),
     collection_deadline: row.collection_deadline,
@@ -679,6 +680,7 @@ async function getLatestLoggedParcelsForGuard() {
         u.full_unit_code AS unit_full_code,
         c.courier_name,
         c.courier_code,
+        c.badge_color AS courier_badge_color,
         p.collection_deadline,
         p.created_at
       FROM parcels p
@@ -708,6 +710,7 @@ async function getPendingCollectionParcelsForGuard() {
         u.full_unit_code AS unit_full_code,
         c.courier_name,
         c.courier_code,
+        c.badge_color AS courier_badge_color,
         p.collection_deadline,
         p.created_at
       FROM parcels p

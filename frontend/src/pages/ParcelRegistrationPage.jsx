@@ -48,6 +48,18 @@ const PHONE_COUNTRIES = [
   { code: "+1", flag: "🇺🇸", label: "United States" }
 ];
 
+const COURIER_BADGE_COLORS = [
+  { label: "Yellow", value: "#F4B400" },
+  { label: "Orange", value: "#F97316" },
+  { label: "Red", value: "#EF4444" },
+  { label: "Blue", value: "#2563EB" },
+  { label: "Green", value: "#16A34A" },
+  { label: "Purple", value: "#7C3AED" },
+  { label: "Grey", value: "#64748B" }
+];
+
+const DEFAULT_COURIER_BADGE_COLOR = "#EF4444";
+
 function roleLabel(role) {
   return {
     SUPER_ADMIN: "Super Admin",
@@ -83,6 +95,17 @@ function initials(user) {
 
 function courierCode(courier) {
   return (courier?.courier_code || courier?.short_name || courier?.courier_name?.slice(0, 3) || "COU").toUpperCase();
+}
+
+function courierBadgeStyle(courierOrColor) {
+  const color = typeof courierOrColor === "string"
+    ? courierOrColor
+    : courierOrColor?.badge_color;
+
+  return {
+    backgroundColor: color || DEFAULT_COURIER_BADGE_COLOR,
+    color: color === "#F4B400" ? "#111820" : "#fff"
+  };
 }
 
 function formatDateTimeParts(date) {
@@ -133,8 +156,12 @@ export function ParcelRegistrationPage() {
   const [toast, setToast] = useState(null);
 
   const [isCourierModalOpen, setIsCourierModalOpen] = useState(false);
+  const [courierModalMode, setCourierModalMode] = useState("add");
+  const [editingCourierId, setEditingCourierId] = useState("");
   const [courierModalName, setCourierModalName] = useState("");
   const [courierModalCode, setCourierModalCode] = useState("");
+  const [courierModalContact, setCourierModalContact] = useState("");
+  const [courierModalColor, setCourierModalColor] = useState(DEFAULT_COURIER_BADGE_COLOR);
   const [courierModalError, setCourierModalError] = useState("");
   const [isSavingCourier, setIsSavingCourier] = useState(false);
 
@@ -321,10 +348,26 @@ export function ParcelRegistrationPage() {
   }, []);
 
   function openCourierModal() {
+    setCourierModalMode("add");
+    setEditingCourierId("");
     setCourierModalName("");
     setCourierModalCode("");
+    setCourierModalContact("");
+    setCourierModalColor(DEFAULT_COURIER_BADGE_COLOR);
     setCourierModalError("");
     setIsCourierModalOpen(true);
+  }
+
+  function openEditCourierModal(courier) {
+    setCourierModalMode("edit");
+    setEditingCourierId(courier.courier_id);
+    setCourierModalName(courier.courier_name || "");
+    setCourierModalCode(courier.courier_code || "");
+    setCourierModalContact(courier.contact_number || "");
+    setCourierModalColor(courier.badge_color || DEFAULT_COURIER_BADGE_COLOR);
+    setCourierModalError("");
+    setIsCourierModalOpen(true);
+    setIsCourierDropdownOpen(false);
   }
 
   async function saveCourier(event) {
@@ -336,27 +379,36 @@ export function ParcelRegistrationPage() {
       return;
     }
 
+    if (!courierModalCode.trim()) {
+      setCourierModalError("Courier code is required.");
+      return;
+    }
+
     setIsSavingCourier(true);
     try {
-      const data = await apiRequest("/couriers", {
-        method: "POST",
-        body: {
-          courier_name: courierModalName.trim(),
-          courier_code: courierModalCode.trim() || undefined
-        }
+      const payload = {
+        courier_name: courierModalName.trim(),
+        courier_code: courierModalCode.trim().toUpperCase(),
+        contact_number: courierModalContact.trim() || undefined,
+        badge_color: courierModalColor
+      };
+      const isEdit = courierModalMode === "edit";
+      const data = await apiRequest(isEdit ? `/couriers/${editingCourierId}` : "/couriers", {
+        method: isEdit ? "PUT" : "POST",
+        body: payload
       });
 
-      const newCourier = data.courier || data.data;
+      const savedCourier = data.courier || data.data;
       await loadCouriers();
 
-      if (newCourier?.courier_id) {
-        setSelectedCourierId(newCourier.courier_id);
+      if (savedCourier?.courier_id) {
+        setSelectedCourierId(savedCourier.courier_id);
       }
 
       setIsCourierModalOpen(false);
-      showToast("Courier company added.");
+      showToast(isEdit ? "Courier company updated." : "Courier company added.");
     } catch (error) {
-      setCourierModalError(error.message || "Unable to add courier company.");
+      setCourierModalError(error.message || "Unable to save courier company.");
     } finally {
       setIsSavingCourier(false);
     }
@@ -746,7 +798,7 @@ export function ParcelRegistrationPage() {
                   >
                     {selectedCourier ? (
                       <>
-                        <b>{courierCode(selectedCourier)}</b>
+                        <b style={courierBadgeStyle(selectedCourier)}>{courierCode(selectedCourier)}</b>
                         {selectedCourier.courier_name}
                       </>
                     ) : (
@@ -762,18 +814,32 @@ export function ParcelRegistrationPage() {
                       <div className="courier-empty-option">No courier companies yet.</div>
                     ) : (
                       couriers.map((courier) => (
-                        <button
-                          key={courier.courier_id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedCourierId(courier.courier_id);
-                            setIsCourierDropdownOpen(false);
-                            setFormError("");
-                          }}
-                        >
-                          <b>{courierCode(courier)}</b>
-                          {courier.courier_name}
-                        </button>
+                        <div className="courier-dropdown-row" key={courier.courier_id}>
+                          <button
+                            className="courier-option-button"
+                            type="button"
+                            onClick={() => {
+                              setSelectedCourierId(courier.courier_id);
+                              setIsCourierDropdownOpen(false);
+                              setFormError("");
+                            }}
+                          >
+                            <b style={courierBadgeStyle(courier)}>{courierCode(courier)}</b>
+                            <span>{courier.courier_name}</span>
+                          </button>
+                          <button
+                            className="courier-edit-option"
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openEditCourierModal(courier);
+                            }}
+                            title={`Edit ${courier.courier_name}`}
+                            aria-label={`Edit ${courier.courier_name}`}
+                          >
+                            <Edit2 size={15} />
+                          </button>
+                        </div>
                       ))
                     )}
                     <button className="courier-add-option" type="button" onClick={openCourierModal}>
@@ -840,7 +906,7 @@ export function ParcelRegistrationPage() {
           <section className="parcel-details-stage animate-rise">
             <div className="parcel-courier-summary">
               <div className="summary-courier">
-                <b>{courierCode(selectedCourier)}</b>
+                <b style={courierBadgeStyle(selectedCourier)}>{courierCode(selectedCourier)}</b>
                 <div>
                   <span>Courier</span>
                   <strong>{selectedCourier?.courier_name}</strong>
@@ -1052,8 +1118,12 @@ export function ParcelRegistrationPage() {
             <form className="parcel-small-modal animate-modal" onSubmit={saveCourier}>
               <header>
                 <div>
-                  <h2>Add New Courier Company</h2>
-                  <p>Create a new courier company if it is not in the list.</p>
+                  <h2>{courierModalMode === "edit" ? "Edit Courier Company" : "Add New Courier Company"}</h2>
+                  <p>
+                    {courierModalMode === "edit"
+                      ? "Update courier details used during parcel registration."
+                      : "Create a new courier company if it is not in the list."}
+                  </p>
                 </div>
                 <button type="button" onClick={() => setIsCourierModalOpen(false)} aria-label="Close modal">
                   <X size={18} />
@@ -1062,7 +1132,7 @@ export function ParcelRegistrationPage() {
 
               <div className="parcel-small-modal-body">
                 <label className="parcel-field">
-                  <span>Courier Company Name</span>
+                  <span>Courier Company Name <em>*</em></span>
                   <input
                     className="parcel-text-input"
                     value={courierModalName}
@@ -1071,16 +1141,31 @@ export function ParcelRegistrationPage() {
                   />
                 </label>
                 <label className="parcel-field">
-                  <span>Courier Code / Short Name</span>
+                  <span>Courier Code / Short Name <em>*</em></span>
                   <input
                     className="parcel-text-input"
                     value={courierModalCode}
-                    onChange={(event) => setCourierModalCode(event.target.value)}
+                    onChange={(event) => setCourierModalCode(event.target.value.toUpperCase())}
                     placeholder="e.g. FEX"
                   />
                 </label>
-                <div className="parcel-modal-info">
-                  The courier company will be added to the list and can be selected for future parcel registration.
+                <div className="parcel-field courier-colour-field">
+                  <span>Badge Colour <em>*</em></span>
+                  <div className="courier-colour-options">
+                    {COURIER_BADGE_COLORS.map((colour) => (
+                      <button
+                        className={courierModalColor === colour.value ? "selected" : ""}
+                        key={colour.value}
+                        type="button"
+                        onClick={() => setCourierModalColor(colour.value)}
+                        title={colour.label}
+                        aria-label={`Select ${colour.label} badge colour`}
+                      >
+                        <i style={courierBadgeStyle(colour.value)} />
+                        <span>{colour.label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 {courierModalError && <p className="parcel-form-error">{courierModalError}</p>}
               </div>
@@ -1090,7 +1175,11 @@ export function ParcelRegistrationPage() {
                   Cancel
                 </button>
                 <button className="parcel-primary-button compact" type="submit" disabled={isSavingCourier}>
-                  {isSavingCourier ? <Spinner label="Adding" /> : <><Check size={16} /> Add Courier Company</>}
+                  {isSavingCourier ? (
+                    <Spinner label="Saving" />
+                  ) : (
+                    <><Check size={16} /> {courierModalMode === "edit" ? "Save Courier Company" : "Add Courier Company"}</>
+                  )}
                 </button>
               </footer>
             </form>

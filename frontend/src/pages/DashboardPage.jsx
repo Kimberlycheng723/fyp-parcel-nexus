@@ -619,6 +619,13 @@ function courierCode(code, name) {
     .toUpperCase();
 }
 
+function courierBadgeStyleFromParcel(parcel) {
+  return {
+    backgroundColor: parcel?.courier_badge_color || "#EF4444",
+    color: parcel?.courier_badge_color === "#F4B400" ? "#111820" : "#fff"
+  };
+}
+
 function GuardStatusBadge({ status }) {
   return <em className={`dashboard-status guard-status-badge ${statusClassName(status)}`}>{statusLabel(status)}</em>;
 }
@@ -955,7 +962,9 @@ function ResidentSummaryCard({ icon: Icon, tone, label, value, helper }) {
 function ResidentCourier({ parcel }) {
   return (
     <span className="resident-courier">
-      {parcel?.courier_code && <i>{courierCode(parcel.courier_code, parcel.courier_name)}</i>}
+      {parcel?.courier_code && (
+        <i style={courierBadgeStyleFromParcel(parcel)}>{courierCode(parcel.courier_code, parcel.courier_name)}</i>
+      )}
       <span>{parcel?.courier_name || "Unknown courier"}</span>
     </span>
   );

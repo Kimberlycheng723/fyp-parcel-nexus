@@ -63,6 +63,7 @@ function toResidentParcelListItem(row) {
     unit_full_code: row.full_unit_code,
     courier_name: row.courier_name,
     courier_code: row.courier_code,
+    courier_badge_color: row.courier_badge_color,
     display_status: buildDisplayStatus(row),
     is_overdue: Boolean(row.is_overdue),
     collection_deadline: row.collection_deadline,
@@ -78,6 +79,7 @@ function toResidentParcelDetail(row) {
     unit_full_code: row.full_unit_code,
     courier_name: row.courier_name,
     courier_code: row.courier_code,
+    courier_badge_color: row.courier_badge_color,
     display_status: buildDisplayStatus(row),
     is_overdue: Boolean(row.is_overdue),
     delivery_person_contact: row.delivery_person_contact,
@@ -231,6 +233,7 @@ export async function listResidentParcels({ requester, filters = {} }) {
         u.full_unit_code,
         c.courier_name,
         c.courier_code,
+        c.badge_color AS courier_badge_color,
         (p.status IN ('PENDING', 'PENDING_COLLECTION')
           AND p.collection_deadline IS NOT NULL
           AND p.collection_deadline < NOW()) AS is_overdue,
@@ -294,6 +297,7 @@ export async function getResidentParcelById({ requester, parcelId }) {
         u.full_unit_code,
         c.courier_name,
         c.courier_code,
+        c.badge_color AS courier_badge_color,
         registered.first_name AS registered_first_name,
         registered.last_name AS registered_last_name,
         (p.status IN ('PENDING', 'PENDING_COLLECTION')

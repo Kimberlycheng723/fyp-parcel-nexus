@@ -3,7 +3,8 @@ import { useState } from "react";
 
 import { AuthLayout } from "../components/AuthLayout.jsx";
 import { Spinner } from "../components/Spinner.jsx";
-import { apiRequest } from "../services/api.js";
+import { useResendCooldown } from "../hooks/useResendCooldown.js";
+import { sendPasswordResetLink } from "../services/api.js";
 import { navigate } from "../utils/navigation.js";
 
 export function ForgotPasswordPage() {
@@ -11,6 +12,8 @@ export function ForgotPasswordPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [hasSentEmail, setHasSentEmail] = useState(false);
+  const { secondsRemaining, isCoolingDown, startCooldown } = useResendCooldown(60);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -24,11 +27,10 @@ export function ForgotPasswordPage() {
 
     try {
       setIsLoading(true);
-      const data = await apiRequest("/auth/forgot-password", {
-        method: "POST",
-        body: { email }
-      });
-      setMessage(data.message);
+      await sendPasswordResetLink(email);
+      setHasSentEmail(true);
+      setMessage("Password reset link sent. Please check your email.");
+      startCooldown();
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -62,8 +64,14 @@ export function ForgotPasswordPage() {
         {message && <p className="form-success">{message}</p>}
         {error && <p className="form-error">{error}</p>}
 
-        <button className="primary-button" type="submit" disabled={isLoading}>
-          {isLoading ? <Spinner label="Sending" /> : <>Send reset link <ArrowRight size={18} /></>}
+        <button className="primary-button" type="submit" disabled={isLoading || isCoolingDown}>
+          {isLoading ? (
+            <Spinner label="Sending..." />
+          ) : isCoolingDown ? (
+            `Resend email in ${secondsRemaining}s`
+          ) : (
+            <>{hasSentEmail ? "Resend email" : "Send reset link"} <ArrowRight size={18} /></>
+          )}
         </button>
 
         <p className="support-copy">

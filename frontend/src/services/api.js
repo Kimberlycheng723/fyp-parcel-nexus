@@ -95,3 +95,10 @@ export function getResidentParcels({ tab = "pending", search = "", page = 1, lim
 export function getResidentParcelDetails(parcelId) {
   return apiRequest(`/resident/parcels/${parcelId}`);
 }
+
+export function sendPasswordResetLink(email) {
+  return apiRequest("/auth/forgot-password", {
+    method: "POST",
+    body: { email }
+  });
+}

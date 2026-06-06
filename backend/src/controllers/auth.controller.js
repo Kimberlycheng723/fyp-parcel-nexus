@@ -117,6 +117,15 @@ function passwordResetErrorResponse(result) {
     };
   }
 
+  if (result.error === "SAME_PASSWORD") {
+    return {
+      status: 400,
+      body: {
+        message: "New password cannot be the same as your current password."
+      }
+    };
+  }
+
   return {
     status: 400,
     body: {

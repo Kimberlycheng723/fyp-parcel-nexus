@@ -446,7 +446,13 @@
   transform: translateY(-12px);
 }
 
-.courier-dropdown-panel button,
+.courier-dropdown-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px;
+  align-items: stretch;
+}
+
+.courier-dropdown-panel .courier-option-button,
 .courier-empty-option {
   display: flex;
   width: 100%;
@@ -460,14 +466,41 @@
   font-size: 13.5px;
 }
 
-.courier-dropdown-panel button:hover {
+.courier-dropdown-panel .courier-option-button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.courier-dropdown-panel .courier-option-button:hover,
+.courier-edit-option:hover {
   background: #f7f9fb;
 }
 
+.courier-edit-option {
+  display: grid;
+  width: 100%;
+  place-items: center;
+  border: 0;
+  border-left: 1px solid #edf0f2;
+  background: #fff;
+  color: #5f6b78;
+}
+
 .courier-add-option {
+  display: flex;
+  width: 100%;
+  align-items: center;
   justify-content: center;
   border-top: 1px solid #e5e8ec !important;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
   background: #f1f1f1 !important;
+  color: #17202b;
+  padding: 11px 22px;
+  font-weight: 800;
 }
 
 .courier-empty-option {
@@ -1120,14 +1153,37 @@
   font-size: 13px;
 }
 
-.parcel-modal-info {
+.courier-colour-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.courier-colour-options button {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
   border: 1px solid #d8dde3;
   border-radius: 9px;
-  background: #f3f6f9;
-  color: #5d6670;
-  padding: 10px 12px;
-  font-size: 11.5px;
-  line-height: 1.4;
+  background: #fff;
+  color: #25303b;
+  padding: 8px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.courier-colour-options button.selected {
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px rgba(8, 29, 51, 0.08);
+}
+
+.courier-colour-options i {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  border-radius: 6px;
 }
 
 .parcel-small-modal footer {
@@ -1663,6 +1719,10 @@
   .parcel-camera-modal footer .parcel-secondary-button,
   .parcel-camera-modal footer .parcel-primary-button {
     width: 100%;
+  }
+
+  .courier-colour-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
 }

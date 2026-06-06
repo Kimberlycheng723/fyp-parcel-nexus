@@ -171,6 +171,47 @@
   color: #fff;
 }
 
+.save-button:disabled,
+.secondary-button:disabled {
+  border-color: #d7dce2;
+  background: #edf1f5;
+  color: #7b8794;
+  transform: none;
+}
+
+.password-email-panel {
+  color: #596575;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.password-email-panel > p:first-child {
+  margin: 0;
+}
+
+.password-email-panel > span {
+  display: block;
+  margin-top: 14px;
+  border-radius: 10px;
+  background: #f6f8fa;
+  color: #17202b;
+  padding: 12px 14px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.password-email-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.password-email-actions .secondary-button,
+.password-email-actions .save-button {
+  min-width: 128px;
+}
+
 .coming-later {
   color: #8a929b !important;
   font-size: 13px !important;
@@ -372,5 +413,14 @@
   .preference-row .toggle {
     grid-column: 2;
     justify-self: start;
+  }
+
+  .password-email-actions {
+    flex-direction: column-reverse;
+  }
+
+  .password-email-actions .secondary-button,
+  .password-email-actions .save-button {
+    width: 100%;
   }
 }
