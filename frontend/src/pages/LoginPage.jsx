@@ -51,7 +51,7 @@ export function LoginPage() {
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="you@gemcondo.com"
+              placeholder="Enter your email address"
               autoComplete="email"
             />
           </div>
@@ -68,6 +68,7 @@ export function LoginPage() {
           label=""
           value={password}
           onChange={setPassword}
+          placeholder="Enter your password"
           autoComplete="current-password"
         />
 

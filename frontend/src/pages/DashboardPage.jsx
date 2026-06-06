@@ -421,7 +421,7 @@ function TrendChart({ data = [] }) {
 
   return (
     <div className="dashboard-chart-shell">
-      {!hasData && <div className="dashboard-empty-overlay">No parcel trend data for this period.</div>}
+      {!hasData && <div className="dashboard-empty-overlay"></div>}
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Parcels received trend chart">
         {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
           const y = padding.top + plotHeight - ratio * plotHeight;
@@ -651,33 +651,60 @@ function GuardParcelTable({ type, parcels = [] }) {
   }
 
   return (
-    <div className="guard-table-wrap">
-      <table className={`guard-table ${isLatest ? "latest" : "pending"}`}>
-        <thead>
-          <tr>
-            {isLatest && <th>Tracking Number</th>}
-            <th>Unit</th>
-            <th>Courier</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {parcels.map((parcel) => (
-            <tr key={parcel.parcel_id || `${parcel.tracking_number}-${parcel.created_at}`}>
-              {isLatest && <td className="guard-tracking-cell" title={parcel.tracking_number || ""}>{parcel.tracking_number || "No tracking number"}</td>}
-              <td>
-                <GuardUnit value={parcel.unit_full_code} />
-              </td>
-              <td>
-                <GuardCourier parcel={parcel} />
-              </td>
-              <td>
-                <GuardStatusBadge status={parcel.display_status} />
-              </td>
+    <div className="guard-table-responsive">
+      <div className="guard-table-wrap">
+        <table className={`guard-table ${isLatest ? "latest" : "pending"}`}>
+          <thead>
+            <tr>
+              {isLatest && <th>Tracking Number</th>}
+              <th>Unit</th>
+              <th>Courier</th>
+              <th>Status</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {parcels.map((parcel) => (
+              <tr key={parcel.parcel_id || `${parcel.tracking_number}-${parcel.created_at}`}>
+                {isLatest && <td className="guard-tracking-cell" title={parcel.tracking_number || ""}>{parcel.tracking_number || "No tracking number"}</td>}
+                <td>
+                  <GuardUnit value={parcel.unit_full_code} />
+                </td>
+                <td>
+                  <GuardCourier parcel={parcel} />
+                </td>
+                <td>
+                  <GuardStatusBadge status={parcel.display_status} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="guard-mobile-list">
+        {parcels.map((parcel) => (
+          <article className="guard-mobile-card" key={parcel.parcel_id || `${parcel.tracking_number}-${parcel.created_at}-mobile`}>
+            <div className="guard-mobile-card-top">
+              <strong title={isLatest ? parcel.tracking_number || "" : parcel.unit_full_code || ""}>
+                {isLatest ? parcel.tracking_number || "No tracking number" : parcel.unit_full_code || "Not assigned"}
+              </strong>
+              <GuardStatusBadge status={parcel.display_status} />
+            </div>
+            <dl>
+              {isLatest && (
+                <div>
+                  <dt>Unit</dt>
+                  <dd>{parcel.unit_full_code || "Not assigned"}</dd>
+                </div>
+              )}
+              <div>
+                <dt>Courier</dt>
+                <dd>{parcel.courier_name || "Unknown courier"}</dd>
+              </div>
+            </dl>
+          </article>
+        ))}
+      </div>
     </div>
   );
 }

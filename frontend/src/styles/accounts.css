@@ -1,6 +1,7 @@
 .accounts-page {
   position: relative;
   width: 100%;
+  min-width: 0;
   min-height: calc(100vh - 56px);
 }
 
@@ -239,7 +240,11 @@
 }
 
 .accounts-table-card {
+  position: relative;
+  max-width: 100%;
   overflow: visible;
+  border: 1px solid #d8dde3;
+  border-radius: 10px 10px 0 0;
   background: #fff;
 }
 
@@ -247,6 +252,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  table-layout: fixed;
 }
 
 .accounts-table th {
@@ -259,11 +265,23 @@
   text-align: left;
 }
 
+.accounts-table th:first-child {
+  border-top-left-radius: 9px;
+}
+
+.accounts-table th:last-child {
+  border-top-right-radius: 9px;
+}
+
 .accounts-table td {
   border-bottom: 1px solid #d9dde2;
   color: #17202b;
   padding: 12px 14px;
   vertical-align: middle;
+}
+
+.accounts-table tbody tr:last-child td {
+  border-bottom: 0;
 }
 
 .accounts-table tr:hover td {
@@ -274,6 +292,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 
 .account-name-cell > span {
@@ -293,6 +312,18 @@
 .date-cell strong {
   display: block;
   font-weight: 800;
+}
+
+.account-name-cell strong,
+.account-name-cell small,
+.mono-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-name-cell strong,
+.mono-cell {
+  white-space: nowrap;
 }
 
 .account-name-cell small,
@@ -389,7 +420,7 @@
   position: absolute;
   top: 32px;
   right: 0;
-  z-index: 12;
+  z-index: 45;
   min-width: 245px;
   border: 1px solid #d8dde3;
   border-radius: 10px;
@@ -447,6 +478,9 @@
 }
 
 .accounts-table-summary {
+  border: 1px solid #d8dde3;
+  border-top: 0;
+  border-radius: 0 0 10px 10px;
   background: #eef1f4;
   color: #59616b;
   margin: 0;
@@ -726,4 +760,196 @@
   min-height: 50vh;
   place-items: center;
   color: var(--navy);
+}
+
+@media (max-width: 980px) {
+  .accounts-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .accounts-toolbar-actions {
+    margin-left: 0;
+  }
+
+  .accounts-table th,
+  .accounts-table td {
+    padding-right: 11px;
+    padding-left: 11px;
+  }
+}
+
+@media (max-width: 760px) {
+  .accounts-heading-row {
+    margin: -18px -10px 0;
+    padding: 18px 10px;
+  }
+
+  .accounts-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .accounts-search,
+  .accounts-status-filter,
+  .accounts-toolbar-actions,
+  .accounts-toolbar-actions .secondary-button,
+  .accounts-toolbar-actions .dark-action-button {
+    width: 100%;
+  }
+
+  .accounts-toolbar-actions {
+    align-items: stretch;
+    flex-direction: column;
+    margin-left: 0;
+  }
+
+  .accounts-toast {
+    left: 0;
+    right: 0;
+    max-width: none;
+  }
+
+  .accounts-table-card {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .accounts-table,
+  .accounts-table thead,
+  .accounts-table tbody,
+  .accounts-table tr,
+  .accounts-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .accounts-table {
+    table-layout: auto;
+  }
+
+  .accounts-table thead {
+    display: none;
+  }
+
+  .accounts-table tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  .accounts-table tr {
+    position: relative;
+    overflow: visible;
+    border: 1px solid #d8dde3;
+    border-radius: 10px;
+    background: #fff;
+    padding: 10px 12px;
+  }
+
+  .accounts-table td {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    border-bottom: 1px solid #edf0f3;
+    padding: 9px 0;
+  }
+
+  .accounts-table td::before {
+    color: #8a929b;
+    content: attr(data-label);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .accounts-table td:last-child {
+    border-bottom: 0;
+  }
+
+  .accounts-table tr:hover td {
+    background: transparent;
+  }
+
+  .accounts-empty {
+    display: grid;
+    height: 150px;
+    grid-template-columns: 1fr !important;
+    place-items: center;
+    text-align: center;
+  }
+
+  .accounts-empty::before {
+    display: none;
+  }
+
+  .row-actions {
+    justify-content: flex-end;
+  }
+
+  .account-actions-menu {
+    right: 0;
+    min-width: 220px;
+  }
+
+  .account-modal {
+    width: calc(100vw - 20px);
+    max-height: calc(100svh - 20px);
+    overflow-y: auto;
+  }
+
+  .account-modal-heading {
+    padding: 18px 16px 14px;
+  }
+
+  .account-modal-grid {
+    grid-template-columns: 1fr;
+    padding: 16px 16px 0;
+  }
+
+  .role-display-box,
+  .activation-info-box,
+  .confirm-account-box {
+    margin-right: 16px;
+    margin-left: 16px;
+  }
+
+  .account-modal-footer {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 14px 16px;
+  }
+
+  .modal-footer-actions {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
+    margin-left: 0;
+  }
+
+  .modal-footer-actions .secondary-button,
+  .modal-footer-actions .dark-action-button {
+    width: 100%;
+  }
+
+  .details-grid {
+    padding: 10px 16px 18px;
+  }
+
+  .detail-item {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
+@media (max-width: 390px) {
+  .accounts-table td {
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .account-actions-menu {
+    min-width: min(220px, calc(100vw - 48px));
+  }
 }

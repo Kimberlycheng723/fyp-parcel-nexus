@@ -633,7 +633,7 @@ function AccountsTable({
     : ["NAME", "EMAIL", role === "GUARD" ? "ASSIGNED POST" : "PHONE NUMBER", "STATUS", "DATE CREATED", "ACTIONS"];
 
   return (
-    <section className="accounts-table-card">
+    <section className={`accounts-table-card ${openMenuId ? "menu-open" : ""}`}>
       <table className="accounts-table">
         <thead>
           <tr>
@@ -662,13 +662,13 @@ function AccountsTable({
             <tr key={user.user_id}>
               {role === "RESIDENT" ? (
                 <>
-                  <td className="mono-strong">{user.unit?.full_unit_code || "-"}</td>
-                  <td className="mono-cell">{user.email}</td>
-                  <td>{user.phone_number}</td>
+                  <td className="mono-strong" data-label="Unit">{user.unit?.full_unit_code || "-"}</td>
+                  <td className="mono-cell" data-label="Email">{user.email}</td>
+                  <td data-label="Phone number">{user.phone_number}</td>
                 </>
               ) : (
                 <>
-                  <td>
+                  <td data-label="Name">
                     <div className="account-name-cell">
                       <span>{userInitials(user)}</span>
                       <div>
@@ -677,19 +677,19 @@ function AccountsTable({
                       </div>
                     </div>
                   </td>
-                  <td className="mono-cell">{user.email}</td>
-                  <td>{role === "GUARD" ? user.assigned_post || "-" : user.phone_number}</td>
+                  <td className="mono-cell" data-label="Email">{user.email}</td>
+                  <td data-label={role === "GUARD" ? "Assigned post" : "Phone number"}>{role === "GUARD" ? user.assigned_post || "-" : user.phone_number}</td>
                 </>
               )}
 
-              <td><StatusBadge status={user.status} /></td>
-	              <td>
+              <td data-label="Status"><StatusBadge status={user.status} /></td>
+	              <td data-label="Date created">
 	                <div className="date-cell">
 	                  <strong>{formatDate(user.created_at)}</strong>
 	                  <span>{formatRelativeTime(user.created_at)}</span>
 	                </div>
 	              </td>
-              <td>
+              <td data-label="Actions">
                 <div className="row-actions">
                   <button className="icon-only-button" type="button" onClick={() => onEdit(user)} title="Edit account">
                     <Pencil size={16} />

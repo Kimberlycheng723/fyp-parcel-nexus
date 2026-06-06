@@ -53,7 +53,7 @@ export function ForgotPasswordPage() {
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="you@gemcondo.com"
+              placeholder="Enter your email address"
               autoComplete="email"
             />
           </div>

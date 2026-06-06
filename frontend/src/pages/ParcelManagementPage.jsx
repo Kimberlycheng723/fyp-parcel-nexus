@@ -504,14 +504,14 @@ export function ParcelManagementPage() {
             }}
           />
 
-          <button className="parcel-reset-button" type="button" onClick={resetFilters}>
-            <X size={15} /> Reset
+          <button className="parcel-reset-button" type="button" onClick={resetFilters} title="Reset filters" aria-label="Reset filters">
+            <X size={15} /> <span className="parcel-action-label">Reset</span>
           </button>
 
           {isAdmin && (
             <div className="parcel-toolbar-actions">
-              <button className="secondary-button" type="button" onClick={handleExport}>
-                <Download size={16} /> Export CSV
+              <button className="secondary-button" type="button" onClick={handleExport} title="Export CSV" aria-label="Export CSV">
+                <Download size={16} /> <span className="parcel-action-label">Export CSV</span>
               </button>
             </div>
           )}
@@ -699,6 +699,59 @@ function ParcelTable({
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="parcel-mobile-card-list" aria-label="Parcel records">
+        {isLoading && (
+          <div className="parcel-mobile-empty">
+            <Spinner label="Loading parcels" />
+          </div>
+        )}
+
+        {!isLoading && parcels.length === 0 && (
+          <div className="parcel-mobile-empty">
+            <strong>No parcels found.</strong>
+            <span>Adjust filters or register a new parcel session.</span>
+          </div>
+        )}
+
+        {!isLoading && parcels.map((parcel) => (
+          <article className="parcel-mobile-card" key={parcel.parcel_id}>
+            <div className="parcel-mobile-card-header">
+              <strong title={parcel.tracking_number}>{parcel.tracking_number}</strong>
+              <ParcelStatusBadge parcel={parcel} />
+            </div>
+
+            <dl className="parcel-mobile-details">
+              <div>
+                <dt>Unit</dt>
+                <dd>{parcel.unit?.full_unit_code || "-"}</dd>
+              </div>
+              <div>
+                <dt>Courier</dt>
+                <dd>{parcel.courier?.courier_name || "-"}</dd>
+              </div>
+              <div>
+                <dt>Registered</dt>
+                <dd>{formatDate(parcel.created_at)}{formatTime(parcel.created_at) ? ` · ${formatTime(parcel.created_at)}` : ""}</dd>
+              </div>
+            </dl>
+
+            <div className="parcel-mobile-actions">
+              <button type="button" onClick={() => onView(parcel)}>
+                <Eye size={14} /> View
+              </button>
+              <button type="button" onClick={() => onEdit(parcel)}>
+                <Pencil size={14} /> Edit
+              </button>
+              {isAdmin && (
+                <button type="button" className="danger" onClick={() => onDelete(parcel)}>
+                  <Trash2 size={14} /> Delete
+                </button>
+              )}
+            </div>
+          </article>
+        ))}
       </div>
 
       <footer className="parcel-table-footer">

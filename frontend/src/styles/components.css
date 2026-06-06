@@ -62,3 +62,25 @@
     transform: scale(1) translateY(0);
   }
 }
+
+@media (max-width: 640px) {
+  .modal-backdrop {
+    padding: 10px;
+  }
+
+  .password-modal {
+    width: calc(100vw - 20px);
+    max-height: calc(100svh - 20px);
+    overflow-y: auto;
+    padding: 18px;
+  }
+
+  .modal-heading {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .modal-heading h2 {
+    font-size: 19px;
+  }
+}

@@ -1,6 +1,17 @@
 .dashboard-page {
   position: relative;
+  min-width: 0;
   min-height: calc(100vh - 56px);
+}
+
+.dashboard-header,
+.dashboard-card,
+.dashboard-main-grid,
+.dashboard-chart-card,
+.dashboard-donut-card,
+.guard-table-card,
+.resident-parcels-section {
+  min-width: 0;
 }
 
 .dashboard-header {
@@ -636,7 +647,9 @@
 
 .dashboard-chart-shell {
   position: relative;
+  max-width: 100%;
   min-height: 270px;
+  overflow: hidden;
 }
 
 .dashboard-chart-shell svg {
@@ -762,7 +775,10 @@
 
 .dashboard-donut-wrap {
   position: relative;
-  min-height: 220px;
+  display: grid;
+  width: 220px;
+  height: 220px;
+  place-items: center;
 }
 
 .dashboard-donut-wrap svg {
@@ -793,7 +809,8 @@
   position: absolute;
   inset: 0;
   display: grid;
-  place-content: center;
+  align-content: center;
+  justify-items: center;
   text-align: center;
 }
 
@@ -1212,8 +1229,14 @@
 }
 
 .guard-table-wrap {
+  max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.guard-mobile-list {
+  display: none;
 }
 
 .guard-table {
@@ -1324,6 +1347,43 @@
   min-width: max-content;
   max-width: 100%;
   padding-inline: 9px;
+}
+
+@media (min-width: 641px) and (max-width: 1180px) {
+  .guard-table.latest th:nth-child(1),
+  .guard-table.latest td:nth-child(1) {
+    width: 34%;
+  }
+
+  .guard-table.latest th:nth-child(2),
+  .guard-table.latest td:nth-child(2) {
+    width: 16%;
+  }
+
+  .guard-table.latest th:nth-child(3),
+  .guard-table.latest td:nth-child(3) {
+    width: 28%;
+  }
+
+  .guard-table.latest th:nth-child(4),
+  .guard-table.latest td:nth-child(4) {
+    width: 22%;
+  }
+
+  .guard-table.pending th:nth-child(1),
+  .guard-table.pending td:nth-child(1) {
+    width: 22%;
+  }
+
+  .guard-table.pending th:nth-child(2),
+  .guard-table.pending td:nth-child(2) {
+    width: 43%;
+  }
+
+  .guard-table.pending th:nth-child(3),
+  .guard-table.pending td:nth-child(3) {
+    width: 35%;
+  }
 }
 
 .guard-table-empty {
@@ -1595,6 +1655,7 @@
 }
 
 .resident-table-wrap {
+  max-width: 100%;
   overflow: hidden;
   margin-top: 16px;
   border: 1px solid #d8dde3;
@@ -1912,6 +1973,12 @@
   }
 }
 
+@media (max-width: 980px) {
+  .dashboard-bell {
+    display: none;
+  }
+}
+
 @media (max-width: 760px) {
   .dashboard-header {
     flex-direction: column;
@@ -1980,11 +2047,11 @@
 
   .guard-table,
   .guard-table.latest {
-    min-width: 560px;
+    min-width: 520px;
   }
 
   .guard-table.pending {
-    min-width: 440px;
+    min-width: 400px;
   }
 
   .dashboard-kpi-grid,
@@ -2140,5 +2207,220 @@
   .dashboard-activity-list time {
     grid-column: 2;
     justify-self: start;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-header {
+    margin: -18px -10px 0;
+    padding: 18px 10px 16px;
+  }
+
+  .dashboard-header h1 {
+    font-size: 24px;
+  }
+
+  .dashboard-header span {
+    font-size: 10px;
+  }
+
+  .dashboard-card {
+    padding: 14px;
+  }
+
+  .dashboard-card-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .dashboard-chart-shell {
+    min-height: 220px;
+  }
+
+  .dashboard-report-modal {
+    width: calc(100vw - 20px);
+    max-height: calc(100svh - 20px);
+  }
+
+  .dashboard-modal-overlay {
+    padding: 10px;
+  }
+
+  .dashboard-report-modal-header,
+  .dashboard-report-field {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .dashboard-report-modal-footer {
+    padding: 14px 16px;
+  }
+
+  .guard-table th,
+  .guard-table td {
+    padding: 12px 10px;
+  }
+
+  .guard-status-badge,
+  .resident-status {
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-donut-layout {
+    justify-items: center;
+  }
+
+  .dashboard-donut-wrap {
+    width: 190px;
+    height: 190px;
+  }
+
+  .dashboard-donut-wrap svg {
+    width: 190px;
+    height: 190px;
+  }
+
+  .dashboard-donut-center {
+    gap: 1px;
+  }
+
+  .dashboard-donut-center strong {
+    font-size: 22px;
+  }
+
+  .dashboard-donut-center span {
+    font-size: 11px;
+  }
+
+  .dashboard-donut-legend {
+    width: 100%;
+  }
+
+  .guard-table-wrap {
+    display: none;
+  }
+
+  .guard-mobile-list {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .guard-mobile-card {
+    display: grid;
+    gap: 12px;
+    border: 1px solid #edf0f2;
+    border-radius: 11px;
+    background: #fff;
+    padding: 13px;
+  }
+
+  .guard-mobile-card-top {
+    display: flex;
+    min-width: 0;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .guard-mobile-card-top strong {
+    min-width: 0;
+    overflow: hidden;
+    color: #151b23;
+    font-size: 13px;
+    font-weight: 900;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .guard-mobile-card-top .guard-status-badge {
+    flex: 0 0 auto;
+  }
+
+  .guard-mobile-card dl {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+  }
+
+  .guard-mobile-card dl div {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .guard-mobile-card dt {
+    color: #8d96a2;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .guard-mobile-card dd {
+    min-width: 0;
+    overflow: hidden;
+    margin: 0;
+    color: #1f2730;
+    font-size: 12px;
+    font-weight: 800;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 390px) {
+  .resident-summary-grid {
+    gap: 10px;
+  }
+
+  .resident-summary-card {
+    min-height: 122px;
+    padding: 14px;
+  }
+
+  .resident-summary-card p {
+    font-size: 10px;
+  }
+
+  .resident-summary-card small {
+    font-size: 10.5px;
+  }
+
+  .resident-parcels-heading {
+    gap: 10px;
+  }
+
+  .resident-mobile-list article {
+    grid-template-columns: 26px minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 13px 12px;
+  }
+
+  .resident-selected-bar {
+    flex-wrap: nowrap;
+    padding: 12px 8px;
+  }
+
+  .resident-selected-bar > div {
+    gap: 8px;
+  }
+
+  .resident-selected-bar span {
+    max-width: 92px;
+  }
+
+  .resident-selected-bar button {
+    padding: 0 9px;
+  }
+
+  .resident-selected-bar button.primary {
+    min-width: 132px;
   }
 }

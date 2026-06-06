@@ -1,6 +1,7 @@
 .auth-page {
   display: grid;
   min-height: 100vh;
+  min-width: 0;
   grid-template-columns: minmax(520px, 1fr) minmax(520px, 1fr);
   background: #f7f8fa;
 }
@@ -9,6 +10,7 @@
   position: relative;
   display: flex;
   min-height: 100vh;
+  min-width: 0;
   flex-direction: column;
   padding: clamp(42px, 5.1vh, 58px) clamp(54px, 7.5vw, 96px) 32px;
 }
@@ -42,11 +44,13 @@
   display: flex;
   flex: 1;
   align-items: center;
+  min-width: 0;
 }
 
 .auth-form,
 .success-panel {
   width: min(100%, 550px);
+  min-width: 0;
 }
 
 .auth-heading {
@@ -303,4 +307,81 @@
     flex-direction: column;
   }
 
+}
+
+@media (max-width: 640px) {
+  .auth-page,
+  .auth-panel {
+    min-height: 100svh;
+  }
+
+  .auth-panel {
+    padding: 30px 18px 24px;
+  }
+
+  .auth-content {
+    align-items: flex-start;
+    padding-top: 34px;
+  }
+
+  .brand-lockup small {
+    margin-top: 10px;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+  }
+
+  .auth-heading {
+    margin-bottom: 24px;
+  }
+
+  .auth-heading h1 {
+    font-size: 30px;
+  }
+
+  .auth-heading p {
+    margin-top: 10px;
+    font-size: 14px;
+  }
+
+  .password-label-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .ghost-input-button {
+    font-size: 13px;
+  }
+
+  .input-shell {
+    height: 46px;
+    padding: 0 12px;
+  }
+
+  .primary-button {
+    min-height: 48px;
+    font-size: 14px;
+  }
+
+  .support-copy {
+    font-size: 13px;
+  }
+
+  .success-panel .auth-heading {
+    margin-bottom: 36px;
+  }
+
+  .success-mark {
+    width: 96px;
+    height: 96px;
+  }
+
+  .success-panel h2 {
+    font-size: 24px;
+  }
+
+  .success-panel > p {
+    margin-bottom: 28px;
+    font-size: 15px;
+  }
 }

@@ -229,11 +229,17 @@ export function ProtectedLayout({ profile, children, hideTopActions = false }) {
 
       <section className="workspace">
         <div className="mobile-topbar">
-          <button className="mobile-menu-button" type="button" onClick={() => setIsSidebarOpen(true)} aria-label="Open menu">
-            <Menu size={20} />
+          <div className="mobile-topbar-brand">
+            <button className="mobile-menu-button" type="button" onClick={() => setIsSidebarOpen(true)} aria-label="Open menu">
+              <Menu size={20} />
+            </button>
+            <strong>{mobileTitle}</strong>
+            <span>{roleLabel}</span>
+          </div>
+          <button className="mobile-topbar-bell" type="button" title="Notifications coming later" aria-label="Notifications">
+            <Bell size={17} />
+            <i />
           </button>
-          <strong>GEM</strong>
-          <span>{roleLabel}</span>
         </div>
 
         {!hideTopActions && (

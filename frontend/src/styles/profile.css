@@ -296,6 +296,12 @@
 }
 
 @media (max-width: 980px) {
+  .profile-page {
+    width: 100%;
+    margin-right: 0;
+    margin-left: 0;
+  }
+
   .profile-grid {
     grid-template-columns: 1fr;
   }
@@ -306,4 +312,65 @@
     gap: 18px;
   }
 
+}
+
+@media (max-width: 640px) {
+  .profile-page,
+  .settings-card {
+    min-width: 0;
+  }
+
+  .page-heading {
+    margin-bottom: 18px;
+  }
+
+  .page-heading h1 {
+    font-size: 24px;
+  }
+
+  .page-heading p {
+    font-size: 14px;
+  }
+
+  .card-heading {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px 16px 12px;
+  }
+
+  .card-heading .secondary-button {
+    width: 100%;
+  }
+
+  .profile-grid {
+    gap: 14px;
+    padding: 8px 16px 18px;
+  }
+
+  .profile-actions,
+  .preference-card-action {
+    align-items: stretch;
+    padding: 14px 16px 18px;
+  }
+
+  .profile-actions .secondary-button,
+  .profile-actions .save-button,
+  .preference-card-action .save-preferences-button {
+    width: 100%;
+  }
+
+  .preference-list {
+    padding: 6px 16px 0;
+  }
+
+  .preference-row {
+    grid-template-columns: 34px minmax(0, 1fr);
+    align-items: flex-start;
+  }
+
+  .preference-row .toggle {
+    grid-column: 2;
+    justify-self: start;
+  }
 }
