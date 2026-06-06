@@ -1,6 +1,11 @@
 import { getAccessToken } from "./tokenStorage.js";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+const SESSION_EXPIRED_EVENT = "parcel-nexus-session-expired";
+
+function notifySessionExpired() {
+  window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT));
+}
 
 function buildHeaders(options = {}, isFormData = false) {
   const headers = {
@@ -32,6 +37,10 @@ export async function apiRequest(path, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
+    if (response.status === 401 && getAccessToken()) {
+      notifySessionExpired();
+    }
+
     const error = new Error(data.message || "Request failed. Please try again.");
     error.status = response.status;
     error.errors = data.errors;
@@ -48,6 +57,10 @@ export async function apiDownload(path, options = {}) {
   });
 
   if (!response.ok) {
+    if (response.status === 401 && getAccessToken()) {
+      notifySessionExpired();
+    }
+
     const data = await response.json().catch(() => ({}));
     const error = new Error(data.message || "Download failed. Please try again.");
     error.status = response.status;

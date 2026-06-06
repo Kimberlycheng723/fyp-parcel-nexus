@@ -1,5 +1,5 @@
 import { Mail, ArrowRight } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AuthLayout } from "../components/AuthLayout.jsx";
 import { PasswordField } from "../components/PasswordField.jsx";
@@ -7,12 +7,24 @@ import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { navigate } from "../utils/navigation.js";
 
+const SESSION_NOTICE_KEY = "parcel_nexus_session_notice";
+
 export function LoginPage() {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const sessionNotice = sessionStorage.getItem(SESSION_NOTICE_KEY);
+
+    if (sessionNotice) {
+      setNotice(sessionNotice);
+      sessionStorage.removeItem(SESSION_NOTICE_KEY);
+    }
+  }, []);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -26,7 +38,7 @@ export function LoginPage() {
     try {
       setIsLoading(true);
       await login({ email, password });
-      navigate("/profile");
+      navigate("/dashboard");
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -72,6 +84,7 @@ export function LoginPage() {
           autoComplete="current-password"
         />
 
+        {notice && <p className="form-success">{notice}</p>}
         {error && <p className="form-error">{error}</p>}
 
         <button className="primary-button" type="submit" disabled={isLoading}>

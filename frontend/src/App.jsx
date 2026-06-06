@@ -17,7 +17,7 @@ function PublicAuthRoute({ children }) {
 
   useEffect(() => {
     if (!isCheckingSession && token && user) {
-      replaceNavigate("/profile");
+      replaceNavigate("/dashboard");
     }
   }, [token, user, isCheckingSession]);
 
@@ -51,7 +51,7 @@ function Router() {
 
   useEffect(() => {
     if (path === "/" && !isCheckingSession) {
-      navigate(token && user ? "/profile" : "/login");
+      navigate(token && user ? "/dashboard" : "/login");
     }
   }, [path, token, user, isCheckingSession]);
 

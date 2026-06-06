@@ -118,6 +118,7 @@ function displayName(profile) {
 export function ProtectedLayout({ profile, children, hideTopActions = false }) {
   const { logout, user } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const sidebarUser = profile || user || {};
   const role = sidebarUser?.role || "ACCOUNT";
   const roleLabel = ROLE_LABELS[role] || role.replace("_", " ");
@@ -146,6 +147,11 @@ export function ProtectedLayout({ profile, children, hideTopActions = false }) {
 
   function handleLogout() {
     setIsSidebarOpen(false);
+    setIsLogoutModalOpen(true);
+  }
+
+  async function confirmLogout() {
+    setIsLogoutModalOpen(false);
     logout();
   }
 
@@ -252,6 +258,25 @@ export function ProtectedLayout({ profile, children, hideTopActions = false }) {
         )}
         {children}
       </section>
+
+      {isLogoutModalOpen && (
+        <div className="modal-backdrop logout-modal-backdrop" role="presentation">
+          <section className="logout-confirm-modal animate-modal" role="dialog" aria-modal="true" aria-labelledby="logout-confirm-title">
+            <div className="logout-confirm-icon">
+              <LogOut size={22} />
+            </div>
+            <h2 id="logout-confirm-title">Are you sure you want to log out?</h2>
+            <div className="logout-confirm-actions">
+              <button className="secondary-button" type="button" onClick={() => setIsLogoutModalOpen(false)}>
+                Cancel
+              </button>
+              <button className="danger-confirm-button" type="button" onClick={confirmLogout}>
+                Log out
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
