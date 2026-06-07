@@ -575,6 +575,7 @@
 .accounts-empty strong,
 .accounts-empty span {
   display: block;
+  text-align: center;
 }
 
 .accounts-empty span {
