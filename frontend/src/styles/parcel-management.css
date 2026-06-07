@@ -475,6 +475,7 @@
 .parcel-empty-cell strong,
 .parcel-empty-cell span {
   display: block;
+  text-align: center;
 }
 
 .parcel-empty-cell span {

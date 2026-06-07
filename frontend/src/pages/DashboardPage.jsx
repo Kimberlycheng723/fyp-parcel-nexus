@@ -484,7 +484,7 @@ function DonutChart({ data = [] }) {
   return (
     <div className="dashboard-donut-layout">
       <div className="dashboard-donut-wrap">
-        {total === 0 && <div className="dashboard-empty-donut">No parcel status data yet.</div>}
+        {total === 0 && <div className="dashboard-empty-donut"></div>}
         <svg viewBox="0 0 210 210" role="img" aria-label="Parcel status distribution donut">
           <circle cx="105" cy="105" r={radius} className="donut-base" />
           {chartData.map((item) => {
