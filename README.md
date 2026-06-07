@@ -22,20 +22,11 @@ The project currently includes:
 
 - Docker Compose foundation for frontend, backend, and PostgreSQL
 - PostgreSQL schema and migration setup
-- General Module backend
-- General Module frontend
-- Login and logout
-- Account activation backend
-- Forgot password and reset password with Gmail SMTP
-- Profile view, profile update, and change password
-- User Management backend foundation
-- User Management frontend for Super Admin and Admin account workflows
-- Parcel Registration backend foundation
-- Parcel Management backend foundation for Admin and Guard users
-- Parcel Management frontend for Admin and Guard users
-- Resident parcel viewing backend foundation
-
-Resident parcel collection and QR verification are planned but not implemented yet.
+- General Module
+- Account Management Module
+- Parcel Registration Module
+- Parcel Management Module
+- Dashboard and Record Module
 
 ## Environment Setup
 
@@ -87,17 +78,6 @@ Check that the tables exist:
 docker compose exec postgres psql -U parcel_nexus_user -d parcel_nexus -c "\dt"
 ```
 
-Current FYP1 database tables include:
-
-- `units`
-- `users`
-- `courier_companies`
-- `parcels`
-- `parcel_collections`
-- `parcel_collection_items`
-- `account_activation_tokens`
-- `password_reset_tokens`
-
 ## Development Seed
 
 Create one development `SUPER_ADMIN` account:
@@ -108,105 +88,6 @@ docker compose exec backend npm run db:seed:superadmin
 
 The seed script uses values from your local `.env`. Real credentials are not hardcoded in the source code.
 
-## Main Frontend Routes
-
-- `/login`
-- `/forgot-password`
-- `/reset-password`
-- `/activate`
-- `/dashboard`
-- `/profile`
-- `/accounts`
-- `/parcels/new`
-
-## Main Backend API Groups
-
-- `/api/health`
-- `/api/auth`
-- `/api/profile`
-- `/api/users`
-- `/api/couriers`
-- `/api/units`
-- `/api/parcel-registration`
-- `/api/parcels`
-- `/api/dashboard`
-- `/api/resident`
-
-Detailed API testing steps are maintained separately during development.
-
-## User Management Backend
-
-The `/api/users` API group is protected by JWT authentication.
-
-Role rules:
-
-- `SUPER_ADMIN` manages `ADMIN` accounts only.
-- `ADMIN` manages `GUARD` and `RESIDENT` accounts only.
-- `GUARD` and `RESIDENT` cannot access user management APIs.
-
-When a new account is created, the backend creates an activation token and sends an activation email if Gmail SMTP is configured. Check your local `.env` SMTP values before testing, and never commit `.env`.
-
-The `/accounts` frontend page is available for `SUPER_ADMIN` and `ADMIN` users. Super Admin manages Admin accounts only. Admin manages Guard and Resident accounts only.
-
-## Parcel Registration Backend
-
-The Parcel Registration backend is available for `GUARD` users only.
-
-Current backend support includes:
-
-- `GET /api/couriers` for active courier company options
-- `POST /api/couriers` for guards to add a courier company during registration
-- `GET /api/units/search` for looking up existing condominium units
-- `POST /api/parcel-registration/photos` for local parcel photo upload
-- `POST /api/parcel-registration/sessions` for registering one or more parcels in one courier workflow
-
-Units must already exist before parcel registration. If a unit is missing, Admin should create the resident/unit account first through User Management.
-
-Parcel photos are stored locally in `backend/uploads/parcels/` during development. The frontend camera capture flow will be implemented later; the backend already supports receiving the captured or selected image file. Notification sending for registered parcels is also a future module.
-
-The `/parcels/new` frontend route is available for `GUARD` users only. It supports the two-step courier session flow, unit lookup, optional parcel photo capture/upload, and physical barcode scanner input through normal keyboard-style scanning. Units must already exist before a guard can register parcels. Camera access depends on browser permission and normally requires HTTPS in real deployment.
-
-## Parcel Management Backend
-
-The `/api/parcels` API group supports the Admin/Guard parcel management workflow.
-
-Role rules:
-
-- `ADMIN` can view, edit, export, and soft delete parcel records.
-- `GUARD` can view and edit parcel records, but cannot delete or export.
-- `SUPER_ADMIN` and `RESIDENT` cannot access operational parcel management APIs.
-
-Parcel display statuses are:
-
-- Pending Collection
-- Overdue
-- Collected
-
-`OVERDUE` is calculated from `collection_deadline`; it is not manually stored as a parcel status. Parcel deletion uses soft delete fields so records are hidden from normal lists without being physically removed from the database.
-
-The `/parcels` frontend route is available for `ADMIN` and `GUARD` users. Admin can view, edit, delete, and export parcel records. Guard can view and edit parcel records and can navigate to `/parcels/new` to log new parcels. Verify Collection, Resident parcel viewing, and QR collection are future steps.
-
-## Dashboard Backend
-
-The `/api/dashboard/admin` endpoint provides real database analytics for the Admin dashboard.
-
-It supports `period=day`, `period=week`, and `period=month`. Values are calculated from existing parcel, user, and unit records only. If future modules such as disputes are not implemented yet, the response returns safe zero or empty values with `available: false` instead of fake data.
-
-Only `ADMIN` users can access the Admin dashboard endpoint. `SUPER_ADMIN`, `GUARD`, and `RESIDENT` users are rejected.
-
-The `/dashboard` frontend route shows the Admin analytical dashboard. It uses real `/api/dashboard/admin` data only, supports Day/Week/Month period switching, and does not use fake dashboard numbers.
-
-Admin report export is available through `/api/dashboard/admin/reports/export`. It supports dashboard summary, parcel records, and user account summary reports in CSV or PDF format. Reports are Admin-only and exclude sensitive fields such as password hashes, token hashes, reset tokens, activation tokens, SMTP values, and local environment secrets.
-
-The `/api/dashboard/guard` endpoint provides the Guard operational dashboard. It is available to `GUARD` users only and uses real parcel records for today’s registrations, pending collection, collected today, overdue parcels, latest logged parcels, and pending collection parcels.
-
-For `GUARD` users, the `/dashboard` frontend route shows the Guard operational dashboard. It uses real `/api/dashboard/guard` data, links Log new parcel to `/parcels/new`, and keeps Verify Collection as a future Parcel Collection step.
-
-## Resident Parcel Viewing Backend
-
-The `/api/resident/parcels` API group is available to `RESIDENT` users only.
-
-Residents can view parcel summaries, pending parcel records, collected parcel history, and parcel details for their own unit only. The backend scopes every resident parcel query through the resident account’s assigned `unit_id`, excludes soft-deleted parcels, and prepares the pending/history data needed for future QR collection.
 
 ## Email Sending
 
@@ -220,6 +101,4 @@ SMTP credentials must be stored only in the local `.env` file. They should not b
 - Do not commit real uploaded files.
 - Do not commit `node_modules`.
 - Do not use `docker compose down -v` unless you intentionally want to delete local PostgreSQL data.
-- Notification preferences in the current frontend are local placeholders only. No notification backend or database table has been implemented yet.
-- Resident parcel collection and QR verification are not implemented yet.
 
