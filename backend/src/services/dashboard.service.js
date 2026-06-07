@@ -154,7 +154,15 @@ function formatDateTime(value) {
     return "";
   }
 
-  return date.toISOString();
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: BUSINESS_TIME_ZONE,
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).format(date).replace(",", "");
 }
 
 function csvEscape(value) {
@@ -872,7 +880,7 @@ function buildDashboardSummaryCsv({ metadata, dashboard }) {
   const kpis = dashboard.kpis || {};
   const sections = [
     csvSection("Report Metadata", metadataRows(metadata)),
-    csvSection("KPI Summary", [
+    csvSection("Dashboard Summary", [
       ["Metric", "Value"],
       ["Parcels Logged", numberValue(kpis.total_parcels?.value)],
       ["Pending Collection", numberValue(kpis.pending_collection?.value)],
@@ -881,7 +889,7 @@ function buildDashboardSummaryCsv({ metadata, dashboard }) {
       ["Open Disputes", numberValue(kpis.open_disputes?.value)],
       ["Dispute Data Available", kpis.open_disputes?.available === false ? "No" : "Yes"]
     ]),
-    csvSection("Parcel Activity Trend", [
+    csvSection("Parcels Received Trend", [
       ["Label", "Parcels Received", "Collected Same Day"],
       ...(dashboard.parcel_trend || []).map((item) => [
         item.label,
@@ -999,28 +1007,169 @@ function ensurePdfSpace(doc, height = 90) {
 }
 
 function addPdfSectionTitle(doc, title) {
+
   ensurePdfSpace(doc, 45);
+
+  doc.x = doc.page.margins.left;
+
   doc.moveDown(0.5);
-  doc.fontSize(13).fillColor("#0b2239").text(title);
+
+  doc
+
+    .font("Helvetica-Bold")
+
+    .fontSize(13)
+
+    .fillColor("#0b2239")
+
+    .text(title, doc.page.margins.left, doc.y, {
+
+      align: "left"
+
+    });
+
+  doc.font("Helvetica");
+
   doc.moveDown(0.25);
+
+}
+function addPdfRows(doc, headers, rows) {
+  addPdfTable(doc, headers, rows);
 }
 
-function addPdfRows(doc, headers, rows) {
-  const line = (values, isHeader = false) => {
-    ensurePdfSpace(doc, 28);
-    doc
-      .fontSize(isHeader ? 8 : 8)
-      .fillColor(isHeader ? "#0b2239" : "#2c3742")
-      .font(isHeader ? "Helvetica-Bold" : "Helvetica")
-      .text(values.map((value) => String(value ?? "")).join("   |   "), {
-        width: doc.page.width - doc.page.margins.left - doc.page.margins.right
-      });
-    doc.moveDown(0.35);
-  };
+function normalizeColumnWidths(widths, totalWidth) {
+  if (!Array.isArray(widths) || widths.length === 0) {
+    return null;
+  }
 
-  line(headers, true);
-  rows.forEach((row) => line(row));
+  const sum = widths.reduce((total, width) => total + width, 0);
+
+  if (sum <= totalWidth) {
+    return widths;
+  }
+
+  return widths.map((width) => (width / sum) * totalWidth);
+}
+
+function addPdfTable(doc, headers, rows, options = {}) {
+  const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const columnWidths =
+    normalizeColumnWidths(options.widths, pageWidth) ||
+    headers.map(() => pageWidth / Math.max(1, headers.length));
+  const padding = options.padding ?? 5;
+  const fontSize = options.fontSize ?? 8;
+  const minHeight = options.minHeight ?? 22;
+  const tableRows = [headers, ...rows];
+
+  function rowHeight(values, isHeader) {
+    doc.font(isHeader ? "Helvetica-Bold" : "Helvetica").fontSize(fontSize);
+    const contentHeight = values.reduce((height, value, index) => {
+      const width = Math.max(18, columnWidths[index] - padding * 2);
+      return Math.max(
+        height,
+        doc.heightOfString(String(value ?? ""), {
+          width,
+          lineGap: 1
+        })
+      );
+    }, 0);
+
+    return Math.max(minHeight, contentHeight + padding * 2);
+  }
+
+  tableRows.forEach((values, rowIndex) => {
+    const isHeader = rowIndex === 0;
+    const height = rowHeight(values, isHeader);
+
+    ensurePdfSpace(doc, height + 8);
+
+    const x = doc.page.margins.left;
+    const y = doc.y;
+    let cursorX = x;
+
+    if (isHeader) {
+      doc.rect(x, y, pageWidth, height).fill("#f3f6f9");
+    }
+
+    values.forEach((value, index) => {
+      const width = columnWidths[index];
+
+      doc
+        .rect(cursorX, y, width, height)
+        .strokeColor("#d8dde3")
+        .lineWidth(0.5)
+        .stroke();
+      doc
+        .font(isHeader ? "Helvetica-Bold" : "Helvetica")
+        .fontSize(fontSize)
+        .fillColor(isHeader ? "#0b2239" : "#2c3742")
+        .text(String(value ?? ""), cursorX + padding, y + padding, {
+          width: Math.max(18, width - padding * 2),
+          lineGap: 1
+        });
+
+      cursorX += width;
+    });
+
+    doc.y = y + height;
+  });
+
   doc.font("Helvetica");
+  doc.moveDown(options.afterGap ?? 0.6);
+}
+
+function addPdfMetricCards(doc, rows) {
+  const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const gap = 10;
+  const cardWidth = (pageWidth - gap * 3) / 4;
+  const cardHeight = 56;
+
+  ensurePdfSpace(doc, cardHeight + 18);
+
+  const y = doc.y;
+
+  rows.forEach(([label, value], index) => {
+    const x = doc.page.margins.left + index * (cardWidth + gap);
+
+    doc.roundedRect(x, y, cardWidth, cardHeight, 8).fillAndStroke("#f8fafc", "#d8dde3");
+    doc.fontSize(7).font("Helvetica-Bold").fillColor("#66717f").text(label, x + 9, y + 10, {
+      width: cardWidth - 18,
+      lineGap: 1
+    });
+    doc.fontSize(17).font("Helvetica-Bold").fillColor("#0b2239").text(String(value ?? 0), x + 9, y + 30, {
+      width: cardWidth - 18
+    });
+  });
+
+  doc.font("Helvetica");
+  doc.y = y + cardHeight + 12;
+}
+
+function addPdfSystemCards(doc, rows) {
+  const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const gap = 8;
+  const columns = 5;
+  const cardWidth = (pageWidth - gap * (columns - 1)) / columns;
+  const cardHeight = 48;
+
+  ensurePdfSpace(doc, cardHeight + 18);
+
+  const y = doc.y;
+
+  rows.forEach(([label, value], index) => {
+    const x = doc.page.margins.left + index * (cardWidth + gap);
+
+    doc.roundedRect(x, y, cardWidth, cardHeight, 7).fillAndStroke("#f8fafc", "#d8dde3");
+    doc.fontSize(7).font("Helvetica-Bold").fillColor("#66717f").text(label, x + 7, y + 9, {
+      width: cardWidth - 14
+    });
+    doc.fontSize(15).font("Helvetica-Bold").fillColor("#0b2239").text(String(value ?? 0), x + 7, y + 27, {
+      width: cardWidth - 14
+    });
+  });
+
+  doc.font("Helvetica");
+  doc.y = y + cardHeight + 12;
 }
 
 function addPdfBars(doc, rows, labelKey, valueKey) {
@@ -1036,6 +1185,182 @@ function addPdfBars(doc, rows, labelKey, valueKey) {
     doc.rect(doc.x + 180, y, barWidth, 8).fill("#0b2239");
     doc.moveDown(0.7);
   });
+}
+
+function drawEmptyChartMessage(doc, x, y, width, height, message) {
+  doc
+    .roundedRect(x, y, width, height, 8)
+    .fillAndStroke("#f8fafc", "#d8dde3")
+    .fontSize(9)
+    .fillColor("#66717f")
+    .text(message, x, y + height / 2 - 6, {
+      width,
+      align: "center"
+    });
+}
+
+function addPdfLineChart(doc, trend = []) {
+  const rows = trend.map((item) => ({
+    label: item.label,
+    parcelsReceived: numberValue(item.parcels_received),
+    collectedSameDay: numberValue(item.collected_same_day)
+  }));
+  const chartHeight = 210;
+
+  ensurePdfSpace(doc, chartHeight + 24);
+
+  const chartWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const x = doc.page.margins.left;
+  const y = doc.y;
+  const padding = { top: 18, right: 18, bottom: 38, left: 34 };
+  const plotWidth = chartWidth - padding.left - padding.right;
+  const plotHeight = chartHeight - padding.top - padding.bottom;
+  const maxValue = Math.max(1, ...rows.flatMap((row) => [row.parcelsReceived, row.collectedSameDay]));
+  const yMax = Math.ceil(maxValue);
+  const tickCount = Math.min(4, Math.max(1, yMax));
+
+  if (rows.length === 0) {
+    drawEmptyChartMessage(doc, x, y, chartWidth, chartHeight, "No parcel trend data available for this period.");
+    doc.y = y + chartHeight + 12;
+    return;
+  }
+
+  doc.roundedRect(x, y, chartWidth, chartHeight, 8).fillAndStroke("#ffffff", "#d8dde3");
+
+  for (let index = 0; index <= tickCount; index += 1) {
+    const ratio = index / tickCount;
+    const gridY = y + padding.top + plotHeight - ratio * plotHeight;
+    const labelValue = Math.round(ratio * yMax);
+
+    doc
+      .strokeColor("#dce3ea")
+      .lineWidth(0.7)
+      .dash(3, { space: 4 })
+      .moveTo(x + padding.left, gridY)
+      .lineTo(x + chartWidth - padding.right, gridY)
+      .stroke()
+      .undash();
+    doc.fontSize(7).fillColor("#77818d").text(String(labelValue), x + 8, gridY - 4, { width: 20, align: "right" });
+  }
+
+  function point(row, index, key) {
+    const pointX = x + padding.left + (rows.length <= 1 ? plotWidth / 2 : (index / (rows.length - 1)) * plotWidth);
+    const pointY = y + padding.top + plotHeight - (row[key] / yMax) * plotHeight;
+    return { x: pointX, y: pointY };
+  }
+
+  function drawLine(key, color, dashed = false) {
+    doc.strokeColor(color).lineWidth(2);
+
+    if (dashed) {
+      doc.dash(5, { space: 4 });
+    }
+
+    rows.forEach((row, index) => {
+      const current = point(row, index, key);
+      if (index === 0) {
+        doc.moveTo(current.x, current.y);
+      } else {
+        doc.lineTo(current.x, current.y);
+      }
+    });
+    doc.stroke().undash();
+
+    rows.forEach((row, index) => {
+      const current = point(row, index, key);
+      doc.circle(current.x, current.y, 2.6).fillAndStroke("#ffffff", color);
+    });
+  }
+
+  drawLine("parcelsReceived", "#0b2239");
+  drawLine("collectedSameDay", "#2ca866", true);
+
+  const labelEvery = Math.max(1, Math.ceil(rows.length / 6));
+  rows.forEach((row, index) => {
+    if (index % labelEvery !== 0 && index !== rows.length - 1) {
+      return;
+    }
+
+    const current = point(row, index, "parcelsReceived");
+    doc.fontSize(7).fillColor("#66717f").text(row.label, current.x - 35, y + chartHeight - 26, {
+      width: 70,
+      align: "center"
+    });
+  });
+
+  const legendY = y + chartHeight - 12;
+  doc.strokeColor("#0b2239").lineWidth(2).moveTo(x + 12, legendY).lineTo(x + 34, legendY).stroke();
+  doc.fontSize(8).fillColor("#4f5b67").text("Parcels Received", x + 40, legendY - 5);
+  doc.strokeColor("#2ca866").lineWidth(2).dash(5, { space: 4 }).moveTo(x + 150, legendY).lineTo(x + 172, legendY).stroke().undash();
+  doc.fontSize(8).fillColor("#4f5b67").text("Collected Same Day", x + 178, legendY - 5);
+
+  doc.y = y + chartHeight + 12;
+}
+
+function addPdfDonutChart(doc, distribution = []) {
+  const rows = distribution.filter((item) => ["Pending Collection", "Overdue", "Collected"].includes(item.status));
+  const total = rows.reduce((sum, item) => sum + numberValue(item.count), 0);
+  const chartHeight = 170;
+
+  ensurePdfSpace(doc, chartHeight + 24);
+
+  const chartWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const x = doc.page.margins.left;
+  const y = doc.y;
+  const centerX = x + 88;
+  const centerY = y + 82;
+  const radius = 50;
+  const lineWidth = 22;
+  const colors = {
+    "Pending Collection": "#f0a51a",
+    Overdue: "#d64545",
+    Collected: "#2ca866"
+  };
+
+  doc.roundedRect(x, y, chartWidth, chartHeight, 8).fillAndStroke("#ffffff", "#d8dde3");
+  doc.circle(centerX, centerY, radius).lineWidth(lineWidth).strokeColor("#edf0f2").stroke();
+
+  if (total === 0) {
+    doc.fontSize(8).fillColor("#66717f").text("Total", centerX - 30, centerY - 18, { width: 60, align: "center" });
+    doc.fontSize(16).fillColor("#0b2239").text("0", centerX - 30, centerY - 5, { width: 60, align: "center" });
+    doc.fontSize(8).fillColor("#66717f").text("parcels", centerX - 30, centerY + 16, { width: 60, align: "center" });
+  } else {
+    let startAngle = -90;
+
+    rows.forEach((row) => {
+      const count = numberValue(row.count);
+      const angle = (count / total) * 360;
+      const endAngle = startAngle + angle;
+
+      if (count > 0) {
+        doc
+          .arc(centerX, centerY, radius, startAngle, endAngle)
+          .lineWidth(lineWidth)
+          .strokeColor(colors[row.status] || "#88919b")
+          .stroke();
+      }
+
+      startAngle = endAngle;
+    });
+
+    doc.fontSize(8).fillColor("#66717f").text("Total", centerX - 30, centerY - 18, { width: 60, align: "center" });
+    doc.fontSize(16).fillColor("#0b2239").text(String(total), centerX - 30, centerY - 5, { width: 60, align: "center" });
+    doc.fontSize(8).fillColor("#66717f").text("parcels", centerX - 30, centerY + 16, { width: 60, align: "center" });
+  }
+
+  const legendX = x + 185;
+  let legendY = y + 38;
+  rows.forEach((row) => {
+    const count = numberValue(row.count);
+    const percentage = total === 0 ? 0 : Number(((count / total) * 100).toFixed(1));
+
+    doc.roundedRect(legendX, legendY + 2, 9, 9, 2).fill(colors[row.status] || "#88919b");
+    doc.fontSize(9).fillColor("#0b2239").text(row.status, legendX + 16, legendY, { continued: false });
+    doc.fontSize(8).fillColor("#66717f").text(`${count} parcels (${percentage}%)`, legendX + 16, legendY + 12);
+    legendY += 34;
+  });
+
+  doc.y = y + chartHeight + 12;
 }
 
 function buildPdfBuffer(render) {
@@ -1069,32 +1394,31 @@ function buildDashboardSummaryPdf({ metadata, dashboard }) {
     addPdfHeader(doc, metadata);
     const kpis = dashboard.kpis || {};
 
-    addPdfSectionTitle(doc, "KPI Summary");
-    addPdfRows(doc, ["Metric", "Value"], [
+    addPdfSectionTitle(doc, "Dashboard Summary");
+    addPdfMetricCards(doc, [
       ["Parcels Logged", numberValue(kpis.total_parcels?.value)],
       ["Pending Collection", numberValue(kpis.pending_collection?.value)],
       ["Collected Parcels", numberValue(kpis.collected?.value)],
-      ["Overdue Parcels", numberValue(kpis.pending_collection?.overdue_count)],
       ["Open Disputes", numberValue(kpis.open_disputes?.value)]
     ]);
 
-    addPdfSectionTitle(doc, "Parcel Activity Trend");
-    addPdfRows(doc, ["Label", "Parcels Received", "Collected Same Day"], (dashboard.parcel_trend || []).map((item) => [
-      item.label,
-      numberValue(item.parcels_received),
-      numberValue(item.collected_same_day)
-    ]));
+    addPdfSectionTitle(doc, "Parcels Received Trend");
+    addPdfLineChart(doc, dashboard.parcel_trend || []);
 
+    ensurePdfSpace(doc, 245);
     addPdfSectionTitle(doc, "Parcel Status Distribution");
-    addPdfRows(doc, ["Status", "Count", "Percentage"], (dashboard.status_distribution || []).map((item) => [
-      item.status,
-      numberValue(item.count),
-      `${numberValue(item.percentage)}%`
-    ]));
-    addPdfBars(doc, dashboard.status_distribution || [], "status", "count");
+    addPdfDonutChart(doc, dashboard.status_distribution || []);
+    addPdfTable(doc, ["Status", "Count", "Percentage"], (dashboard.status_distribution || [])
+      .filter((item) => ["Pending Collection", "Overdue", "Collected"].includes(item.status))
+      .map((item) => [
+        item.status,
+        numberValue(item.count),
+        `${numberValue(item.percentage)}%`
+      ]), { widths: [230, 90, 120] });
 
+    ensurePdfSpace(doc, 95);
     addPdfSectionTitle(doc, "System Summary");
-    addPdfRows(doc, ["Metric", "Value"], [
+    addPdfSystemCards(doc, [
       ["Active Users", numberValue(dashboard.system_summary?.active_users)],
       ["Guards", numberValue(dashboard.system_summary?.guards)],
       ["Residents", numberValue(dashboard.system_summary?.residents)],
@@ -1104,14 +1428,15 @@ function buildDashboardSummaryPdf({ metadata, dashboard }) {
 
     addPdfSectionTitle(doc, "Dispute Summary");
     if (dashboard.dispute_summary?.available) {
-      addPdfRows(doc, ["Status", "Count"], dashboard.dispute_summary.items.map((item) => [
+      addPdfTable(doc, ["Status", "Count"], dashboard.dispute_summary.items.map((item) => [
         item.status,
         numberValue(item.count)
-      ]));
+      ]), { widths: [260, 100] });
     } else {
       doc.fontSize(9).fillColor("#4f5b67").text(dashboard.dispute_summary?.message || "Dispute module is not implemented yet.");
     }
 
+    ensurePdfSpace(doc, 145);
     addPdfSectionTitle(doc, "Recent Activity");
     const activityRows = (dashboard.recent_activity || []).map((item) => [
       item.type,
@@ -1120,7 +1445,12 @@ function buildDashboardSummaryPdf({ metadata, dashboard }) {
       item.status || "",
       formatDateTime(item.created_at)
     ]);
-    addPdfRows(doc, ["Type", "Title", "Description", "Status", "Created At"], activityRows.length > 0 ? activityRows : [["", "No recent activity.", "", "", ""]]);
+    addPdfTable(
+      doc,
+      ["Type", "Title", "Description", "Status", "Created At"],
+      activityRows.length > 0 ? activityRows : [["", "No recent activity.", "", "", ""]],
+      { widths: [68, 82, 142, 96, 123], fontSize: 7.5, minHeight: 24 }
+    );
   });
 }
 

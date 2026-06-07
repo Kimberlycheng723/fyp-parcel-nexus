@@ -16,6 +16,7 @@ import {
   X
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { ProtectedLayout } from "../components/ProtectedLayout.jsx";
 import { Spinner } from "../components/Spinner.jsx";
@@ -44,17 +45,7 @@ const REPORT_TYPES = [
   {
     label: "Dashboard Summary Report",
     value: "dashboard_summary",
-    description: "Summary of KPI metrics, parcel trend, status distribution, system summary, and recent activity."
-  },
-  {
-    label: "Parcel Records Report",
-    value: "parcel_records",
-    description: "Detailed parcel records within the selected period."
-  },
-  {
-    label: "User Account Summary Report",
-    value: "user_account_summary",
-    description: "Safe user account summary by role and status."
+    description: "Summary of dashboard cards, parcel trend, and status distribution."
   }
 ];
 
@@ -1430,7 +1421,7 @@ export function DashboardPage() {
   const [chartPeriod, setChartPeriod] = useState("day");
   const [chartStartDate, setChartStartDate] = useState(getLocalDateInputValue());
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [reportType, setReportType] = useState("dashboard_summary");
+  const [reportType] = useState("dashboard_summary");
   const [reportFormat, setReportFormat] = useState("pdf");
   const [reportPeriod, setReportPeriod] = useState("week");
   const [reportStartDate, setReportStartDate] = useState(getLocalDateInputValue());
@@ -1631,13 +1622,13 @@ export function DashboardPage() {
           </div>
         )}
 
-        {isReportModalOpen && (
+        {isReportModalOpen && typeof document !== "undefined" && createPortal((
           <div className="dashboard-modal-overlay" role="presentation">
             <form className="dashboard-report-modal" onSubmit={handleGenerateReport}>
               <div className="dashboard-report-modal-header">
                 <div>
                   <h2>Generate System Report</h2>
-                  <p>Choose the report scope and download format.</p>
+                  <p>Download a dashboard summary report for the selected period.</p>
                 </div>
                 <button
                   aria-label="Close report modal"
@@ -1656,80 +1647,76 @@ export function DashboardPage() {
                 </div>
               )}
 
-              <div className="dashboard-report-field">
-                <label>Report Type</label>
-                <div className="dashboard-report-type-list">
-                  {REPORT_TYPES.map((option) => (
-                    <button
-                      className={`dashboard-report-type ${reportType === option.value ? "active" : ""}`}
-                      type="button"
-                      key={option.value}
-                      onClick={() => setReportType(option.value)}
-                    >
-                      <span>
-                        <FileText size={16} />
-                      </span>
-                      <strong>{option.label}</strong>
-                      <small>{option.description}</small>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="dashboard-report-grid">
+              <div className="dashboard-report-modal-body">
                 <div className="dashboard-report-field">
-                  <label>Format</label>
-                  <div className="dashboard-report-segment">
-                    {REPORT_FORMATS.map((option) => (
-                      <button
-                        className={reportFormat === option.value ? "active" : ""}
-                        type="button"
+                  <label>Report Type</label>
+                  <div className="dashboard-report-type-list">
+                    {REPORT_TYPES.map((option) => (
+                      <div
+                        className={`dashboard-report-type ${reportType === option.value ? "active" : ""}`}
                         key={option.value}
-                        onClick={() => setReportFormat(option.value)}
                       >
-                        {option.label}
-                      </button>
+                        <span>
+                          <FileText size={16} />
+                        </span>
+                        <strong>{option.label}</strong>
+                        <small>{option.description}</small>
+                      </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="dashboard-report-field">
-                  <label>Period</label>
-                  <div className="dashboard-report-segment">
-                    {PERIODS.map((option) => (
-                      <button
-                        className={reportPeriod === option.value ? "active" : ""}
-                        type="button"
-                        key={option.value}
-                        onClick={() => setReportPeriod(option.value)}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
+                <div className="dashboard-report-grid">
+                  <div className="dashboard-report-field">
+                    <label>Format</label>
+                    <div className="dashboard-report-segment">
+                      {REPORT_FORMATS.map((option) => (
+                        <button
+                          className={reportFormat === option.value ? "active" : ""}
+                          type="button"
+                          key={option.value}
+                          onClick={() => setReportFormat(option.value)}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="dashboard-report-field">
+                    <label>Period</label>
+                    <div className="dashboard-report-segment">
+                      {PERIODS.map((option) => (
+                        <button
+                          className={reportPeriod === option.value ? "active" : ""}
+                          type="button"
+                          key={option.value}
+                          onClick={() => setReportPeriod(option.value)}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="dashboard-report-field">
-                <label htmlFor="report-start-date">Start Date</label>
-                <input
-                  id="report-start-date"
-                  className="dashboard-report-date"
-                  type="date"
-                  value={reportStartDate}
-                  onChange={(event) => setReportStartDate(event.target.value || getLocalDateInputValue())}
-                  required
-                />
-                <p>{reportPeriodHelp(reportPeriod)}</p>
-              </div>
+                <div className="dashboard-report-field">
+                  <label htmlFor="report-start-date">Start Date</label>
+                  <input
+                    id="report-start-date"
+                    className="dashboard-report-date"
+                    type="date"
+                    value={reportStartDate}
+                    onChange={(event) => setReportStartDate(event.target.value || getLocalDateInputValue())}
+                    required
+                  />
+                  <p>{reportPeriodHelp(reportPeriod)}</p>
+                </div>
 
-              <div className="dashboard-report-preview">
-                <span>Range preview</span>
-                <strong>{reportRangePreview(reportPeriod, reportStartDate)}</strong>
-              </div>
-
-              <div className="dashboard-report-note">
-                Reports exclude sensitive fields such as passwords, tokens, and internal secrets.
+                <div className="dashboard-report-preview">
+                  <span>Range preview</span>
+                  <strong>{reportRangePreview(reportPeriod, reportStartDate)}</strong>
+                </div>
               </div>
 
               <div className="dashboard-report-modal-footer">
@@ -1747,7 +1734,7 @@ export function DashboardPage() {
               </div>
             </form>
           </div>
-        )}
+        ), document.body)}
 
         {isLoading && !dashboard ? (
           <div className="dashboard-loading">
