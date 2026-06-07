@@ -583,7 +583,7 @@ async function getSystemSummary() {
   const result = await pool.query(
     `
       SELECT
-        (SELECT COUNT(*)::int FROM users WHERE status = 'ACTIVE') AS active_users,
+        (SELECT COUNT(*)::int FROM users WHERE status = 'ACTIVE' AND role <> 'SUPER_ADMIN') AS active_users,
         (SELECT COUNT(*)::int FROM users WHERE role = 'GUARD') AS guards,
         (SELECT COUNT(*)::int FROM users WHERE role = 'RESIDENT') AS residents,
         (SELECT COUNT(*)::int FROM units) AS units,

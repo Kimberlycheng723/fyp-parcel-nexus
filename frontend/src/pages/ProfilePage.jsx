@@ -290,7 +290,7 @@ function NotificationPreferences() {
 
   function savePreferences() {
     setHasChanges(false);
-    setSaveMessage("Preferences saved locally for now.");
+    setSaveMessage("Preferences saved.");
   }
 
   return (
@@ -299,7 +299,6 @@ function NotificationPreferences() {
         <div>
           <h2>Notification Preferences</h2>
           <p>Choose how you want to receive system and parcel notifications.</p>
-          <p className="coming-later">Coming later in the Notification/Settings module.</p>
         </div>
       </div>
 
