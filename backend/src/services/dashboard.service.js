@@ -6,38 +6,77 @@ const VALID_PERIODS = ["day", "week", "month"];
 const VALID_GUARD_PERIODS = ["today", "day", "week", "month"];
 const VALID_REPORT_TYPES = ["dashboard_summary", "parcel_records", "user_account_summary"];
 const VALID_REPORT_FORMATS = ["csv", "pdf"];
+const BUSINESS_TIME_ZONE = "Asia/Kuala_Lumpur";
+const MALAYSIA_OFFSET_HOURS = 8;
+const MALAYSIA_OFFSET_MS = MALAYSIA_OFFSET_HOURS * 60 * 60 * 1000;
 
 function toIso(value) {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
+function malaysiaParts(date) {
+  const shifted = new Date(date.getTime() + MALAYSIA_OFFSET_MS);
+
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth() + 1,
+    day: shifted.getUTCDate(),
+    hour: shifted.getUTCHours(),
+    minute: shifted.getUTCMinutes(),
+    second: shifted.getUTCSeconds(),
+    millisecond: shifted.getUTCMilliseconds()
+  };
+}
+
+function malaysiaDateToUtcDate(year, month, day, hour = 0, minute = 0, second = 0, millisecond = 0) {
+  return new Date(Date.UTC(year, month - 1, day, hour - MALAYSIA_OFFSET_HOURS, minute, second, millisecond));
+}
+
+function daysInMalaysiaMonth(year, month) {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function malaysiaDateInput(date = new Date()) {
+  const parts = malaysiaParts(date);
+  return `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+}
+
 function startOfDay(date) {
-  const result = new Date(date);
-  result.setHours(0, 0, 0, 0);
-  return result;
+  const parts = malaysiaParts(date);
+  return malaysiaDateToUtcDate(parts.year, parts.month, parts.day);
 }
 
 function startOfMonth(date) {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
+  const parts = malaysiaParts(date);
+  return malaysiaDateToUtcDate(parts.year, parts.month, 1);
 }
 
 function addDays(date, days) {
   const result = new Date(date);
-  result.setDate(result.getDate() + days);
+  result.setUTCDate(result.getUTCDate() + days);
   return result;
 }
 
 function addMonths(date, months) {
-  return new Date(date.getFullYear(), date.getMonth() + months, 1);
+  return addCalendarMonths(date, months);
 }
 
 function addCalendarMonths(date, months) {
-  const day = date.getDate();
-  const result = new Date(date.getFullYear(), date.getMonth() + months, 1);
-  const lastDay = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
-  result.setDate(Math.min(day, lastDay));
-  result.setHours(date.getHours(), date.getMinutes(), date.getSeconds(), date.getMilliseconds());
-  return result;
+  const parts = malaysiaParts(date);
+  const totalMonth = parts.month - 1 + months;
+  const targetYear = parts.year + Math.floor(totalMonth / 12);
+  const targetMonth = ((totalMonth % 12) + 12) % 12 + 1;
+  const targetDay = Math.min(parts.day, daysInMalaysiaMonth(targetYear, targetMonth));
+
+  return malaysiaDateToUtcDate(
+    targetYear,
+    targetMonth,
+    targetDay,
+    parts.hour,
+    parts.minute,
+    parts.second,
+    parts.millisecond
+  );
 }
 
 function parseDateInput(value) {
@@ -50,17 +89,17 @@ function parseDateInput(value) {
   }
 
   const [year, month, day] = value.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
+  const date = malaysiaDateToUtcDate(year, month, day);
+  const parsedParts = malaysiaParts(date);
 
   if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day
+    parsedParts.year !== year ||
+    parsedParts.month !== month ||
+    parsedParts.day !== day
   ) {
     return null;
   }
 
-  date.setHours(0, 0, 0, 0);
   return date;
 }
 
@@ -226,8 +265,7 @@ function getPeriodConfig(period, { startDate } = {}) {
   }
 
   if (period === "week") {
-    const start = addDays(now, -6);
-    start.setHours(0, 0, 0, 0);
+    const start = addDays(startOfDay(now), -6);
     const previousStart = addDays(start, -7);
     const previousEnd = start;
 
@@ -453,7 +491,7 @@ async function getParcelTrend(config) {
       SELECT
         b.bucket_start,
         LEAST(b.bucket_start + $3::interval, $2::timestamptz) AS bucket_end,
-        to_char(b.bucket_start, $4) AS label,
+        to_char(b.bucket_start AT TIME ZONE '${BUSINESS_TIME_ZONE}', $4) AS label,
         COUNT(DISTINCT received.parcel_id)::int AS parcels_received,
         COUNT(DISTINCT collected.parcel_id)::int AS collected_same_day
       FROM buckets b
@@ -804,14 +842,14 @@ async function getUserAccountSummaryForReport(config) {
     ),
     pool.query(
       `
-        SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS account_creation_month,
+        SELECT to_char(date_trunc('month', created_at AT TIME ZONE '${BUSINESS_TIME_ZONE}'), 'YYYY-MM') AS account_creation_month,
                COUNT(*)::int AS new_account_count
         FROM users
         WHERE role IN ('ADMIN', 'GUARD', 'RESIDENT')
           AND created_at >= $1
           AND created_at < $2
-        GROUP BY date_trunc('month', created_at)
-        ORDER BY date_trunc('month', created_at)
+        GROUP BY date_trunc('month', created_at AT TIME ZONE '${BUSINESS_TIME_ZONE}')
+        ORDER BY date_trunc('month', created_at AT TIME ZONE '${BUSINESS_TIME_ZONE}')
       `,
       [config.start, config.end]
     )
@@ -1123,7 +1161,7 @@ function buildUserAccountSummaryPdf({ metadata, summary }) {
 }
 
 function buildReportFilename({ reportType, format, period, startDate }) {
-  const datePart = startDate || new Date().toISOString().slice(0, 10);
+  const datePart = startDate || malaysiaDateInput();
   return `parcel-nexus-${reportSlug(reportType)}-${period}-${datePart}.${format}`;
 }
 
