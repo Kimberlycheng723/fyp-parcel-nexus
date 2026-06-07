@@ -1650,13 +1650,14 @@
   border-radius: 12px;
   background: #fff;
   box-shadow: 0 12px 26px rgba(8, 16, 28, 0.03);
-  padding: 19px 20px;
+  padding: 19px 62px 19px 20px;
 }
 
 .resident-summary-card > div {
   display: flex;
   align-items: center;
   gap: 7px;
+  min-width: 0;
 }
 
 .resident-summary-dot {
@@ -1683,6 +1684,7 @@
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.12em;
+  line-height: 1.25;
   text-transform: uppercase;
 }
 
@@ -1887,22 +1889,22 @@
 
 .resident-parcel-table.pending th:nth-child(2),
 .resident-parcel-table.pending td:nth-child(2) {
-  width: 17%;
+  width: 16%;
 }
 
 .resident-parcel-table.pending th:nth-child(3),
 .resident-parcel-table.pending td:nth-child(3) {
-  width: 29%;
+  width: 27%;
 }
 
 .resident-parcel-table.pending th:nth-child(4),
 .resident-parcel-table.pending td:nth-child(4) {
-  width: 30%;
+  width: 29%;
 }
 
 .resident-parcel-table.pending th:nth-child(5),
 .resident-parcel-table.pending td:nth-child(5) {
-  width: 18%;
+  width: 20%;
 }
 
 .resident-parcel-table.history th:nth-child(1),
@@ -1917,17 +1919,17 @@
 
 .resident-parcel-table.history th:nth-child(3),
 .resident-parcel-table.history td:nth-child(3) {
-  width: 24%;
+  width: 25%;
 }
 
 .resident-parcel-table.history th:nth-child(4),
 .resident-parcel-table.history td:nth-child(4) {
-  width: 16%;
+  width: 17%;
 }
 
 .resident-parcel-table.history th:nth-child(5),
 .resident-parcel-table.history td:nth-child(5) {
-  width: 17%;
+  width: 16%;
 }
 
 .resident-parcel-table td strong {
@@ -1944,7 +1946,7 @@
   font-weight: 500;
 }
 
-.resident-check-placeholder,
+.resident-select-all-check,
 .resident-row-check {
   display: inline-grid;
   width: 18px;
@@ -1954,6 +1956,39 @@
   border-radius: 5px;
   background: #fff;
   color: #fff;
+}
+
+.resident-select-all-check {
+  appearance: none;
+  cursor: pointer;
+}
+
+.resident-select-all-check:checked,
+.resident-select-all-check:indeterminate {
+  border-color: var(--navy);
+  background: var(--navy);
+}
+
+.resident-select-all-check:checked::after {
+  width: 8px;
+  height: 4px;
+  border-bottom: 2px solid #fff;
+  border-left: 2px solid #fff;
+  content: "";
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+
+.resident-select-all-check:indeterminate::after {
+  width: 8px;
+  height: 2px;
+  border-radius: 999px;
+  background: #fff;
+  content: "";
+}
+
+.resident-select-all-check:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .resident-row-check.checked {
@@ -1974,6 +2009,14 @@
   max-width: 100%;
   align-items: center;
   gap: 9px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.resident-parcel-table td .resident-courier,
+.resident-mobile-card-topline .resident-courier {
+  display: inline-flex;
+  align-items: center;
 }
 
 .resident-courier i {
@@ -1991,8 +2034,10 @@
 }
 
 .resident-courier span {
+  display: inline-block;
   overflow: hidden;
   color: #151b23;
+  margin-top: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2003,6 +2048,58 @@
 
 .resident-mobile-list {
   display: none;
+}
+
+@media (min-width: 641px) and (max-width: 900px) {
+  .resident-parcel-table th,
+  .resident-parcel-table td {
+    padding: 13px 12px;
+  }
+
+  .resident-parcel-table.pending th:nth-child(2),
+  .resident-parcel-table.pending td:nth-child(2) {
+    width: 15%;
+  }
+
+  .resident-parcel-table.pending th:nth-child(3),
+  .resident-parcel-table.pending td:nth-child(3) {
+    width: 25%;
+  }
+
+  .resident-parcel-table.pending th:nth-child(4),
+  .resident-parcel-table.pending td:nth-child(4) {
+    width: 27%;
+  }
+
+  .resident-parcel-table.pending th:nth-child(5),
+  .resident-parcel-table.pending td:nth-child(5) {
+    width: 23%;
+  }
+
+  .resident-parcel-table.history th:nth-child(1),
+  .resident-parcel-table.history td:nth-child(1) {
+    width: 17%;
+  }
+
+  .resident-parcel-table.history th:nth-child(2),
+  .resident-parcel-table.history td:nth-child(2) {
+    width: 23%;
+  }
+
+  .resident-parcel-table.history th:nth-child(3),
+  .resident-parcel-table.history td:nth-child(3) {
+    width: 24%;
+  }
+
+  .resident-parcel-table.history th:nth-child(4),
+  .resident-parcel-table.history td:nth-child(4) {
+    width: 19%;
+  }
+
+  .resident-parcel-table.history th:nth-child(5),
+  .resident-parcel-table.history td:nth-child(5) {
+    width: 17%;
+  }
 }
 
 .resident-parcel-empty {
@@ -2242,7 +2339,7 @@
 
   .resident-summary-card {
     min-height: 130px;
-    padding: 18px;
+    padding: 18px 56px 18px 18px;
   }
 
   .resident-summary-card:nth-child(3) {
@@ -2297,9 +2394,9 @@
 
   .resident-mobile-list article {
     display: grid;
-    grid-template-columns: 28px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 10px;
+    grid-template-columns: 28px minmax(0, 1fr);
+    align-items: start;
+    gap: 12px;
     border-bottom: 1px solid #d8dde3;
     padding: 14px 16px;
   }
@@ -2316,13 +2413,28 @@
     background: #fff3f1;
   }
 
-  .resident-mobile-list article strong {
-    display: block;
-    overflow: hidden;
-    color: #151b23;
-    font-size: 13px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .resident-mobile-card-main {
+    display: grid;
+    min-width: 0;
+    gap: 5px;
+  }
+
+  .resident-mobile-card-topline {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .resident-mobile-card-topline .resident-courier {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .resident-mobile-card-topline .resident-courier span {
+    display: inline-block;
+    margin-top: 0;
   }
 
   .resident-mobile-list article span {
@@ -2336,7 +2448,13 @@
   }
 
   .resident-mobile-list .resident-status {
-    justify-self: end;
+    flex: 0 0 auto;
+    max-width: 48%;
+    text-align: center;
+  }
+
+  .resident-mobile-tracking {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   }
 
   .resident-pagination {
@@ -2570,7 +2688,7 @@
 
   .resident-summary-card {
     min-height: 122px;
-    padding: 14px;
+    padding: 14px 48px 14px 14px;
   }
 
   .resident-summary-card p {
@@ -2586,7 +2704,7 @@
   }
 
   .resident-mobile-list article {
-    grid-template-columns: 26px minmax(0, 1fr) auto;
+    grid-template-columns: 26px minmax(0, 1fr);
     gap: 8px;
     padding: 13px 12px;
   }

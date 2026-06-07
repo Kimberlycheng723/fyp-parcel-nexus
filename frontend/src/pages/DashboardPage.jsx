@@ -15,7 +15,7 @@ import {
   Home,
   X
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ProtectedLayout } from "../components/ProtectedLayout.jsx";
 import { Spinner } from "../components/Spinner.jsx";
@@ -979,10 +979,23 @@ function ResidentParcelList({
   parcels,
   selectedParcelIds,
   onToggleParcel,
+  onToggleAllVisible,
   isLoading,
   search
 }) {
   const isPending = tab === "pending";
+  const selectableParcelIds = isPending ? parcels.map((parcel) => parcel.parcel_id).filter(Boolean) : [];
+  const selectedVisibleCount = selectableParcelIds.filter((parcelId) => selectedParcelIds.includes(parcelId)).length;
+  const hasSelectableParcels = selectableParcelIds.length > 0;
+  const allVisibleSelected = hasSelectableParcels && selectedVisibleCount === selectableParcelIds.length;
+  const someVisibleSelected = selectedVisibleCount > 0 && !allVisibleSelected;
+  const selectAllRef = useRef(null);
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someVisibleSelected;
+    }
+  }, [someVisibleSelected]);
 
   if (isLoading) {
     return (
@@ -1008,7 +1021,15 @@ function ResidentParcelList({
           <tr>
             {isPending && (
               <th aria-label="Select parcels">
-                <span className="resident-check-placeholder" />
+                <input
+                  ref={selectAllRef}
+                  className="resident-select-all-check"
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  disabled={!hasSelectableParcels}
+                  aria-label={allVisibleSelected ? "Deselect all visible parcels" : "Select all visible parcels"}
+                  onChange={onToggleAllVisible}
+                />
               </th>
             )}
             <th>Date Registered</th>
@@ -1087,14 +1108,16 @@ function ResidentParcelList({
                   {checked && <Check size={14} />}
                 </button>
               )}
-              <div>
-                <strong>{parcel.courier_name || "Unknown courier"}</strong>
-                <span>{parcel.tracking_number || "No tracking number"}</span>
+              <div className="resident-mobile-card-main">
+                <div className="resident-mobile-card-topline">
+                  <ResidentCourier parcel={parcel} />
+                  <ResidentStatusBadge status={parcel.display_status} />
+                </div>
+                <span className="resident-mobile-tracking">{parcel.tracking_number || "No tracking number"}</span>
                 {!isPending && (
                   <span>Collected: {parcel.collected_at ? formatCompactDate(parcel.collected_at) : "Not recorded"}</span>
                 )}
               </div>
-              <ResidentStatusBadge status={parcel.display_status} />
             </article>
           );
         })}
@@ -1191,6 +1214,34 @@ function ResidentDashboard() {
         ? current.filter((id) => id !== parcelId)
         : [...current, parcelId]
     );
+  }
+
+  const visiblePendingParcelIds = useMemo(() => {
+    if (activeTab !== "pending") {
+      return [];
+    }
+
+    return (parcelData.items || []).map((parcel) => parcel.parcel_id).filter(Boolean);
+  }, [activeTab, parcelData.items]);
+
+  useEffect(() => {
+    setSelectedParcelIds((current) => current.filter((parcelId) => visiblePendingParcelIds.includes(parcelId)));
+  }, [visiblePendingParcelIds]);
+
+  function toggleAllVisibleParcels() {
+    if (visiblePendingParcelIds.length === 0) {
+      return;
+    }
+
+    setSelectedParcelIds((current) => {
+      const allVisibleSelected = visiblePendingParcelIds.every((parcelId) => current.includes(parcelId));
+
+      if (allVisibleSelected) {
+        return current.filter((parcelId) => !visiblePendingParcelIds.includes(parcelId));
+      }
+
+      return Array.from(new Set([...current, ...visiblePendingParcelIds]));
+    });
   }
 
   function handleGenerateQr() {
@@ -1317,6 +1368,7 @@ function ResidentDashboard() {
                 parcels={parcelData.items || []}
                 selectedParcelIds={selectedParcelIds}
                 onToggleParcel={toggleParcel}
+                onToggleAllVisible={toggleAllVisibleParcels}
                 isLoading={isParcelsLoading}
                 search={debouncedSearch}
               />
