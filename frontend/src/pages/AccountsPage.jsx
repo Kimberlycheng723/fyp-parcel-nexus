@@ -857,7 +857,7 @@ function AccountFormModal({ mode, role, user, onClose, onSaved }) {
               label="Unit"
               required
               value={form.full_unit_code}
-              placeholder="e.g. A-15-08"
+              placeholder="e.g. GC1-01-08"
               onChange={(value) => updateField("full_unit_code", value)}
             />
           ) : isCreate ? (
@@ -888,7 +888,7 @@ function AccountFormModal({ mode, role, user, onClose, onSaved }) {
             wide
             type="email"
             value={form.email}
-            placeholder="name@gem-residences.my"
+            placeholder="hello_world@gmail.com"
             onChange={(value) => updateField("email", value)}
           />
         </div>

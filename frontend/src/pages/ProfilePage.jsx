@@ -99,7 +99,6 @@ export function ProfilePage() {
       const data = await apiRequest("/profile", {
         method: "PUT",
         body: {
-          email: form.email,
           phone_number: form.phone_number,
           first_name: isResident ? form.first_name || null : form.first_name,
           last_name: isResident ? form.last_name || null : form.last_name
@@ -169,7 +168,7 @@ export function ProfilePage() {
               <ProfileInput
                 label="Email"
                 value={form.email}
-                readOnly={!isEditing}
+                readOnly
                 onChange={(value) => updateField("email", value)}
               />
               <ProfileInput
@@ -233,6 +232,7 @@ function ProfileInput({ label, value, readOnly, onChange }) {
       <input
         value={value}
         readOnly={readOnly}
+        className={readOnly ? "locked-input" : ""}
         onChange={(event) => onChange(event.target.value)}
       />
     </label>

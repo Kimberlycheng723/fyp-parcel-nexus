@@ -540,7 +540,7 @@ function SystemSummary({ summary = {} }) {
     { label: "Active Users", value: summary.active_users, icon: UserCheck, tone: "green" },
     { label: "Guards", value: summary.guards, icon: ShieldAlert, tone: "blue" },
     { label: "Residents", value: summary.residents, icon: Users, tone: "purple" },
-    { label: "Units", value: summary.units, extra: `${numberValue(summary.towers)} towers`, icon: Home, tone: "navy" }
+    { label: "Units", value: summary.units, extra: `${numberValue(summary.towers)} Blocks`, icon: Home, tone: "navy" }
   ];
 
   return (

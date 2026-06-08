@@ -301,7 +301,7 @@
 .super_admin-accounts-table td:nth-child(4),
 .guard-accounts-table th:nth-child(4),
 .guard-accounts-table td:nth-child(4) {
-  width: 14%;
+  width: 20%;
 }
 
 .admin-accounts-table th:nth-child(5),
@@ -319,7 +319,7 @@
 .super_admin-accounts-table td:nth-child(6),
 .guard-accounts-table th:nth-child(6),
 .guard-accounts-table td:nth-child(6) {
-  width: 8%;
+  width: 10%;
 }
 
 .resident-accounts-table th:nth-child(1),
@@ -339,7 +339,7 @@
 
 .resident-accounts-table th:nth-child(4),
 .resident-accounts-table td:nth-child(4) {
-  width: 14%;
+  width: 20%;
 }
 
 .resident-accounts-table th:nth-child(5),
@@ -349,7 +349,7 @@
 
 .resident-accounts-table th:nth-child(6),
 .resident-accounts-table td:nth-child(6) {
-  width: 12%;
+  width: 10%;
 }
 
 .accounts-table th {
