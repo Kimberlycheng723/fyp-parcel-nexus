@@ -601,51 +601,12 @@ async function getSystemSummary() {
   };
 }
 
-async function getRecentActivity() {
-  const result = await pool.query(
-    `
-      (
-        SELECT
-          'parcel_logged' AS type,
-          'Parcel logged' AS title,
-          CONCAT(u.full_unit_code, ' · ', c.courier_name) AS description,
-          CASE
-            WHEN p.status = 'COLLECTED' THEN 'Collected'
-            WHEN p.status IN ('PENDING', 'PENDING_COLLECTION')
-              AND p.collection_deadline IS NOT NULL
-              AND p.collection_deadline < NOW()
-              THEN 'Overdue'
-            ELSE 'Pending Collection'
-          END AS status,
-          p.created_at
-        FROM parcels p
-        INNER JOIN units u ON u.unit_id = p.unit_id
-        INNER JOIN courier_companies c ON c.courier_id = p.courier_id
-        WHERE p.deleted_at IS NULL
-      )
-      UNION ALL
-      (
-        SELECT
-          'account_created' AS type,
-          'Account created' AS title,
-          CONCAT(COALESCE(NULLIF(TRIM(CONCAT(first_name, ' ', last_name)), ''), email), ' · ', role) AS description,
-          status,
-          created_at
-        FROM users
-        WHERE role IN ('ADMIN', 'GUARD', 'RESIDENT')
-      )
-      ORDER BY created_at DESC
-      LIMIT 8
-    `
-  );
-
-  return result.rows.map((row) => ({
-    type: row.type,
-    title: row.title,
-    description: row.description,
-    status: row.status,
-    created_at: row.created_at
-  }));
+function getAuditLogSummary() {
+  return {
+    available: false,
+    items: [],
+    message: "Audit Log module is not implemented yet."
+  };
 }
 
 function getParcelDisplayStatus(row) {
@@ -923,14 +884,8 @@ function buildDashboardSummaryCsv({ metadata, dashboard }) {
           [dashboard.dispute_summary?.message || "Dispute module is not implemented yet."]
         ]),
     csvSection("Recent Activity", [
-      ["Type", "Title", "Description", "Status", "Created At"],
-      ...(dashboard.recent_activity || []).map((item) => [
-        item.type,
-        item.title,
-        item.description,
-        item.status,
-        formatDateTime(item.created_at)
-      ])
+      ["Message"],
+      [dashboard.audit_log_summary?.message || "Audit Log module is not implemented yet."]
     ])
   ];
 
@@ -1297,6 +1252,31 @@ function addPdfLineChart(doc, trend = []) {
   doc.y = y + chartHeight + 12;
 }
 
+function polarPoint(centerX, centerY, radius, angleDegrees) {
+  const angle = ((angleDegrees - 90) * Math.PI) / 180;
+
+  return {
+    x: centerX + radius * Math.cos(angle),
+    y: centerY + radius * Math.sin(angle)
+  };
+}
+
+function donutSegmentPath(centerX, centerY, outerRadius, innerRadius, startAngle, endAngle) {
+  const outerStart = polarPoint(centerX, centerY, outerRadius, startAngle);
+  const outerEnd = polarPoint(centerX, centerY, outerRadius, endAngle);
+  const innerEnd = polarPoint(centerX, centerY, innerRadius, endAngle);
+  const innerStart = polarPoint(centerX, centerY, innerRadius, startAngle);
+  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+
+  return [
+    `M ${outerStart.x} ${outerStart.y}`,
+    `A ${outerRadius} ${outerRadius} 0 ${largeArc} 1 ${outerEnd.x} ${outerEnd.y}`,
+    `L ${innerEnd.x} ${innerEnd.y}`,
+    `A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${innerStart.x} ${innerStart.y}`,
+    "Z"
+  ].join(" ");
+}
+
 function addPdfDonutChart(doc, distribution = []) {
   const rows = distribution.filter((item) => ["Pending Collection", "Overdue", "Collected"].includes(item.status));
   const total = rows.reduce((sum, item) => sum + numberValue(item.count), 0);
@@ -1311,6 +1291,8 @@ function addPdfDonutChart(doc, distribution = []) {
   const centerY = y + 82;
   const radius = 50;
   const lineWidth = 22;
+  const outerRadius = radius + lineWidth / 2;
+  const innerRadius = radius - lineWidth / 2;
   const colors = {
     "Pending Collection": "#f0a51a",
     Overdue: "#d64545",
@@ -1326,22 +1308,28 @@ function addPdfDonutChart(doc, distribution = []) {
     doc.fontSize(8).fillColor("#66717f").text("parcels", centerX - 30, centerY + 16, { width: 60, align: "center" });
   } else {
     let startAngle = -90;
+    const nonZeroRows = rows.filter((row) => numberValue(row.count) > 0);
 
-    rows.forEach((row) => {
-      const count = numberValue(row.count);
-      const angle = (count / total) * 360;
-      const endAngle = startAngle + angle;
+    if (nonZeroRows.length === 1) {
+      doc
+        .circle(centerX, centerY, outerRadius)
+        .fill(colors[nonZeroRows[0].status] || "#88919b");
+      doc.circle(centerX, centerY, innerRadius).fill("#ffffff");
+    } else {
+      rows.forEach((row) => {
+        const count = numberValue(row.count);
+        const angle = (count / total) * 360;
+        const endAngle = startAngle + angle;
 
-      if (count > 0) {
-        doc
-          .arc(centerX, centerY, radius, startAngle, endAngle)
-          .lineWidth(lineWidth)
-          .strokeColor(colors[row.status] || "#88919b")
-          .stroke();
-      }
+        if (count > 0) {
+          doc
+            .path(donutSegmentPath(centerX, centerY, outerRadius, innerRadius, startAngle, endAngle))
+            .fill(colors[row.status] || "#88919b");
+        }
 
-      startAngle = endAngle;
-    });
+        startAngle = endAngle;
+      });
+    }
 
     doc.fontSize(8).fillColor("#66717f").text("Total", centerX - 30, centerY - 18, { width: 60, align: "center" });
     doc.fontSize(16).fillColor("#0b2239").text(String(total), centerX - 30, centerY - 5, { width: 60, align: "center" });
@@ -1436,21 +1424,12 @@ function buildDashboardSummaryPdf({ metadata, dashboard }) {
       doc.fontSize(9).fillColor("#4f5b67").text(dashboard.dispute_summary?.message || "Dispute module is not implemented yet.");
     }
 
-    ensurePdfSpace(doc, 145);
+    ensurePdfSpace(doc, 70);
     addPdfSectionTitle(doc, "Recent Activity");
-    const activityRows = (dashboard.recent_activity || []).map((item) => [
-      item.type,
-      item.title,
-      item.description,
-      item.status || "",
-      formatDateTime(item.created_at)
-    ]);
-    addPdfTable(
-      doc,
-      ["Type", "Title", "Description", "Status", "Created At"],
-      activityRows.length > 0 ? activityRows : [["", "No recent activity.", "", "", ""]],
-      { widths: [68, 82, 142, 96, 123], fontSize: 7.5, minHeight: 24 }
-    );
+    doc
+      .fontSize(9)
+      .fillColor("#4f5b67")
+      .text(dashboard.audit_log_summary?.message || "Audit Log module is not implemented yet.");
   });
 }
 
@@ -1562,7 +1541,7 @@ export async function getAdminDashboard({ requester, period = "day", startDate }
     }),
     getCurrentPendingAndOverdue()
   ]);
-  const [disputeData, parcelTrend, statusDistribution, systemSummary, recentActivity] = await Promise.all([
+  const [disputeData, parcelTrend, statusDistribution, systemSummary] = await Promise.all([
     getDisputeKpi({
       start: config.start,
       end: config.end,
@@ -1572,9 +1551,9 @@ export async function getAdminDashboard({ requester, period = "day", startDate }
     }),
     getParcelTrend(config),
     getStatusDistribution(),
-    getSystemSummary(),
-    getRecentActivity()
+    getSystemSummary()
   ]);
+  const auditLogSummary = getAuditLogSummary();
 
   return {
     period: config.period,
@@ -1632,7 +1611,8 @@ export async function getAdminDashboard({ requester, period = "day", startDate }
     status_distribution: statusDistribution,
     dispute_summary: disputeData.summary,
     system_summary: systemSummary,
-    recent_activity: recentActivity
+    audit_log_summary: auditLogSummary,
+    recent_activity: []
   };
 }
 

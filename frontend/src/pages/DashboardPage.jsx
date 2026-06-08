@@ -564,9 +564,9 @@ function SystemSummary({ summary = {} }) {
   );
 }
 
-function ActivityFeed({ activities = [] }) {
+function ActivityFeed({ activities = [], emptyMessage = "No recent activity yet." }) {
   if (activities.length === 0) {
-    return <div className="dashboard-empty-state">No recent activity yet.</div>;
+    return <div className="dashboard-empty-state">{emptyMessage}</div>;
   }
 
   return (
@@ -1917,7 +1917,7 @@ export function DashboardPage() {
               <div className="dashboard-card-heading">
                 <div>
                   <h2>Recent Activity</h2>
-                  <p>Live feed from existing parcel and account records</p>
+                  <p>Current audit log module status</p>
                 </div>
                 <button
                   className="dashboard-card-action"
@@ -1928,7 +1928,10 @@ export function DashboardPage() {
                   View audit log
                 </button>
               </div>
-              <ActivityFeed activities={dashboard?.recent_activity || []} />
+              <ActivityFeed
+                activities={dashboard?.recent_activity || []}
+                emptyMessage={dashboard?.audit_log_summary?.message || "Audit Log module is not implemented yet."}
+              />
             </section>
           </>
         )}
