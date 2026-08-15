@@ -27,6 +27,7 @@ The project currently includes:
 - Parcel Registration Module
 - Parcel Management Module
 - Dashboard and Record Module
+- Parcel Collection Module
 
 ## Environment Setup
 
@@ -62,6 +63,37 @@ Local URLs:
 
 - Frontend: `http://localhost:5173`
 - Backend: `http://localhost:5000`
+
+### Local HTTPS for iPad/mobile camera testing
+
+Browser camera access requires a secure HTTPS origin when Parcel Nexus is opened
+from another device on the local network. HTTP remains the default development
+mode. To enable trusted local HTTPS on macOS:
+
+1. Install mkcert: `brew install mkcert`
+2. Generate the local certificate: `./frontend/scripts/setup-local-https.sh`
+3. Start the HTTPS override:
+
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --force-recreate frontend
+   ```
+
+4. Open the LAN HTTPS URL printed by the setup script.
+
+The certificate includes localhost, the Mac `.local` hostname, and the current
+Wi-Fi IP without storing an IP address in source control. The frontend continues
+to proxy `/api` and `/uploads` to the backend container.
+
+For iPad trust, transfer only `frontend/.cert/rootCA.pem` to the iPad. Install the
+downloaded profile in **Settings > General > VPN & Device Management**, then enable
+full trust in **Settings > General > About > Certificate Trust Settings**. Never
+transfer the mkcert `rootCA-key.pem` private key.
+
+Return to normal HTTP mode with:
+
+```bash
+docker compose -f docker-compose.yml up -d --force-recreate frontend
+```
 - PostgreSQL: `localhost:5432`
 
 ## Database Setup
@@ -101,4 +133,3 @@ SMTP credentials must be stored only in the local `.env` file. They should not b
 - Do not commit real uploaded files.
 - Do not commit `node_modules`.
 - Do not use `docker compose down -v` unless you intentionally want to delete local PostgreSQL data.
-

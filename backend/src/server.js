@@ -1,9 +1,15 @@
 import "dotenv/config";
 
+import { createServer } from "node:http";
+
 import app from "./app.js";
+import { initializeSocketServer } from "./realtime/socket.js";
 
 const port = process.env.PORT || 5000;
+const httpServer = createServer(app);
 
-app.listen(port, () => {
+initializeSocketServer(httpServer);
+
+httpServer.listen(port, () => {
   console.log(`Parcel Nexus backend running on port ${port}`);
 });

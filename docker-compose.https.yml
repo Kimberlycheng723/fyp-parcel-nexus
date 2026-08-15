@@ -1,0 +1,6 @@
+services:
+  frontend:
+    environment:
+      VITE_DEV_HTTPS: "true"
+      VITE_HTTPS_CERT_PATH: /app/frontend/.cert/parcel-nexus-local.pem
+      VITE_HTTPS_KEY_PATH: /app/frontend/.cert/parcel-nexus-local-key.pem
