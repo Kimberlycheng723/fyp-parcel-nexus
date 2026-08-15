@@ -1,6 +1,6 @@
 import { getAccessToken } from "./tokenStorage.js";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 const SESSION_EXPIRED_EVENT = "parcel-nexus-session-expired";
 
 function notifySessionExpired() {
@@ -96,9 +96,37 @@ export function getResidentParcelDetails(parcelId) {
   return apiRequest(`/resident/parcels/${parcelId}`);
 }
 
+export function createResidentCollection(parcelIds) {
+  return apiRequest("/resident/collections", {
+    method: "POST",
+    body: { parcel_ids: parcelIds }
+  });
+}
+
+export function verifyGuardCollection(token) {
+  return apiRequest("/guard/collections/verify", {
+    method: "POST",
+    body: { token }
+  });
+}
+
 export function sendPasswordResetLink(email) {
   return apiRequest("/auth/forgot-password", {
     method: "POST",
     body: { email }
+  });
+}
+
+export function requestProfileEmailChange(email) {
+  return apiRequest("/profile/email-change/request", {
+    method: "POST",
+    body: { email }
+  });
+}
+
+export function confirmProfileEmailChange(token) {
+  return apiRequest("/profile/email-change/confirm", {
+    method: "POST",
+    body: { token }
   });
 }

@@ -9,7 +9,9 @@ import { LoginPage } from "./pages/LoginPage.jsx";
 import { ParcelManagementPage } from "./pages/ParcelManagementPage.jsx";
 import { ParcelRegistrationPage } from "./pages/ParcelRegistrationPage.jsx";
 import { ProfilePage } from "./pages/ProfilePage.jsx";
-import { ActivateAccountPage, ResetPasswordPage } from "./pages/ResetPasswordPage.jsx";
+import { GuardVerifyCollectionPage } from "./pages/GuardVerifyCollectionPage.jsx";
+import { ResidentCollectionPage } from "./pages/ResidentCollectionPage.jsx";
+import { ActivateAccountPage, ResetPasswordPage, VerifyEmailChangePage } from "./pages/ResetPasswordPage.jsx";
 import { getCurrentPath, navigate, replaceNavigate } from "./utils/navigation.js";
 import { landingPathForRole } from "./utils/roleLanding.js";
 
@@ -86,6 +88,10 @@ function Router() {
     return <ActivateAccountPage />;
   }
 
+  if (path === "/verify-email-change") {
+    return <VerifyEmailChangePage />;
+  }
+
   if (path === "/profile") {
     return (
       <ProtectedRoute>
@@ -122,6 +128,22 @@ function Router() {
     return (
       <ProtectedRoute>
         <ParcelRegistrationPage />
+      </ProtectedRoute>
+    );
+  }
+
+  if (path === "/parcel-collection") {
+    return (
+      <ProtectedRoute allowedRoles={["RESIDENT"]}>
+        <ResidentCollectionPage />
+      </ProtectedRoute>
+    );
+  }
+
+  if (path === "/verify-collection") {
+    return (
+      <ProtectedRoute allowedRoles={["GUARD"]}>
+        <GuardVerifyCollectionPage />
       </ProtectedRoute>
     );
   }

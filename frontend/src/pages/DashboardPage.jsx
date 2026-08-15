@@ -24,9 +24,11 @@ import { useAuth } from "../context/AuthContext.jsx";
 import {
   apiDownload,
   apiRequest,
+  createResidentCollection,
   getResidentParcels,
   getResidentParcelSummary
 } from "../services/api.js";
+import { saveResidentCollectionSession } from "../utils/collectionSession.js";
 import { navigate } from "../utils/navigation.js";
 
 const PERIODS = [
@@ -811,7 +813,7 @@ function GuardDashboard() {
                 <button
                   className="guard-action-button"
                   type="button"
-                  onClick={() => setToastMessage("Verify Collection module will be available in the Parcel Collection step.")}
+                  onClick={() => navigate("/verify-collection")}
                 >
                   / Verify Collection
                 </button>
@@ -1128,6 +1130,7 @@ function ResidentDashboard() {
   const [selectedParcelIds, setSelectedParcelIds] = useState([]);
   const [isSummaryLoading, setIsSummaryLoading] = useState(true);
   const [isParcelsLoading, setIsParcelsLoading] = useState(true);
+  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
   const [error, setError] = useState("");
   const [toastMessage, setToastMessage] = useState("");
 
@@ -1235,8 +1238,32 @@ function ResidentDashboard() {
     });
   }
 
-  function handleGenerateQr() {
-    setToastMessage("QR collection will be available in the Parcel Collection step.");
+  async function handleGenerateQr() {
+    if (selectedParcelIds.length === 0 || isGeneratingQr) {
+      return;
+    }
+
+    setIsGeneratingQr(true);
+    setError("");
+
+    try {
+      const response = await createResidentCollection(selectedParcelIds);
+      saveResidentCollectionSession({
+        collection: response.collection,
+        parcel_ids: selectedParcelIds,
+        unit: summary?.unit || null
+      });
+      navigate("/parcel-collection");
+    } catch (requestError) {
+      setError(requestError.message || "Unable to generate a collection QR code.");
+
+      if (requestError.status === 404 || requestError.status === 409) {
+        await Promise.all([loadSummary(), loadParcels()]);
+        setSelectedParcelIds([]);
+      }
+    } finally {
+      setIsGeneratingQr(false);
+    }
   }
 
   const residentProfile = summary?.unit
@@ -1400,9 +1427,9 @@ function ResidentDashboard() {
                   <button type="button" onClick={() => setSelectedParcelIds([])}>
                     Clear
                   </button>
-                  <button className="primary" type="button" onClick={handleGenerateQr}>
+                  <button className="primary" type="button" onClick={handleGenerateQr} disabled={isGeneratingQr}>
                     <QrCode size={15} />
-                    Generate QR Code
+                    {isGeneratingQr ? "Generating..." : "Generate QR Code"}
                   </button>
                 </div>
               </div>

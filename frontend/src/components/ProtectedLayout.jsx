@@ -7,6 +7,7 @@ import {
   LogOut,
   Menu,
   Settings,
+  ScanLine,
   User,
   Users,
   AlertCircle,
@@ -67,6 +68,7 @@ const MENU_GROUPS = {
       items: [
         { key: "dashboard", label: "Dashboard", icon: Gauge, path: "/dashboard" },
         { key: "parcels", label: "Parcels", icon: Box, path: "/parcels" },
+        { key: "verify-collection", label: "Verify Collection", icon: ScanLine, path: "/verify-collection" },
         { key: "disputes", label: "Disputes", icon: AlertCircle, muted: true }
       ]
     },
