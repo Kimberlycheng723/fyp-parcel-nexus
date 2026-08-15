@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import { ProtectedLayout } from "../components/ProtectedLayout.jsx";
 import { Spinner } from "../components/Spinner.jsx";
 import { useResendCooldown } from "../hooks/useResendCooldown.js";
-import { apiRequest, sendPasswordResetLink } from "../services/api.js";
+import { apiRequest, requestProfileEmailChange, sendPasswordResetLink } from "../services/api.js";
 
 function emptyProfileForm(profile) {
   return {
@@ -96,6 +96,8 @@ export function ProfilePage() {
 
     try {
       setIsSaving(true);
+      const requestedEmail = form.email.trim().toLowerCase();
+      const currentEmail = profile.email.trim().toLowerCase();
       const data = await apiRequest("/profile", {
         method: "PUT",
         body: {
@@ -104,10 +106,20 @@ export function ProfilePage() {
           last_name: isResident ? form.last_name || null : form.last_name
         }
       });
+
+      let emailChangeMessage = "";
+
+      if (requestedEmail !== currentEmail) {
+        const emailChangeResult = await requestProfileEmailChange(requestedEmail);
+        emailChangeMessage = emailChangeResult.unchanged
+          ? ""
+          : " Verification email sent to the new address. Please confirm it before the registered email changes.";
+      }
+
       setProfile(data.profile);
       setForm(emptyProfileForm(data.profile));
       setIsEditing(false);
-      setMessage("Profile updated successfully.");
+      setMessage(`Profile updated successfully.${emailChangeMessage}`);
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -168,7 +180,7 @@ export function ProfilePage() {
               <ProfileInput
                 label="Email"
                 value={form.email}
-                readOnly
+                readOnly={!isEditing}
                 onChange={(value) => updateField("email", value)}
               />
               <ProfileInput

@@ -1,6 +1,11 @@
 import { pool } from "../db/pool.js";
+import {
+  buildEmailChangeVerificationLink,
+  sendEmailChangeVerificationEmail
+} from "./email.service.js";
 import { comparePassword, hashPassword } from "../utils/password.js";
 import { validatePasswordStrength } from "../utils/passwordValidation.js";
+import { signEmailChangeToken, verifyEmailChangeToken } from "../utils/jwt.js";
 
 const PROFILE_COLUMNS = `
   u.user_id,
@@ -94,22 +99,9 @@ export async function updateProfile({ userId, updates }) {
     };
   }
 
-  const email = normalizeRequiredString(updates.email ?? currentProfile.email).toLowerCase();
   const phoneNumber = normalizeRequiredString(updates.phone_number ?? currentProfile.phone_number);
   const firstName = normalizeOptionalName(updates.first_name ?? currentProfile.first_name);
   const lastName = normalizeOptionalName(updates.last_name ?? currentProfile.last_name);
-
-  if (!email) {
-    return {
-      error: "EMAIL_REQUIRED"
-    };
-  }
-
-  if (!isValidEmail(email)) {
-    return {
-      error: "INVALID_EMAIL"
-    };
-  }
 
   if (!phoneNumber) {
     return {
@@ -123,7 +115,25 @@ export async function updateProfile({ userId, updates }) {
     };
   }
 
-  const emailResult = await pool.query(
+  await pool.query(
+    `
+      UPDATE users
+      SET
+        phone_number = $1,
+        first_name = $2,
+        last_name = $3
+      WHERE user_id = $4
+    `,
+    [phoneNumber, firstName, lastName, userId]
+  );
+
+  return {
+    profile: await getProfileByUserId(userId)
+  };
+}
+
+async function isEmailUsedByAnotherUser(email, userId, client = pool) {
+  const emailResult = await client.query(
     `
       SELECT user_id
       FROM users
@@ -134,28 +144,143 @@ export async function updateProfile({ userId, updates }) {
     [email, userId]
   );
 
-  if (emailResult.rows[0]) {
+  return Boolean(emailResult.rows[0]);
+}
+
+export async function requestEmailChange({ userId, email }) {
+  const currentProfile = await getProfileByUserId(userId);
+
+  if (!currentProfile) {
+    return {
+      error: "PROFILE_NOT_FOUND"
+    };
+  }
+
+  const normalizedEmail = normalizeRequiredString(email).toLowerCase();
+
+  if (!normalizedEmail) {
+    return {
+      error: "EMAIL_REQUIRED"
+    };
+  }
+
+  if (!isValidEmail(normalizedEmail)) {
+    return {
+      error: "INVALID_EMAIL"
+    };
+  }
+
+  if (normalizedEmail === currentProfile.email.toLowerCase()) {
+    return {
+      message: "This is already your registered email address.",
+      unchanged: true
+    };
+  }
+
+  if (await isEmailUsedByAnotherUser(normalizedEmail, userId)) {
     return {
       error: "EMAIL_ALREADY_EXISTS"
     };
   }
 
-  await pool.query(
-    `
-      UPDATE users
-      SET
-        email = $1,
-        phone_number = $2,
-        first_name = $3,
-        last_name = $4
-      WHERE user_id = $5
-    `,
-    [email, phoneNumber, firstName, lastName, userId]
-  );
+  const token = signEmailChangeToken({
+    userId,
+    email: normalizedEmail
+  });
+  const verificationLink = buildEmailChangeVerificationLink(token);
+  const emailResult = await sendEmailChangeVerificationEmail({
+    to: normalizedEmail,
+    verificationLink
+  });
+
+  if (!emailResult.sent || emailResult.rejected?.length > 0) {
+    return {
+      error: "EMAIL_VERIFICATION_SEND_FAILED"
+    };
+  }
 
   return {
-    profile: await getProfileByUserId(userId)
+    message: "Verification email sent. Please check your new email address to confirm the change."
   };
+}
+
+export async function confirmEmailChange({ token }) {
+  let payload;
+
+  try {
+    payload = verifyEmailChangeToken(token);
+  } catch (error) {
+    return {
+      error: "INVALID_EMAIL_CHANGE_TOKEN"
+    };
+  }
+
+  const userId = payload.sub;
+  const normalizedEmail = normalizeRequiredString(payload.email).toLowerCase();
+
+  if (!userId || !normalizedEmail || !isValidEmail(normalizedEmail)) {
+    return {
+      error: "INVALID_EMAIL_CHANGE_TOKEN"
+    };
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const userResult = await client.query(
+      `
+        SELECT user_id, status, email
+        FROM users
+        WHERE user_id = $1
+        LIMIT 1
+      `,
+      [userId]
+    );
+    const user = userResult.rows[0];
+
+    if (!user) {
+      await client.query("ROLLBACK");
+      return {
+        error: "PROFILE_NOT_FOUND"
+      };
+    }
+
+    if (user.status === "DEACTIVATED") {
+      await client.query("ROLLBACK");
+      return {
+        error: "USER_DEACTIVATED"
+      };
+    }
+
+    if (await isEmailUsedByAnotherUser(normalizedEmail, userId, client)) {
+      await client.query("ROLLBACK");
+      return {
+        error: "EMAIL_ALREADY_EXISTS"
+      };
+    }
+
+    await client.query(
+      `
+        UPDATE users
+        SET email = $1
+        WHERE user_id = $2
+      `,
+      [normalizedEmail, userId]
+    );
+
+    await client.query("COMMIT");
+
+    return {
+      message: "Email address verified and updated successfully."
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function changeOwnPassword({ userId, currentPassword, newPassword }) {

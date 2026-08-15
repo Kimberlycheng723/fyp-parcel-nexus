@@ -5,7 +5,7 @@ import { AuthLayout } from "../components/AuthLayout.jsx";
 import { PasswordField } from "../components/PasswordField.jsx";
 import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { apiRequest } from "../services/api.js";
+import { apiRequest, confirmProfileEmailChange } from "../services/api.js";
 import { getQueryParam, navigate } from "../utils/navigation.js";
 
 function validatePasswordForm(password, confirmPassword) {
@@ -188,6 +188,79 @@ export function ActivateAccountPage() {
           {isLoading ? <Spinner label="Setting password" /> : "Set Password"}
         </button>
       </form>
+    </AuthLayout>
+  );
+}
+
+export function VerifyEmailChangePage() {
+  const [status, setStatus] = useState("verifying");
+  const [error, setError] = useState("");
+  const { clearSession } = useAuth();
+  const token = getQueryParam("token");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function verifyEmailChange() {
+      if (!token) {
+        setStatus("failed");
+        setError("Email verification token is missing. Please use the link from your email.");
+        return;
+      }
+
+      try {
+        await confirmProfileEmailChange(token);
+
+        if (!isMounted) {
+          return;
+        }
+
+        clearSession();
+        setStatus("successful");
+      } catch (requestError) {
+        if (!isMounted) {
+          return;
+        }
+
+        setStatus("failed");
+        setError(requestError.message);
+      }
+    }
+
+    verifyEmailChange();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [clearSession, token]);
+
+  if (status === "successful") {
+    return (
+      <SuccessPanel
+        title="Email verified"
+        body="Your registered email address has been updated. Please log in again with your new email."
+      />
+    );
+  }
+
+  return (
+    <AuthLayout>
+      <section className="success-panel">
+        <div className="auth-heading">
+          <h1>{status === "verifying" ? "Verifying email" : "Email verification failed"}</h1>
+          <p>
+            {status === "verifying"
+              ? "Please wait while Parcel Nexus verifies your new email address."
+              : error || "Email verification link is invalid or expired."}
+          </p>
+        </div>
+        {status === "verifying" ? <Spinner label="Verifying" /> : null}
+        {status === "failed" && (
+          <button className="primary-button" type="button" onClick={() => navigate("/login")}>
+            Go to Sign in <ArrowRight size={18} />
+          </button>
+        )}
+      </section>
     </AuthLayout>
   );
 }

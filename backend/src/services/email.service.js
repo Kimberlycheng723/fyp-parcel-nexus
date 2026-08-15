@@ -71,6 +71,11 @@ export function buildPasswordResetLink(rawToken) {
   return `${getFrontendUrl()}/reset-password?token=${encodedToken}`;
 }
 
+export function buildEmailChangeVerificationLink(rawToken) {
+  const encodedToken = encodeURIComponent(rawToken);
+  return `${getFrontendUrl()}/verify-email-change?token=${encodedToken}`;
+}
+
 export async function sendActivationEmail({ to, activationLink }) {
   return sendMail({
     to,
@@ -120,6 +125,34 @@ export async function sendPasswordResetEmail({ to, resetLink }) {
       <p><a href="${resetLink}">Reset your Parcel Nexus password</a></p>
       <p>This reset link expires in 15 minutes.</p>
       <p>If you did not request this, you can ignore this email.</p>
+      <p>Parcel Nexus</p>
+    `
+  });
+}
+
+export async function sendEmailChangeVerificationEmail({ to, verificationLink }) {
+  return sendMail({
+    to,
+    subject: "Verify your new Parcel Nexus email address",
+    text: [
+      "Hello,",
+      "",
+      "A request was made to update your Parcel Nexus registered email address.",
+      "Please verify this email address using the link below:",
+      verificationLink,
+      "",
+      "This verification link expires in 30 minutes.",
+      "If you did not request this change, you can ignore this email.",
+      "",
+      "Parcel Nexus"
+    ].join("\n"),
+    html: `
+      <p>Hello,</p>
+      <p>A request was made to update your Parcel Nexus registered email address.</p>
+      <p>Please verify this email address using the link below:</p>
+      <p><a href="${verificationLink}">Verify your new email address</a></p>
+      <p>This verification link expires in 30 minutes.</p>
+      <p>If you did not request this change, you can ignore this email.</p>
       <p>Parcel Nexus</p>
     `
   });
