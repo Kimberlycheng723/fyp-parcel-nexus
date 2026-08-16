@@ -32,6 +32,15 @@ function getSmtpTransporter() {
   return transporter;
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 async function sendMail({ to, subject, text, html }) {
   if (!isSmtpConfigured()) {
     if (process.env.NODE_ENV === "development") {
@@ -153,6 +162,31 @@ export async function sendEmailChangeVerificationEmail({ to, verificationLink })
       <p><a href="${verificationLink}">Verify your new email address</a></p>
       <p>This verification link expires in 30 minutes.</p>
       <p>If you did not request this change, you can ignore this email.</p>
+      <p>Parcel Nexus</p>
+    `
+  });
+}
+
+export async function sendNotificationEmail({ to, title, message }) {
+  const safeTitle = escapeHtml(title);
+  const safeMessage = escapeHtml(message);
+
+  return sendMail({
+    to,
+    subject: `Parcel Nexus: ${title}`,
+    text: [
+      title,
+      "",
+      message,
+      "",
+      "Sign in to Parcel Nexus to view your notification history.",
+      "",
+      "Parcel Nexus"
+    ].join("\n"),
+    html: `
+      <p><strong>${safeTitle}</strong></p>
+      <p>${safeMessage}</p>
+      <p>Sign in to Parcel Nexus to view your notification history.</p>
       <p>Parcel Nexus</p>
     `
   });

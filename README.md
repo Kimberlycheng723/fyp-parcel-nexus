@@ -28,6 +28,7 @@ The project currently includes:
 - Parcel Management Module
 - Dashboard and Record Module
 - Parcel Collection Module
+- Notification Backend
 
 ## Environment Setup
 

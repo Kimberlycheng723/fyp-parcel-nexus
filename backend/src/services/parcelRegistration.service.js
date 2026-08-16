@@ -1,6 +1,10 @@
 import { pool } from "../db/pool.js";
 import { getActiveCourierById } from "./courier.service.js";
 import { getUnitById } from "./unit.service.js";
+import {
+  deliverPersistedNotification,
+  persistParcelArrivalNotification
+} from "./notification.service.js";
 import { normalizeRequiredString } from "../utils/userValidation.js";
 
 const PARCEL_DETAIL_COLUMNS = `
@@ -162,6 +166,7 @@ export async function registerParcelSession({ requester, input }) {
     }
 
     const createdParcelIds = [];
+    const pendingNotificationDeliveries = [];
 
     for (const parcel of data.parcels) {
       const unit = await getUnitById(parcel.unit_id, client);
@@ -213,15 +218,34 @@ export async function registerParcelSession({ requester, input }) {
         ]
       );
 
-      createdParcelIds.push(insertResult.rows[0].parcel_id);
+      const parcelId = insertResult.rows[0].parcel_id;
+      createdParcelIds.push(parcelId);
+
+      const notificationEnvelope = await persistParcelArrivalNotification({
+        client,
+        parcelId,
+        unitId: parcel.unit_id,
+        trackingNumber: parcel.tracking_number,
+        courierName: courier.courier_name
+      });
+
+      if (notificationEnvelope) {
+        pendingNotificationDeliveries.push(notificationEnvelope);
+      }
     }
 
     const parcels = await getParcelRowsByIds(createdParcelIds, client);
 
     await client.query("COMMIT");
 
+    await Promise.all(
+      pendingNotificationDeliveries.map((notification) =>
+        deliverPersistedNotification(notification)
+      )
+    );
+
     return {
-      message: "Parcels registered successfully. Resident notification will be handled in the notification module.",
+      message: "Parcels registered successfully.",
       summary: {
         courier_id: data.courierId,
         delivery_person_contact: data.deliveryPersonContact,
