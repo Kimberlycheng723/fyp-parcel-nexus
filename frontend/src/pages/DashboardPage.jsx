@@ -21,6 +21,7 @@ import { createPortal } from "react-dom";
 import { ProtectedLayout } from "../components/ProtectedLayout.jsx";
 import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useResidentNotifications } from "../context/ResidentNotificationContext.jsx";
 import {
   apiDownload,
   apiRequest,
@@ -720,6 +721,7 @@ function GuardSummaryCard({ icon: Icon, tone, label, value, helper }) {
 
 function GuardDashboard() {
   const { user } = useAuth();
+  const { unreadCount } = useResidentNotifications();
   const [period, setPeriod] = useState("today");
   const [startDate, setStartDate] = useState(getLocalDateInputValue());
   const [dashboard, setDashboard] = useState(null);
@@ -778,9 +780,17 @@ function GuardDashboard() {
             <p>{guardSubtitle(guard)}</p>
           </div>
           <div className="dashboard-header-actions">
-            <button className="dashboard-bell" type="button" title="Notifications coming later">
+            <button
+              className="dashboard-bell"
+              type="button"
+              title="Notifications"
+              aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+              onClick={() => navigate("/notifications")}
+            >
               <Bell size={17} />
-              <i />
+              {unreadCount > 0 && (
+                <i className="notification-count-badge">{unreadCount > 99 ? "99+" : unreadCount}</i>
+              )}
             </button>
           </div>
         </header>
@@ -1121,6 +1131,7 @@ function ResidentParcelList({
 
 function ResidentDashboard() {
   const { user } = useAuth();
+  const { unreadCount } = useResidentNotifications();
   const [summary, setSummary] = useState(null);
   const [activeTab, setActiveTab] = useState("pending");
   const [search, setSearch] = useState("");
@@ -1294,9 +1305,17 @@ function ResidentDashboard() {
             <p>Here&apos;s an overview of your parcels.</p>
           </div>
           <div className="dashboard-header-actions">
-            <button className="dashboard-bell" type="button" title="Notifications coming later">
+            <button
+              className="dashboard-bell"
+              type="button"
+              title="Notifications"
+              aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+              onClick={() => navigate("/notifications")}
+            >
               <Bell size={17} />
-              <i />
+              {unreadCount > 0 && (
+                <i className="notification-count-badge">{unreadCount > 99 ? "99+" : unreadCount}</i>
+              )}
             </button>
           </div>
         </header>
@@ -1443,6 +1462,7 @@ function ResidentDashboard() {
 
 export function DashboardPage() {
   const { user } = useAuth();
+  const { unreadCount } = useResidentNotifications();
   const [summaryPeriod, setSummaryPeriod] = useState("day");
   const [summaryStartDate, setSummaryStartDate] = useState(getLocalDateInputValue());
   const [chartPeriod, setChartPeriod] = useState("day");
@@ -1630,9 +1650,17 @@ export function DashboardPage() {
               <Download size={15} />
               Generate Report
             </button>
-            <button className="dashboard-bell" type="button" title="Notifications coming later">
+            <button
+              className="dashboard-bell"
+              type="button"
+              title="Notifications"
+              aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+              onClick={() => navigate("/notifications")}
+            >
               <Bell size={17} />
-              <i />
+              {unreadCount > 0 && (
+                <i className="notification-count-badge">{unreadCount > 99 ? "99+" : unreadCount}</i>
+              )}
             </button>
           </div>
         </header>

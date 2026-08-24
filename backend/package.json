@@ -7,6 +7,7 @@
     "db:create-activation-token": "node src/db/createActivationToken.js",
     "db:migrate": "node src/db/migrate.js",
     "db:seed:superadmin": "node src/db/seedSuperAdmin.js",
+    "webpush:generate-vapid": "node src/utils/generateVapidKeys.js",
     "dev": "nodemon src/server.js",
     "start": "node src/server.js"
   },
@@ -21,7 +22,8 @@
     "nodemailer": "^8.0.10",
     "pdfkit": "^0.18.0",
     "pg": "^8.13.1",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"

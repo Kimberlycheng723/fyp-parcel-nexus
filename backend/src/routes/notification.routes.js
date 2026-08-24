@@ -9,6 +9,11 @@ import {
   updatePreferences
 } from "../controllers/notification.controller.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
+import {
+  getVapidPublicKey,
+  subscribeBrowserPush,
+  unsubscribeBrowserPush
+} from "../controllers/pushSubscription.controller.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 const router = Router();
@@ -34,6 +39,21 @@ router.patch(
   "/notification-preferences",
   requireAuth,
   asyncHandler(updatePreferences)
+);
+router.get(
+  "/push-subscriptions/vapid-public-key",
+  requireAuth,
+  asyncHandler(getVapidPublicKey)
+);
+router.post(
+  "/push-subscriptions",
+  requireAuth,
+  asyncHandler(subscribeBrowserPush)
+);
+router.delete(
+  "/push-subscriptions",
+  requireAuth,
+  asyncHandler(unsubscribeBrowserPush)
 );
 
 export default router;

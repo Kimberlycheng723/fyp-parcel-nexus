@@ -1,0 +1,20 @@
+{
+  "name": "Parcel Nexus",
+  "short_name": "Parcel Nexus",
+  "description": "Parcel management for GEM Condominium.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#f5f6f8",
+  "theme_color": "#081d33",
+  "icons": [
+    {
+      "src": "/parcel-nexus-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

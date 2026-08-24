@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { ProtectedRoute } from "./components/ProtectedRoute.jsx";
 import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
+import { ResidentNotificationProvider } from "./context/ResidentNotificationContext.jsx";
 import { AccountsPage } from "./pages/AccountsPage.jsx";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage.jsx";
@@ -11,9 +12,27 @@ import { ParcelRegistrationPage } from "./pages/ParcelRegistrationPage.jsx";
 import { ProfilePage } from "./pages/ProfilePage.jsx";
 import { GuardVerifyCollectionPage } from "./pages/GuardVerifyCollectionPage.jsx";
 import { ResidentCollectionPage } from "./pages/ResidentCollectionPage.jsx";
+import { ResidentNotificationsPage } from "./pages/ResidentNotificationsPage.jsx";
 import { ActivateAccountPage, ResetPasswordPage, VerifyEmailChangePage } from "./pages/ResetPasswordPage.jsx";
 import { getCurrentPath, navigate, replaceNavigate } from "./utils/navigation.js";
 import { landingPathForRole } from "./utils/roleLanding.js";
+
+const APP_PATHS = new Set([
+  "/",
+  "/login",
+  "/forgot-password",
+  "/reset-password",
+  "/activate",
+  "/verify-email-change",
+  "/profile",
+  "/accounts",
+  "/dashboard",
+  "/parcels",
+  "/parcels/new",
+  "/parcel-collection",
+  "/notifications",
+  "/verify-collection"
+]);
 
 function PublicAuthRoute({ children }) {
   const { token, user, isCheckingSession } = useAuth();
@@ -54,7 +73,13 @@ function Router() {
 
   useEffect(() => {
     if (path === "/" && !isCheckingSession) {
-      navigate(token && user ? landingPathForRole(user.role) : "/login");
+      replaceNavigate(token && user ? landingPathForRole(user.role) : "/login");
+    }
+  }, [path, token, user, isCheckingSession]);
+
+  useEffect(() => {
+    if (!APP_PATHS.has(path) && !isCheckingSession) {
+      replaceNavigate(token && user ? landingPathForRole(user.role) : "/login");
     }
   }, [path, token, user, isCheckingSession]);
 
@@ -140,6 +165,14 @@ function Router() {
     );
   }
 
+  if (path === "/notifications") {
+    return (
+      <ProtectedRoute allowedRoles={["SUPER_ADMIN", "ADMIN", "GUARD", "RESIDENT"]}>
+        <ResidentNotificationsPage />
+      </ProtectedRoute>
+    );
+  }
+
   if (path === "/verify-collection") {
     return (
       <ProtectedRoute allowedRoles={["GUARD"]}>
@@ -148,13 +181,19 @@ function Router() {
     );
   }
 
-  return null;
+  return (
+    <main className="center-screen">
+      <span>{isCheckingSession ? "Checking session..." : "Opening Parcel Nexus..."}</span>
+    </main>
+  );
 }
 
 function App() {
   return (
     <AuthProvider>
-      <Router />
+      <ResidentNotificationProvider>
+        <Router />
+      </ResidentNotificationProvider>
     </AuthProvider>
   );
 }

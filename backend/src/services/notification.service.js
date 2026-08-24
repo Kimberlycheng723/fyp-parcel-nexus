@@ -1,6 +1,7 @@
 import { pool } from "../db/pool.js";
 import { emitToUser } from "../realtime/socket.js";
 import { sendNotificationEmail } from "./email.service.js";
+import { sendBrowserPush } from "./webPush.service.js";
 
 export const NOTIFICATION_TYPES = Object.freeze([
   "PARCEL_ARRIVAL",
@@ -14,21 +15,20 @@ const ROLE_NOTIFICATION_POLICY = Object.freeze({
     notificationTypes: NOTIFICATION_TYPES,
     optionalChannels: Object.freeze([
       "email_enabled",
-      "whatsapp_enabled",
       "browser_push_enabled"
     ])
   }),
   ADMIN: Object.freeze({
     notificationTypes: Object.freeze(["DISPUTE_UPDATED"]),
-    optionalChannels: Object.freeze(["email_enabled"])
+    optionalChannels: Object.freeze(["email_enabled", "browser_push_enabled"])
   }),
   GUARD: Object.freeze({
     notificationTypes: Object.freeze(["DISPUTE_UPDATED"]),
-    optionalChannels: Object.freeze(["email_enabled"])
+    optionalChannels: Object.freeze(["email_enabled", "browser_push_enabled"])
   }),
   SUPER_ADMIN: Object.freeze({
     notificationTypes: Object.freeze(["DISPUTE_UPDATED"]),
-    optionalChannels: Object.freeze(["email_enabled"])
+    optionalChannels: Object.freeze(["email_enabled", "browser_push_enabled"])
   })
 });
 const MAX_NOTIFICATION_TITLE_LENGTH = 160;
@@ -46,6 +46,12 @@ function normalizeText(value, maxLength) {
   }
 
   return value.trim().slice(0, maxLength);
+}
+
+function normalizeEmailSubject(value) {
+  return typeof value === "string"
+    ? value.replace(/[\r\n]+/g, " ").trim().slice(0, 200)
+    : "";
 }
 
 function toPositiveInteger(value, fallback, maximum) {
@@ -75,19 +81,13 @@ function getRoleNotificationPolicy(role) {
   return ROLE_NOTIFICATION_POLICY[role] || null;
 }
 
-function toSafePreference(row, role) {
-  const preference = {
+function toSafePreference(row) {
+  return {
     notification_type: row.notification_type,
     in_app_enabled: true,
-    email_enabled: Boolean(row.email_enabled)
+    email_enabled: Boolean(row.email_enabled),
+    browser_push_enabled: Boolean(row.browser_push_enabled)
   };
-
-  if (role === "RESIDENT") {
-    preference.whatsapp_enabled = Boolean(row.whatsapp_enabled);
-    preference.browser_push_enabled = Boolean(row.browser_push_enabled);
-  }
-
-  return preference;
 }
 
 async function getNotificationRecipient(userId, client = pool) {
@@ -173,7 +173,8 @@ async function deliverEmail(envelope) {
   const result = await sendNotificationEmail({
     to: envelope.recipient.email,
     title: envelope.notification.title,
-    message: envelope.notification.message
+    message: envelope.notification.message,
+    subject: envelope.emailSubject || undefined
   });
 
   return {
@@ -181,6 +182,13 @@ async function deliverEmail(envelope) {
     delivered: Boolean(result.sent),
     skipped: Boolean(result.skipped)
   };
+}
+
+async function deliverBrowserPush(envelope) {
+  return sendBrowserPush({
+    userId: envelope.recipient.user_id,
+    notification: envelope.notification
+  });
 }
 
 const CHANNEL_ADAPTERS = Object.freeze([
@@ -193,6 +201,11 @@ const CHANNEL_ADAPTERS = Object.freeze([
     channel: "EMAIL",
     preference: "email_enabled",
     deliver: deliverEmail
+  },
+  {
+    channel: "BROWSER_PUSH",
+    preference: "browser_push_enabled",
+    deliver: deliverBrowserPush
   }
 ]);
 
@@ -203,7 +216,8 @@ export async function persistNotification({
   title,
   message,
   relatedParcelId = null,
-  deduplicationKey = null
+  deduplicationKey = null,
+  emailSubject = null
 }) {
   if (!NOTIFICATION_TYPE_SET.has(type)) {
     throw new Error(`Unsupported notification type: ${type}`);
@@ -271,7 +285,8 @@ export async function persistNotification({
   return {
     notification: toSafeNotification(insertResult.rows[0]),
     recipient,
-    preferences: toSafePreference(preference, recipient.role)
+    preferences: toSafePreference(preference),
+    emailSubject: normalizeEmailSubject(emailSubject)
   };
 }
 
@@ -377,7 +392,8 @@ export async function persistParcelArrivalNotification({
     title: "Parcel arrived",
     message: `Your ${courierName} parcel (${trackingNumber}) is ready for collection.`,
     relatedParcelId: parcelId,
-    deduplicationKey: `parcel-arrival:${parcelId}`
+    deduplicationKey: `parcel-arrival:${parcelId}`,
+    emailSubject: `Parcel Arrived — ${courierName} ${trackingNumber}`
   });
 }
 
@@ -424,9 +440,30 @@ export async function listNotifications({ requester, filters = {} }) {
     params
   );
   const total = Number(result.rows[0]?.total_count || 0);
+  const countsResult = await pool.query(
+    `
+      SELECT
+        COUNT(*)::int AS all_count,
+        COUNT(*) FILTER (WHERE is_read = FALSE)::int AS unread_count,
+        COUNT(*) FILTER (
+          WHERE type IN ('PARCEL_ARRIVAL', 'PARCEL_OVERDUE')
+        )::int AS parcel_count,
+        COUNT(*) FILTER (WHERE type = 'DISPUTE_UPDATED')::int AS dispute_count
+      FROM notifications
+      WHERE recipient_user_id = $1
+    `,
+    [requester.user_id]
+  );
+  const counts = countsResult.rows[0] || {};
 
   return {
     notifications: result.rows.map(toSafeNotification),
+    counts: {
+      all: Number(counts.all_count || 0),
+      unread: Number(counts.unread_count || 0),
+      parcels: Number(counts.parcel_count || 0),
+      disputes: Number(counts.dispute_count || 0)
+    },
     pagination: {
       page,
       limit,
@@ -533,7 +570,7 @@ export async function getNotificationPreferences({ requester }) {
 
   return {
     preferences: preferences.map((preference) =>
-      toSafePreference(preference, recipient.role)
+      toSafePreference(preference)
     )
   };
 }

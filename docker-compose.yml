@@ -35,6 +35,9 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-replace_with_a_long_random_access_secret}
       JWT_RESET_SECRET: ${JWT_RESET_SECRET:-replace_with_a_long_random_reset_secret}
       JWT_ACTIVATION_SECRET: ${JWT_ACTIVATION_SECRET:-replace_with_a_long_random_activation_secret}

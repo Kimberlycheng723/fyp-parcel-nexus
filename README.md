@@ -28,7 +28,8 @@ The project currently includes:
 - Parcel Management Module
 - Dashboard and Record Module
 - Parcel Collection Module
-- Notification Backend
+- Notification Backend and Resident Notification Center
+- Native Web Push notifications
 
 ## Environment Setup
 
@@ -127,6 +128,21 @@ The seed script uses values from your local `.env`. Real credentials are not har
 Parcel Nexus uses Gmail SMTP with a Google App Password for system emails such as password reset and account activation.
 
 SMTP credentials must be stored only in the local `.env` file. They should not be committed, written into README examples, or uploaded to GitHub.
+
+## Native Web Push
+
+Parcel Nexus uses standards-based Web Push with a service worker and VAPID. It
+does not use Firebase. Generate one stable VAPID key pair for each environment:
+
+```bash
+docker compose exec backend npm run webpush:generate-vapid
+```
+
+Store `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, and `VAPID_PRIVATE_KEY` in the local
+environment only, then recreate the backend container. Never commit the private
+key and never generate a new key pair on every server start, because existing
+browser subscriptions are bound to the original public key.
+
 
 ## Notes And Warnings
 

@@ -130,3 +130,61 @@ export function confirmProfileEmailChange(token) {
     body: { token }
   });
 }
+
+export function getNotifications({ page = 1, limit = 10, unreadOnly = false } = {}) {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit)
+  });
+
+  if (unreadOnly) {
+    params.set("unread_only", "true");
+  }
+
+  return apiRequest(`/notifications?${params.toString()}`);
+}
+
+export function getUnreadNotificationCount() {
+  return apiRequest("/notifications/unread-count");
+}
+
+export function markNotificationRead(notificationId) {
+  return apiRequest(`/notifications/${notificationId}/read`, {
+    method: "PATCH"
+  });
+}
+
+export function markAllNotificationsRead() {
+  return apiRequest("/notifications/read-all", {
+    method: "PATCH"
+  });
+}
+
+export function getNotificationPreferences() {
+  return apiRequest("/notification-preferences");
+}
+
+export function updateNotificationPreferences(preferences) {
+  return apiRequest("/notification-preferences", {
+    method: "PATCH",
+    body: { preferences }
+  });
+}
+
+export function getBrowserPushPublicKey() {
+  return apiRequest("/push-subscriptions/vapid-public-key");
+}
+
+export function saveBrowserPushSubscription(subscription) {
+  return apiRequest("/push-subscriptions", {
+    method: "POST",
+    body: { subscription }
+  });
+}
+
+export function deleteBrowserPushSubscription(endpoint) {
+  return apiRequest("/push-subscriptions", {
+    method: "DELETE",
+    body: { endpoint }
+  });
+}

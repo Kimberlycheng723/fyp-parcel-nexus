@@ -9,12 +9,11 @@ WHERE users.user_id = preferences.user_id
 
 UPDATE notification_preferences preferences
 SET
-  whatsapp_enabled = FALSE,
-  browser_push_enabled = FALSE
+  whatsapp_enabled = FALSE
 FROM users
 WHERE users.user_id = preferences.user_id
   AND users.role IN ('SUPER_ADMIN', 'ADMIN', 'GUARD')
-  AND (preferences.whatsapp_enabled = TRUE OR preferences.browser_push_enabled = TRUE);
+  AND preferences.whatsapp_enabled = TRUE;
 
 INSERT INTO notification_preferences (
   user_id,
@@ -53,9 +52,8 @@ BEGIN
     RAISE EXCEPTION 'Notification type % is not supported for role %.', NEW.notification_type, recipient_role;
   END IF;
 
-  IF recipient_role <> 'RESIDENT'
-    AND (NEW.whatsapp_enabled = TRUE OR NEW.browser_push_enabled = TRUE) THEN
-    RAISE EXCEPTION 'WhatsApp and Browser Push are not supported for role %.', recipient_role;
+  IF recipient_role <> 'RESIDENT' AND NEW.whatsapp_enabled = TRUE THEN
+    RAISE EXCEPTION 'WhatsApp is not supported for role %.', recipient_role;
   END IF;
 
   RETURN NEW;

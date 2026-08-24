@@ -167,13 +167,13 @@ export async function sendEmailChangeVerificationEmail({ to, verificationLink })
   });
 }
 
-export async function sendNotificationEmail({ to, title, message }) {
+export async function sendNotificationEmail({ to, title, message, subject }) {
   const safeTitle = escapeHtml(title);
   const safeMessage = escapeHtml(message);
 
   return sendMail({
     to,
-    subject: `Parcel Nexus: ${title}`,
+    subject: subject || `Parcel Nexus: ${title}`,
     text: [
       title,
       "",

@@ -16,6 +16,7 @@ import {
 import { useEffect, useState } from "react";
 
 import { useAuth } from "../context/AuthContext.jsx";
+import { useResidentNotifications } from "../context/ResidentNotificationContext.jsx";
 import { getCurrentPath, navigate } from "../utils/navigation.js";
 
 const ROLE_LABELS = {
@@ -119,6 +120,7 @@ function displayName(profile) {
 
 export function ProtectedLayout({ profile, children, hideTopActions = false }) {
   const { logout, user } = useAuth();
+  const { unreadCount } = useResidentNotifications();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const sidebarUser = profile || user || {};
@@ -127,8 +129,14 @@ export function ProtectedLayout({ profile, children, hideTopActions = false }) {
   const menuGroups = MENU_GROUPS[role] || [];
   const currentPath = getCurrentPath();
   const residentUnitCode = sidebarUser?.unit?.full_unit_code || sidebarUser?.unit_full_code;
-  const mobileTitle = role === "RESIDENT" && currentPath === "/dashboard" ? "Parcels" : "GEM";
-  const shouldShowNotifications = role !== "SUPER_ADMIN";
+  const mobileTitle = currentPath === "/notifications"
+    ? "Notifications"
+    : role === "RESIDENT"
+      ? currentPath === "/dashboard"
+      ? "Parcels"
+      : "GEM"
+      : "GEM";
+  const shouldShowNotifications = ["SUPER_ADMIN", "ADMIN", "GUARD", "RESIDENT"].includes(role);
 
   useEffect(() => {
     function closeSidebarOnEscape(event) {
@@ -193,7 +201,9 @@ export function ProtectedLayout({ profile, children, hideTopActions = false }) {
                   >
                     <Icon size={18} /> {item.label}
                     {item.count && (
-                      <span className={`nav-count ${item.darkCount ? "dark" : ""}`}>{item.count}</span>
+                      <span className={`nav-count ${item.darkCount ? "dark" : ""}`}>
+                        {item.count}
+                      </span>
                     )}
                   </button>
                 );
@@ -246,18 +256,30 @@ export function ProtectedLayout({ profile, children, hideTopActions = false }) {
             <span>{roleLabel}</span>
           </div>
           {shouldShowNotifications && (
-            <button className="mobile-topbar-bell" type="button" title="Notifications coming later" aria-label="Notifications">
+            <button
+              className="mobile-topbar-bell"
+              type="button"
+              title="Notifications"
+              aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+              onClick={() => handleNavigate("/notifications")}
+            >
               <Bell size={17} />
-              <i />
+              {unreadCount > 0 && <i className="notification-count-badge">{unreadCount > 99 ? "99+" : unreadCount}</i>}
             </button>
           )}
         </div>
 
         {!hideTopActions && shouldShowNotifications && (
           <div className="top-actions">
-            <button className="icon-button" type="button" title="Notifications coming later">
+            <button
+              className="icon-button"
+              type="button"
+              title="Notifications"
+              aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+              onClick={() => handleNavigate("/notifications")}
+            >
               <Bell size={18} />
-              <span />
+              {unreadCount > 0 && <span className="notification-count-badge">{unreadCount > 99 ? "99+" : unreadCount}</span>}
             </button>
           </div>
         )}

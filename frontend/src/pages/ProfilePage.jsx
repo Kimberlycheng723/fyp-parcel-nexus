@@ -1,19 +1,36 @@
-import {
-  Bell,
-  Lock,
-  Mail,
-  Pencil,
-  Phone,
-  Save,
-  Smartphone,
-  X
-} from "lucide-react";
+import { Lock, Pencil, Save, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ProtectedLayout } from "../components/ProtectedLayout.jsx";
 import { Spinner } from "../components/Spinner.jsx";
 import { useResendCooldown } from "../hooks/useResendCooldown.js";
-import { apiRequest, requestProfileEmailChange, sendPasswordResetLink } from "../services/api.js";
+import {
+  disableBrowserPushForCurrentBrowser,
+  enableBrowserPushForCurrentBrowser,
+  hasBrowserPushSubscription
+} from "../services/browserPush.js";
+import {
+  apiRequest,
+  getNotificationPreferences,
+  requestProfileEmailChange,
+  sendPasswordResetLink,
+  updateNotificationPreferences
+} from "../services/api.js";
+
+const NOTIFICATION_TYPE_DETAILS = {
+  PARCEL_ARRIVAL: {
+    label: "Parcel Arrival",
+    description: "Notifications when a parcel is registered for your unit."
+  },
+  PARCEL_OVERDUE: {
+    label: "Overdue Reminder",
+    description: "Notifications when a parcel passes its collection deadline."
+  },
+  DISPUTE_UPDATED: {
+    label: "Dispute Updates",
+    description: "Notifications about dispute status changes when the module is available."
+  }
+};
 
 function emptyProfileForm(profile) {
   return {
@@ -143,7 +160,7 @@ export function ProfilePage() {
         <div className="page-heading">
           <span>ACCOUNT / PROFILE</span>
           <h1>Profile & Settings</h1>
-          <p>{isSuperAdmin ? "Manage your account information." : "Manage your account information and notification preferences."}</p>
+          <p>Manage your account information and notification preferences.</p>
         </div>
 
         <section className="settings-card">
@@ -221,7 +238,7 @@ export function ProfilePage() {
           </form>
         </section>
 
-        {!isSuperAdmin && <NotificationPreferences />}
+        <NotificationPreferences role={profile?.role} />
       </main>
 
       {isPasswordModalOpen && (
@@ -261,48 +278,145 @@ function ReadOnlyField({ label, value, note, wide }) {
   );
 }
 
-function NotificationPreferences() {
-  const [preferences, setPreferences] = useState({
-    email: true,
-    inApp: true,
-    sms: false
-  });
-  const [hasChanges, setHasChanges] = useState(false);
+function NotificationPreferences({ role }) {
+  const [preferences, setPreferences] = useState([]);
+  const [savedPreferences, setSavedPreferences] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [pendingPushType, setPendingPushType] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
+  const [preferenceError, setPreferenceError] = useState("");
 
-  const items = [
-    {
-      key: "email",
-      icon: Mail,
-      label: "Email Notifications",
-      description: "Receive notifications via email."
-    },
-    {
-      key: "inApp",
-      icon: Bell,
-      label: "In-App Notifications",
-      description: "Receive notifications within the system."
-    },
-    {
-      key: "sms",
-      icon: Smartphone,
-      label: "SMS Notifications",
-      description: "Receive notifications via SMS. Standard rates may apply."
+  async function loadPreferences() {
+    setIsLoading(true);
+    setPreferenceError("");
+
+    try {
+      const data = await getNotificationPreferences();
+      const rows = data.preferences || [];
+      setPreferences(rows);
+      setSavedPreferences(rows);
+    } catch (requestError) {
+      setPreferenceError(requestError.message || "Unable to load notification preferences.");
+    } finally {
+      setIsLoading(false);
     }
-  ];
-
-  function togglePreference(key) {
-    setPreferences((current) => ({
-      ...current,
-      [key]: !current[key]
-    }));
-    setHasChanges(true);
-    setSaveMessage("");
   }
 
-  function savePreferences() {
-    setHasChanges(false);
-    setSaveMessage("Preferences saved.");
+  useEffect(() => {
+    void loadPreferences();
+  }, [role]);
+
+  const changedPreferences = preferences.filter((preference) => {
+    const saved = savedPreferences.find(
+      (item) => item.notification_type === preference.notification_type
+    );
+
+    return saved && (
+      saved.email_enabled !== preference.email_enabled
+      || saved.browser_push_enabled !== preference.browser_push_enabled
+    );
+  });
+  const hasChanges = changedPreferences.length > 0;
+
+  function toggleEmail(notificationType) {
+    setPreferences((current) =>
+      current.map((preference) =>
+        preference.notification_type === notificationType
+          ? { ...preference, email_enabled: !preference.email_enabled }
+          : preference
+      )
+    );
+    setSaveMessage("");
+    setPreferenceError("");
+  }
+
+  async function toggleBrowserPush(notificationType) {
+    const currentPreference = preferences.find(
+      (preference) => preference.notification_type === notificationType
+    );
+
+    if (!currentPreference || pendingPushType) {
+      return;
+    }
+
+    setSaveMessage("");
+    setPreferenceError("");
+
+    if (currentPreference.browser_push_enabled) {
+      try {
+        setPendingPushType(notificationType);
+        const currentBrowserSubscribed = await hasBrowserPushSubscription();
+
+        if (!currentBrowserSubscribed) {
+          await enableBrowserPushForCurrentBrowser();
+          setSaveMessage("Browser Push enabled on this browser.");
+          return;
+        }
+      } catch (requestError) {
+        setPreferenceError(requestError.message || "Unable to enable Browser Push.");
+        return;
+      } finally {
+        setPendingPushType("");
+      }
+
+      setPreferences((current) =>
+        current.map((preference) =>
+          preference.notification_type === notificationType
+            ? { ...preference, browser_push_enabled: false }
+            : preference
+        )
+      );
+      return;
+    }
+
+    try {
+      setPendingPushType(notificationType);
+      await enableBrowserPushForCurrentBrowser();
+      setPreferences((current) =>
+        current.map((preference) =>
+          preference.notification_type === notificationType
+            ? { ...preference, browser_push_enabled: true }
+            : preference
+        )
+      );
+    } catch (requestError) {
+      setPreferenceError(requestError.message || "Unable to enable Browser Push.");
+    } finally {
+      setPendingPushType("");
+    }
+  }
+
+  async function savePreferences() {
+    if (!hasChanges || isSaving) {
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveMessage("");
+    setPreferenceError("");
+
+    try {
+      const data = await updateNotificationPreferences(
+        changedPreferences.map((preference) => ({
+          notification_type: preference.notification_type,
+          email_enabled: preference.email_enabled,
+          browser_push_enabled: preference.browser_push_enabled
+        }))
+      );
+      const rows = data.preferences || [];
+      setPreferences(rows);
+      setSavedPreferences(rows);
+      setSaveMessage("Notification preferences saved.");
+
+      if (rows.every((preference) => !preference.browser_push_enabled)) {
+        void disableBrowserPushForCurrentBrowser().catch(() => {});
+      }
+    } catch (requestError) {
+      setPreferenceError(requestError.message || "Unable to save notification preferences.");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -310,41 +424,94 @@ function NotificationPreferences() {
       <div className="card-heading">
         <div>
           <h2>Notification Preferences</h2>
-          <p>Choose how you want to receive system and parcel notifications.</p>
+          <p>Choose how each notification type reaches you.</p>
         </div>
       </div>
 
-      <div className="preference-list">
-        {items.map((item) => {
-          const Icon = item.icon;
-          const enabled = preferences[item.key];
-          return (
-            <div className="preference-row" key={item.label}>
-              <span className="preference-icon"><Icon size={18} /></span>
-              <div>
-                <strong>{item.label}</strong>
-                <span className={enabled ? "status-pill on" : "status-pill"}>{enabled ? "ON" : "OFF"}</span>
-                <p>{item.description}</p>
-              </div>
-              <button
-                className={`toggle ${enabled ? "on" : ""}`}
-                type="button"
-                aria-pressed={enabled}
-                aria-label={`Toggle ${item.label}`}
-                onClick={() => togglePreference(item.key)}
-              />
-            </div>
-          );
-        })}
-      </div>
+      {isLoading ? (
+        <div className="preference-loading">
+          <Spinner label="Loading notification preferences" />
+        </div>
+      ) : preferences.length === 0 ? (
+        <div className="preference-loading">No notification preferences are available.</div>
+      ) : (
+        <div className="typed-preference-list">
+          {preferences.map((preference) => {
+            const details = NOTIFICATION_TYPE_DETAILS[preference.notification_type] || {
+              label: preference.notification_type,
+              description: "Notification delivery settings."
+            };
+
+            return (
+              <article className="typed-preference-row" key={preference.notification_type}>
+                <div className="typed-preference-heading">
+                  <div>
+                    <h3>{details.label}</h3>
+                    <p>{details.description}</p>
+                  </div>
+                </div>
+
+                <div className="preference-channel-grid">
+                  <PreferenceChannel
+                    label="In-App"
+                    enabled
+                    required
+                  />
+                  <PreferenceChannel
+                    label="Email"
+                    enabled={Boolean(preference.email_enabled)}
+                    onToggle={() => toggleEmail(preference.notification_type)}
+                  />
+                  <PreferenceChannel
+                    label="Browser Push"
+                    enabled={Boolean(preference.browser_push_enabled)}
+                    disabled={pendingPushType === preference.notification_type}
+                    onToggle={() => toggleBrowserPush(preference.notification_type)}
+                  />
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
 
       <div className="preference-card-action">
+        {preferenceError && <p className="local-save-message error">{preferenceError}</p>}
         {saveMessage && <p className="local-save-message">{saveMessage}</p>}
-        <button className="save-preferences-button" type="button" disabled={!hasChanges} onClick={savePreferences}>
-          Save preferences
+        <button
+          className="save-preferences-button"
+          type="button"
+          disabled={!hasChanges || isSaving || isLoading}
+          onClick={savePreferences}
+        >
+          {isSaving ? <Spinner label="Saving" /> : "Save preferences"}
         </button>
       </div>
     </section>
+  );
+}
+
+function PreferenceChannel({
+  label,
+  enabled = false,
+  required = false,
+  disabled = false,
+  onToggle
+}) {
+
+  return (
+    <div className={`preference-channel ${required ? "required" : ""}`}>
+      <span>{label}</span>
+      {required && <small>Required</small>}
+      <button
+        className={`toggle ${enabled ? "on" : ""} ${required ? "required" : ""}`}
+        type="button"
+        disabled={required || disabled}
+        aria-pressed={enabled}
+        aria-label={required ? `${label} notifications are required` : `Toggle ${label} notifications`}
+        onClick={onToggle}
+      />
+    </div>
   );
 }
 

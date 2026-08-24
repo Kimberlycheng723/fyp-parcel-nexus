@@ -20,6 +20,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ProtectedLayout } from "../components/ProtectedLayout.jsx";
 import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useResidentNotifications } from "../context/ResidentNotificationContext.jsx";
 import { apiRequest } from "../services/api.js";
 import { navigate } from "../utils/navigation.js";
 
@@ -233,6 +234,7 @@ function toDatetimeLocal(value) {
 }
 
 export function ParcelManagementPage() {
+  const { unreadCount } = useResidentNotifications();
   const { user } = useAuth();
   const canAccess = roleCanAccess(user?.role);
   const isAdmin = user?.role === "ADMIN";
@@ -461,9 +463,17 @@ export function ParcelManagementPage() {
                   </button>
                 </>
               )}
-              <button className="parcel-page-bell" type="button" aria-label="Notifications">
+              <button
+                className="parcel-page-bell"
+                type="button"
+                aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+                title="Notifications"
+                onClick={() => navigate("/notifications")}
+              >
                 <Bell size={16} />
-                <i />
+                {unreadCount > 0 && (
+                  <i className="notification-count-badge">{unreadCount > 99 ? "99+" : unreadCount}</i>
+                )}
               </button>
             </div>
           )}
