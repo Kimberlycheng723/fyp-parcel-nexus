@@ -41,7 +41,7 @@ const MENU_GROUPS = {
       items: [
         { key: "dashboard", label: "Dashboard", icon: Gauge, path: "/dashboard" },
         { key: "parcels", label: "Parcels", icon: Box, path: "/parcels" },
-        { key: "disputes", label: "Disputes", icon: AlertCircle, muted: true }
+        { key: "disputes", label: "Disputes", icon: AlertCircle, path: "/disputes" }
       ]
     },
     {
@@ -70,7 +70,7 @@ const MENU_GROUPS = {
         { key: "dashboard", label: "Dashboard", icon: Gauge, path: "/dashboard" },
         { key: "parcels", label: "Parcels", icon: Box, path: "/parcels" },
         { key: "verify-collection", label: "Verify Collection", icon: ScanLine, path: "/verify-collection" },
-        { key: "disputes", label: "Disputes", icon: AlertCircle, muted: true }
+        { key: "disputes", label: "Disputes", icon: AlertCircle, path: "/disputes" }
       ]
     },
     {
@@ -131,11 +131,13 @@ export function ProtectedLayout({ profile, children, hideTopActions = false }) {
   const residentUnitCode = sidebarUser?.unit?.full_unit_code || sidebarUser?.unit_full_code;
   const mobileTitle = currentPath === "/notifications"
     ? "Notifications"
-    : role === "RESIDENT"
-      ? currentPath === "/dashboard"
-      ? "Parcels"
-      : "GEM"
-      : "GEM";
+    : currentPath === "/disputes/new"
+      ? "Raise Dispute"
+      : currentPath.startsWith("/disputes")
+        ? "Disputes"
+        : role === "RESIDENT" && currentPath === "/dashboard"
+          ? "Parcels"
+          : "GEM";
   const shouldShowNotifications = ["SUPER_ADMIN", "ADMIN", "GUARD", "RESIDENT"].includes(role);
 
   useEffect(() => {
@@ -190,7 +192,9 @@ export function ProtectedLayout({ profile, children, hideTopActions = false }) {
               <p>{group.label}</p>
               {group.items.map((item) => {
                 const Icon = item.icon;
-                const isActive = item.path === currentPath || (item.path === "/parcels" && currentPath.startsWith("/parcels"));
+                const isActive = item.path === currentPath
+                  || (item.path === "/parcels" && currentPath.startsWith("/parcels"))
+                  || (item.path === "/disputes" && currentPath.startsWith("/disputes"));
                 return (
                   <button
                     type="button"
@@ -215,7 +219,11 @@ export function ProtectedLayout({ profile, children, hideTopActions = false }) {
             <p>Account</p>
           </div>
           {role === "RESIDENT" && (
-            <button type="button" className="nav-item is-muted" title="Dispute Management coming later">
+            <button
+              type="button"
+              className={`nav-item ${currentPath.startsWith("/disputes") ? "active" : ""}`}
+              onClick={() => handleNavigate("/disputes")}
+            >
               <AlertCircle size={18} /> Disputes
             </button>
           )}

@@ -188,3 +188,120 @@ export function deleteBrowserPushSubscription(endpoint) {
     body: { endpoint }
   });
 }
+
+export function getEligibleDisputeParcels({ search = "", page = 1, limit = 100 } = {}) {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit)
+  });
+
+  if (search) {
+    params.set("search", search);
+  }
+
+  return apiRequest(`/disputes/eligible-parcels?${params.toString()}`);
+}
+
+export function createResidentDispute({ parcelId, issueType, description, evidence = [] }) {
+  const formData = new FormData();
+  formData.append("parcel_id", parcelId);
+  formData.append("issue_type", issueType);
+  formData.append("description", description);
+  evidence.forEach((file) => formData.append("evidence", file));
+
+  return apiRequest("/disputes", {
+    method: "POST",
+    body: formData
+  });
+}
+
+export function getDisputes({
+  status = "",
+  issueType = "",
+  search = "",
+  assignment = "",
+  sort = "LATEST_ACTIVITY",
+  page = 1,
+  limit = 10
+} = {}) {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit)
+  });
+
+  if (status) params.set("status", status);
+  if (issueType) params.set("issue_type", issueType);
+  if (search) params.set("search", search);
+  if (assignment) params.set("assignment", assignment);
+  if (sort) params.set("sort", sort);
+
+  return apiRequest(`/disputes?${params.toString()}`);
+}
+
+export function getDispute(disputeId) {
+  return apiRequest(`/disputes/${disputeId}`);
+}
+
+export function getDisputeHistory(disputeId) {
+  return apiRequest(`/disputes/${disputeId}/history`);
+}
+
+export function getDisputeEvidence(disputeId, evidenceId) {
+  return apiDownload(`/disputes/${disputeId}/evidence/${evidenceId}`);
+}
+
+export function updateResidentDispute({
+  disputeId,
+  issueType,
+  description,
+  keptEvidenceIds,
+  evidence = []
+}) {
+  const formData = new FormData();
+  formData.append("issue_type", issueType);
+  formData.append("description", description);
+  formData.append("kept_evidence_ids", JSON.stringify(keptEvidenceIds));
+  evidence.forEach((file) => formData.append("evidence", file));
+
+  return apiRequest(`/disputes/${disputeId}`, {
+    method: "PATCH",
+    body: formData
+  });
+}
+
+export function deleteResidentDispute(disputeId) {
+  return apiRequest(`/disputes/${disputeId}`, { method: "DELETE" });
+}
+
+export function getDisputeMessages(disputeId, { page = 1, limit = 100 } = {}) {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  return apiRequest(`/disputes/${disputeId}/messages?${params.toString()}`);
+}
+
+export function sendDisputeMessage(disputeId, message) {
+  return apiRequest(`/disputes/${disputeId}/messages`, {
+    method: "POST",
+    body: { message }
+  });
+}
+
+export function transitionDispute(disputeId, status, extra = {}) {
+  return apiRequest(`/disputes/${disputeId}/transition`, {
+    method: "PATCH",
+    body: { status, ...extra }
+  });
+}
+
+export function updateGuardDisputeResponse(disputeId, guardResponse) {
+  return apiRequest(`/disputes/${disputeId}/guard-response`, {
+    method: "PATCH",
+    body: { guard_response: guardResponse }
+  });
+}
+
+export function updateAdminDisputeNotes(disputeId, adminResolutionNotes) {
+  return apiRequest(`/disputes/${disputeId}/admin-resolution-notes`, {
+    method: "PATCH",
+    body: { admin_resolution_notes: adminResolutionNotes }
+  });
+}

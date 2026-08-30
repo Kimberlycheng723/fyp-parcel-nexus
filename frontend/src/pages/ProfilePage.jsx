@@ -28,7 +28,11 @@ const NOTIFICATION_TYPE_DETAILS = {
   },
   DISPUTE_UPDATED: {
     label: "Dispute Updates",
-    description: "Notifications about dispute status changes when the module is available."
+    description: "Notifications about changes to your disputes."
+  },
+  PARCEL_COMMUNITY_ALERT: {
+    label: "Community Parcel Alerts",
+    description: "Privacy-safe alerts when another resident may need help locating a parcel."
   }
 };
 

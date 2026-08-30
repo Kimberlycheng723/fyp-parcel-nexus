@@ -8,4 +8,6 @@
 @import "./styles/parcel-management.css";
 @import "./styles/parcel-collection.css";
 @import "./styles/notifications.css";
+@import "./styles/disputes.css";
+@import "./styles/staff-disputes.css";
 @import "./styles/components.css";

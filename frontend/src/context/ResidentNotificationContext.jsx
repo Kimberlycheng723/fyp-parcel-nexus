@@ -7,7 +7,11 @@ import { acquireRealtimeSocket, releaseRealtimeSocket } from "../services/socket
 import { navigate } from "../utils/navigation.js";
 
 const ResidentNotificationContext = createContext(null);
-const PARCEL_NOTIFICATION_TYPES = new Set(["PARCEL_ARRIVAL", "PARCEL_OVERDUE"]);
+const PARCEL_NOTIFICATION_TYPES = new Set([
+  "PARCEL_ARRIVAL",
+  "PARCEL_OVERDUE",
+  "PARCEL_COMMUNITY_ALERT"
+]);
 
 export function ResidentNotificationProvider({ children }) {
   const { token, user } = useAuth();
@@ -89,6 +93,13 @@ export function ResidentNotificationProvider({ children }) {
 
     if (notification && PARCEL_NOTIFICATION_TYPES.has(notification.type)) {
       navigate("/dashboard");
+      return;
+    }
+
+    if (notification?.type === "DISPUTE_UPDATED") {
+      navigate(user?.role === "RESIDENT" && notification.related_dispute_id
+        ? `/disputes/${notification.related_dispute_id}`
+        : "/disputes");
     }
   }
 

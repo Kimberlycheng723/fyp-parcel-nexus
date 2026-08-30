@@ -12,7 +12,11 @@ import { ParcelRegistrationPage } from "./pages/ParcelRegistrationPage.jsx";
 import { ProfilePage } from "./pages/ProfilePage.jsx";
 import { GuardVerifyCollectionPage } from "./pages/GuardVerifyCollectionPage.jsx";
 import { ResidentCollectionPage } from "./pages/ResidentCollectionPage.jsx";
+import { ResidentDisputeDetailPage } from "./pages/ResidentDisputeDetailPage.jsx";
+import { ResidentDisputesPage } from "./pages/ResidentDisputesPage.jsx";
+import { StaffDisputesPage } from "./pages/StaffDisputesPage.jsx";
 import { ResidentNotificationsPage } from "./pages/ResidentNotificationsPage.jsx";
+import { RaiseDisputePage } from "./pages/RaiseDisputePage.jsx";
 import { ActivateAccountPage, ResetPasswordPage, VerifyEmailChangePage } from "./pages/ResetPasswordPage.jsx";
 import { getCurrentPath, navigate, replaceNavigate } from "./utils/navigation.js";
 import { landingPathForRole } from "./utils/roleLanding.js";
@@ -31,8 +35,16 @@ const APP_PATHS = new Set([
   "/parcels/new",
   "/parcel-collection",
   "/notifications",
+  "/disputes",
+  "/disputes/new",
   "/verify-collection"
 ]);
+
+const DISPUTE_DETAIL_PATH = /^\/disputes\/([0-9a-f-]{36})$/i;
+
+function isKnownAppPath(path) {
+  return APP_PATHS.has(path) || DISPUTE_DETAIL_PATH.test(path);
+}
 
 function PublicAuthRoute({ children }) {
   const { token, user, isCheckingSession } = useAuth();
@@ -78,7 +90,7 @@ function Router() {
   }, [path, token, user, isCheckingSession]);
 
   useEffect(() => {
-    if (!APP_PATHS.has(path) && !isCheckingSession) {
+    if (!isKnownAppPath(path) && !isCheckingSession) {
       replaceNavigate(token && user ? landingPathForRole(user.role) : "/login");
     }
   }, [path, token, user, isCheckingSession]);
@@ -169,6 +181,31 @@ function Router() {
     return (
       <ProtectedRoute allowedRoles={["SUPER_ADMIN", "ADMIN", "GUARD", "RESIDENT"]}>
         <ResidentNotificationsPage />
+      </ProtectedRoute>
+    );
+  }
+
+  if (path === "/disputes") {
+    return (
+      <ProtectedRoute allowedRoles={["RESIDENT", "GUARD", "ADMIN"]}>
+        {user?.role === "RESIDENT" ? <ResidentDisputesPage /> : <StaffDisputesPage />}
+      </ProtectedRoute>
+    );
+  }
+
+  if (path === "/disputes/new") {
+    return (
+      <ProtectedRoute allowedRoles={["RESIDENT"]}>
+        <RaiseDisputePage />
+      </ProtectedRoute>
+    );
+  }
+
+  const disputeDetailMatch = path.match(DISPUTE_DETAIL_PATH);
+  if (disputeDetailMatch) {
+    return (
+      <ProtectedRoute allowedRoles={["RESIDENT"]}>
+        <ResidentDisputeDetailPage disputeId={disputeDetailMatch[1]} />
       </ProtectedRoute>
     );
   }

@@ -24,7 +24,11 @@ import {
 import { navigate } from "../utils/navigation.js";
 
 const PAGE_LIMIT = 10;
-const PARCEL_NOTIFICATION_TYPES = new Set(["PARCEL_ARRIVAL", "PARCEL_OVERDUE"]);
+const PARCEL_NOTIFICATION_TYPES = new Set([
+  "PARCEL_ARRIVAL",
+  "PARCEL_OVERDUE",
+  "PARCEL_COMMUNITY_ALERT"
+]);
 const RESIDENT_TABS = [
   { key: "all", label: "All" },
   { key: "unread", label: "Unread" },
@@ -53,7 +57,8 @@ function typeBadge(type) {
   return {
     PARCEL_ARRIVAL: "Parcel",
     PARCEL_OVERDUE: "Overdue",
-    DISPUTE_UPDATED: "Update"
+    DISPUTE_UPDATED: "Update",
+    PARCEL_COMMUNITY_ALERT: "Community Alert"
   }[type] || "Notification";
 }
 
@@ -122,11 +127,20 @@ function emptyMessage(tab) {
   }[tab];
 }
 
-function notificationDestination(notification) {
+function notificationDestination(notification, isResident) {
   if (PARCEL_NOTIFICATION_TYPES.has(notification.type)) {
     return {
       path: "/dashboard",
       relatedParcelId: notification.related_parcel_id || null
+    };
+  }
+
+  if (notification.type === "DISPUTE_UPDATED") {
+    return {
+      path: isResident && notification.related_dispute_id
+        ? `/disputes/${notification.related_dispute_id}`
+        : "/disputes",
+      relatedDisputeId: notification.related_dispute_id || null
     };
   }
 
@@ -270,7 +284,7 @@ export function ResidentNotificationsPage() {
       }
     }
 
-    const destination = notificationDestination(notification);
+    const destination = notificationDestination(notification, isResident);
 
     if (destination) {
       navigate(destination.path);
