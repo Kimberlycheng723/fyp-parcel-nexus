@@ -28,3 +28,6 @@ backend/uploads/*
 !backend/uploads/parcels/
 backend/uploads/parcels/*
 !backend/uploads/parcels/.gitkeep
+!backend/uploads/disputes/
+backend/uploads/disputes/*
+!backend/uploads/disputes/.gitkeep

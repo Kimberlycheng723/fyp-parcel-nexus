@@ -448,11 +448,15 @@ async function getDisputeKpi({ start, end, previousStart, previousEnd, compariso
   const result = await pool.query(
     `
       SELECT
-        COUNT(*) FILTER (WHERE status IN ('OPEN', 'IN_REVIEW', 'ESCALATED'))::int AS open_disputes,
+        COUNT(*) FILTER (
+          WHERE status IN ('OPEN', 'IN_REVIEW_GUARD', 'ESCALATED', 'IN_REVIEW_ADMIN')
+        )::int AS open_disputes,
         COUNT(*) FILTER (WHERE created_at >= $1 AND created_at < $2)::int AS new_count,
         COUNT(*) FILTER (WHERE created_at >= $3 AND created_at < $4)::int AS previous_new_count,
         COUNT(*) FILTER (WHERE status = 'OPEN')::int AS open_count,
-        COUNT(*) FILTER (WHERE status = 'IN_REVIEW')::int AS in_review_count,
+        COUNT(*) FILTER (
+          WHERE status IN ('IN_REVIEW_GUARD', 'IN_REVIEW_ADMIN')
+        )::int AS in_review_count,
         COUNT(*) FILTER (WHERE status = 'ESCALATED')::int AS escalated_count,
         COUNT(*) FILTER (WHERE status = 'RESOLVED')::int AS resolved_count
       FROM disputes

@@ -6,7 +6,8 @@ import { sendBrowserPush } from "./webPush.service.js";
 export const NOTIFICATION_TYPES = Object.freeze([
   "PARCEL_ARRIVAL",
   "PARCEL_OVERDUE",
-  "DISPUTE_UPDATED"
+  "DISPUTE_UPDATED",
+  "PARCEL_COMMUNITY_ALERT"
 ]);
 
 const NOTIFICATION_TYPE_SET = new Set(NOTIFICATION_TYPES);
@@ -71,6 +72,7 @@ function toSafeNotification(row) {
     title: row.title,
     message: row.message,
     related_parcel_id: row.related_parcel_id,
+    related_dispute_id: row.related_dispute_id,
     is_read: Boolean(row.is_read),
     read_at: row.read_at,
     created_at: row.created_at
@@ -122,7 +124,13 @@ async function ensurePreferenceRows(recipient, client = pool) {
         whatsapp_enabled,
         browser_push_enabled
       )
-      SELECT $1, notification_type, TRUE, TRUE, FALSE, FALSE
+      SELECT
+        $1,
+        notification_type,
+        TRUE,
+        CASE WHEN notification_type = 'PARCEL_COMMUNITY_ALERT' THEN FALSE ELSE TRUE END,
+        FALSE,
+        FALSE
       FROM UNNEST($2::text[]) AS notification_type
       ON CONFLICT (user_id, notification_type) DO NOTHING
     `,
@@ -147,7 +155,8 @@ async function getPreferenceRows(recipient, client = pool) {
         WHEN 'PARCEL_ARRIVAL' THEN 1
         WHEN 'PARCEL_OVERDUE' THEN 2
         WHEN 'DISPUTE_UPDATED' THEN 3
-        ELSE 4
+        WHEN 'PARCEL_COMMUNITY_ALERT' THEN 4
+        ELSE 5
       END
     `,
     [recipient.user_id]
@@ -216,6 +225,7 @@ export async function persistNotification({
   title,
   message,
   relatedParcelId = null,
+  relatedDisputeId = null,
   deduplicationKey = null,
   emailSubject = null
 }) {
@@ -252,9 +262,10 @@ export async function persistNotification({
         title,
         message,
         related_parcel_id,
+        related_dispute_id,
         deduplication_key
       )
-      VALUES ($1, $2, $3, $4, $5, $6)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       ON CONFLICT (deduplication_key)
         WHERE deduplication_key IS NOT NULL
         DO NOTHING
@@ -264,6 +275,7 @@ export async function persistNotification({
         title,
         message,
         related_parcel_id,
+        related_dispute_id,
         is_read,
         read_at,
         created_at
@@ -274,6 +286,7 @@ export async function persistNotification({
       normalizedTitle,
       normalizedMessage,
       relatedParcelId,
+      relatedDisputeId,
       deduplicationKey
     ]
   );
@@ -428,6 +441,7 @@ export async function listNotifications({ requester, filters = {} }) {
         title,
         message,
         related_parcel_id,
+        related_dispute_id,
         is_read,
         read_at,
         created_at,
@@ -446,7 +460,7 @@ export async function listNotifications({ requester, filters = {} }) {
         COUNT(*)::int AS all_count,
         COUNT(*) FILTER (WHERE is_read = FALSE)::int AS unread_count,
         COUNT(*) FILTER (
-          WHERE type IN ('PARCEL_ARRIVAL', 'PARCEL_OVERDUE')
+          WHERE type IN ('PARCEL_ARRIVAL', 'PARCEL_OVERDUE', 'PARCEL_COMMUNITY_ALERT')
         )::int AS parcel_count,
         COUNT(*) FILTER (WHERE type = 'DISPUTE_UPDATED')::int AS dispute_count
       FROM notifications
@@ -516,6 +530,7 @@ export async function markNotificationRead({ requester, notificationId }) {
         title,
         message,
         related_parcel_id,
+        related_dispute_id,
         is_read,
         read_at,
         created_at
