@@ -4,6 +4,7 @@ import helmet from "helmet";
 import path from "node:path";
 
 import authRoutes from "./routes/auth.routes.js";
+import auditRoutes from "./routes/audit.routes.js";
 import courierRoutes from "./routes/courier.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import disputeRoutes from "./routes/dispute.routes.js";
@@ -28,6 +29,7 @@ app.use(express.json({ limit: "2mb" }));
 app.use("/uploads/parcels", express.static(parcelUploadsDirectory));
 
 app.use("/api/auth", authRoutes);
+app.use("/api/audit-logs", auditRoutes);
 app.use("/api/couriers", courierRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/disputes", disputeRoutes);

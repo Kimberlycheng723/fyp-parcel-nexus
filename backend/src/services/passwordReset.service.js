@@ -2,6 +2,7 @@ import { pool } from "../db/pool.js";
 import { buildPasswordResetLink, sendPasswordResetEmail } from "./email.service.js";
 import { comparePassword, hashPassword } from "../utils/password.js";
 import { validatePasswordStrength } from "../utils/passwordValidation.js";
+import { AUDIT_ACTIONS, recordAuditLog } from "./audit.service.js";
 import { generateSecureToken, hashToken } from "../utils/token.js";
 
 const RESET_TOKEN_EXPIRY_MINUTES = 15;
@@ -158,7 +159,7 @@ export async function resetPassword({ token, newPassword }) {
 
     const userResult = await client.query(
       `
-        SELECT user_id, status, password_hash
+        SELECT user_id, status, password_hash, role, email
         FROM users
         WHERE user_id = $1
         LIMIT 1
@@ -210,6 +211,17 @@ export async function resetPassword({ token, newPassword }) {
       `,
       [resetToken.token_id]
     );
+
+    await recordAuditLog({
+      client,
+      actor: { user_id: user.user_id, role: user.role },
+      action: AUDIT_ACTIONS.PASSWORD_RESET_COMPLETED,
+      entityType: "USER_ACCOUNT",
+      entityId: user.user_id,
+      entityReference: user.email,
+      description: `${user.role} account ${user.email} completed a password reset.`,
+      metadata: { account_role: user.role }
+    });
 
     await client.query("COMMIT");
 

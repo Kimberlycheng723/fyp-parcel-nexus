@@ -127,6 +127,7 @@ export async function getProfile(req, res) {
 
 export async function updateOwnProfile(req, res) {
   const result = await updateProfile({
+    requester: req.user,
     userId: req.user.user_id,
     updates: req.body
   });

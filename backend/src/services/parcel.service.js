@@ -1,5 +1,6 @@
 import { pool } from "../db/pool.js";
 import { normalizeOptionalString, normalizeRequiredString } from "../utils/userValidation.js";
+import { AUDIT_ACTIONS, recordAuditLog, recordAuditLogSafely } from "./audit.service.js";
 
 const MANAGEMENT_ROLES = ["ADMIN", "GUARD"];
 const EXPORT_ROLES = ["ADMIN"];
@@ -537,6 +538,33 @@ export async function updateParcel({ requester, parcelId, updates }) {
     );
 
     const updatedRow = await getParcelRowById(parcelId, {}, client);
+    const changes = {};
+    const addChange = (key, before, after) => {
+      const beforeValue = before instanceof Date ? before.toISOString() : before ?? null;
+      const afterValue = after instanceof Date ? after.toISOString() : after ?? null;
+      if (String(beforeValue) !== String(afterValue)) changes[key] = { before: beforeValue, after: afterValue };
+    };
+    addChange("tracking_number", currentParcel.tracking_number, updatedRow.tracking_number);
+    addChange("courier", currentParcel.courier_name, updatedRow.courier_name);
+    addChange("unit", currentParcel.full_unit_code, updatedRow.full_unit_code);
+    addChange("delivery_person_contact", currentParcel.delivery_person_contact, updatedRow.delivery_person_contact);
+    addChange("parcel_photo", Boolean(currentParcel.parcel_photo_url), Boolean(updatedRow.parcel_photo_url));
+    addChange("collection_deadline", currentParcel.collection_deadline, updatedRow.collection_deadline);
+    await recordAuditLog({
+      client,
+      actor: requester,
+      action: AUDIT_ACTIONS.PARCEL_EDITED,
+      entityType: "PARCEL",
+      entityId: parcelId,
+      entityReference: updatedRow.tracking_number,
+      description: `Parcel ${updatedRow.tracking_number} was edited.`,
+      metadata: {
+        tracking_number: updatedRow.tracking_number,
+        courier: updatedRow.courier_name,
+        unit: updatedRow.full_unit_code,
+        changes
+      }
+    });
     await client.query("COMMIT");
 
     return {
@@ -589,6 +617,21 @@ export async function updateParcelStatus({ requester, parcelId, status }) {
     [normalizedStatus, parcelId]
   );
 
+  await recordAuditLogSafely({
+    actor: requester,
+    action: AUDIT_ACTIONS.PARCEL_EDITED,
+    entityType: "PARCEL",
+    entityId: parcelId,
+    entityReference: currentParcel.tracking_number,
+    description: `Parcel ${currentParcel.tracking_number} status was updated.`,
+    metadata: {
+      tracking_number: currentParcel.tracking_number,
+      courier: currentParcel.courier_name,
+      unit: currentParcel.full_unit_code,
+      changes: { status: { before: currentParcel.status, after: normalizedStatus } }
+    }
+  });
+
   return {
     parcel: toSafeParcel(await getParcelRowById(parcelId))
   };
@@ -617,6 +660,20 @@ export async function softDeleteParcel({ requester, parcelId }) {
     `,
     [requester.user_id, parcelId]
   );
+
+  await recordAuditLogSafely({
+    actor: requester,
+    action: AUDIT_ACTIONS.PARCEL_DELETED,
+    entityType: "PARCEL",
+    entityId: parcelId,
+    entityReference: currentParcel.tracking_number,
+    description: `Parcel ${currentParcel.tracking_number} was deleted.`,
+    metadata: {
+      tracking_number: currentParcel.tracking_number,
+      courier: currentParcel.courier_name,
+      unit: currentParcel.full_unit_code
+    }
+  });
 
   const deletedRow = await getParcelRowById(parcelId, {
     includeDeleted: true

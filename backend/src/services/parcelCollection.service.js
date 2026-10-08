@@ -1,4 +1,5 @@
 import { pool } from "../db/pool.js";
+import { AUDIT_ACTIONS, recordAuditLog } from "./audit.service.js";
 import { generateSecureToken, hashToken } from "../utils/token.js";
 
 const QR_EXPIRY_MINUTES = 2;
@@ -330,6 +331,21 @@ export async function verifyGuardCollection({ requester, token }) {
     if (completedCollectionResult.rows.length !== 1) {
       await client.query("ROLLBACK");
       return { error: "COLLECTION_STATE_CHANGED" };
+    }
+
+    for (const parcel of collectedParcelsResult.rows) {
+      await recordAuditLog({
+        client,
+        actor: requester,
+        action: AUDIT_ACTIONS.PARCEL_COLLECTED,
+        entityType: "PARCEL",
+        entityId: parcel.parcel_id,
+        entityReference: parcel.tracking_number,
+        description: `Parcel ${parcel.tracking_number} was collected through Guard QR verification.`,
+        metadata: {
+          tracking_number: parcel.tracking_number
+        }
+      });
     }
 
     await client.query("COMMIT");

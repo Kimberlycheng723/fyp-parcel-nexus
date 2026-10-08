@@ -6,6 +6,7 @@ import {
 import { comparePassword, hashPassword } from "../utils/password.js";
 import { validatePasswordStrength } from "../utils/passwordValidation.js";
 import { signEmailChangeToken, verifyEmailChangeToken } from "../utils/jwt.js";
+import { AUDIT_ACTIONS, recordAuditLog, recordAuditLogSafely } from "./audit.service.js";
 
 const PROFILE_COLUMNS = `
   u.user_id,
@@ -90,7 +91,7 @@ export async function getProfileByUserId(userId) {
   return toProfile(profile);
 }
 
-export async function updateProfile({ userId, updates }) {
+export async function updateProfile({ requester, userId, updates }) {
   const currentProfile = await getProfileByUserId(userId);
 
   if (!currentProfile) {
@@ -127,8 +128,27 @@ export async function updateProfile({ userId, updates }) {
     [phoneNumber, firstName, lastName, userId]
   );
 
+  const updatedProfile = await getProfileByUserId(userId);
+  const changes = {};
+  for (const [field, before, after] of [
+    ["phone_number", currentProfile.phone_number, updatedProfile.phone_number],
+    ["first_name", currentProfile.first_name, updatedProfile.first_name],
+    ["last_name", currentProfile.last_name, updatedProfile.last_name]
+  ]) {
+    if (String(before ?? "") !== String(after ?? "")) changes[field] = { before: before ?? null, after: after ?? null };
+  }
+  await recordAuditLogSafely({
+    actor: requester,
+    action: AUDIT_ACTIONS.ACCOUNT_UPDATED,
+    entityType: "USER_ACCOUNT",
+    entityId: userId,
+    entityReference: updatedProfile.email,
+    description: `${updatedProfile.role} account profile ${updatedProfile.email} was updated.`,
+    metadata: { account_role: updatedProfile.role, changes }
+  });
+
   return {
-    profile: await getProfileByUserId(userId)
+    profile: updatedProfile
   };
 }
 
@@ -231,7 +251,7 @@ export async function confirmEmailChange({ token }) {
 
     const userResult = await client.query(
       `
-        SELECT user_id, status, email
+        SELECT user_id, status, email, role
         FROM users
         WHERE user_id = $1
         LIMIT 1
@@ -270,6 +290,17 @@ export async function confirmEmailChange({ token }) {
       [normalizedEmail, userId]
     );
 
+    await recordAuditLog({
+      client,
+      actor: { user_id: user.user_id, role: user.role },
+      action: AUDIT_ACTIONS.EMAIL_CHANGED,
+      entityType: "USER_ACCOUNT",
+      entityId: user.user_id,
+      entityReference: normalizedEmail,
+      description: `${user.role} account email address was changed.`,
+      metadata: { account_role: user.role, changes: { email: { before: user.email, after: normalizedEmail } } }
+    });
+
     await client.query("COMMIT");
 
     return {
@@ -295,7 +326,7 @@ export async function changeOwnPassword({ userId, currentPassword, newPassword }
 
   const userResult = await pool.query(
     `
-      SELECT password_hash
+      SELECT password_hash, role, email
       FROM users
       WHERE user_id = $1
       LIMIT 1
@@ -329,6 +360,16 @@ export async function changeOwnPassword({ userId, currentPassword, newPassword }
     `,
     [passwordHash, userId]
   );
+
+  await recordAuditLogSafely({
+    actor: { user_id: userId, role: user.role },
+    action: AUDIT_ACTIONS.PASSWORD_CHANGED,
+    entityType: "USER_ACCOUNT",
+    entityId: userId,
+    entityReference: user.email,
+    description: `${user.role} account ${user.email} changed its password.`,
+    metadata: { account_role: user.role }
+  });
 
   return {
     success: true

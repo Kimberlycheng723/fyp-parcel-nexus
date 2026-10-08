@@ -6,6 +6,7 @@ import {
   persistParcelArrivalNotification
 } from "./notification.service.js";
 import { normalizeRequiredString } from "../utils/userValidation.js";
+import { AUDIT_ACTIONS, recordAuditLog } from "./audit.service.js";
 
 const PARCEL_DETAIL_COLUMNS = `
   p.parcel_id,
@@ -232,6 +233,21 @@ export async function registerParcelSession({ requester, input }) {
       if (notificationEnvelope) {
         pendingNotificationDeliveries.push(notificationEnvelope);
       }
+
+      await recordAuditLog({
+        client,
+        actor: requester,
+        action: AUDIT_ACTIONS.PARCEL_REGISTERED,
+        entityType: "PARCEL",
+        entityId: parcelId,
+        entityReference: parcel.tracking_number,
+        description: `Parcel ${parcel.tracking_number} was registered for unit ${unit.full_unit_code}.`,
+        metadata: {
+          tracking_number: parcel.tracking_number,
+          courier: courier.courier_name,
+          unit: unit.full_unit_code
+        }
+      });
     }
 
     const parcels = await getParcelRowsByIds(createdParcelIds, client);

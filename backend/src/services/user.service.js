@@ -10,6 +10,7 @@ import {
   normalizeOptionalString,
   normalizeRequiredString
 } from "../utils/userValidation.js";
+import { AUDIT_ACTIONS, recordAuditLog, recordAuditLogSafely } from "./audit.service.js";
 
 const USER_DETAIL_COLUMNS = `
   u.user_id,
@@ -264,6 +265,21 @@ export async function createManagedUser({ requester, input }) {
       ]
     );
 
+    await recordAuditLog({
+      client,
+      actor: requester,
+      action: AUDIT_ACTIONS.ACCOUNT_CREATED,
+      entityType: "USER_ACCOUNT",
+      entityId: insertResult.rows[0].user_id,
+      entityReference: data.email,
+      description: `${data.role} account ${data.email} was created.`,
+      metadata: {
+        account_role: data.role,
+        account_status: "PENDING_ACTIVATION",
+        unit: data.role === "RESIDENT" ? data.fullUnitCode : null
+      }
+    });
+
     await client.query("COMMIT");
     createdUserId = insertResult.rows[0].user_id;
   } catch (error) {
@@ -477,6 +493,27 @@ export async function updateManagedUser({ requester, userId, updates }) {
       ]
     );
 
+    const updatedUser = await getUserRowById(userId, client);
+    const changes = {};
+    const addChange = (field, before, after) => {
+      if (String(before ?? "") !== String(after ?? "")) changes[field] = { before: before ?? null, after: after ?? null };
+    };
+    addChange("email", currentUser.email, updatedUser.email);
+    addChange("phone_number", currentUser.phone_number, updatedUser.phone_number);
+    addChange("first_name", currentUser.first_name, updatedUser.first_name);
+    addChange("last_name", currentUser.last_name, updatedUser.last_name);
+    addChange("unit", currentUser.full_unit_code, updatedUser.full_unit_code);
+    await recordAuditLog({
+      client,
+      actor: requester,
+      action: AUDIT_ACTIONS.ACCOUNT_UPDATED,
+      entityType: "USER_ACCOUNT",
+      entityId: userId,
+      entityReference: updatedUser.email,
+      description: `${updatedUser.role} account ${updatedUser.email} was updated.`,
+      metadata: { account_role: updatedUser.role, changes }
+    });
+
     await client.query("COMMIT");
 
     return {
@@ -541,8 +578,22 @@ export async function updateManagedUserStatus({ requester, userId, status }) {
     [normalizedStatus, userId]
   );
 
+  const updatedUser = await getUserRowById(userId);
+  await recordAuditLogSafely({
+    actor: requester,
+    action: normalizedStatus === "ACTIVE" ? AUDIT_ACTIONS.ACCOUNT_ACTIVATED : AUDIT_ACTIONS.ACCOUNT_DEACTIVATED,
+    entityType: "USER_ACCOUNT",
+    entityId: userId,
+    entityReference: updatedUser.email,
+    description: `${updatedUser.role} account ${updatedUser.email} was ${normalizedStatus === "ACTIVE" ? "activated" : "deactivated"}.`,
+    metadata: {
+      account_role: updatedUser.role,
+      changes: { status: { before: currentUser.status, after: normalizedStatus } }
+    }
+  });
+
   return {
-    user: toSafeUser(await getUserRowById(userId))
+    user: toSafeUser(updatedUser)
   };
 }
 

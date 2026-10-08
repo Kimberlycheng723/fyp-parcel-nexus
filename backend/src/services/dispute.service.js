@@ -4,6 +4,7 @@ import {
   deliverPersistedNotification,
   persistNotification
 } from "./notification.service.js";
+import { AUDIT_ACTIONS, recordAuditLog, recordAuditLogSafely } from "./audit.service.js";
 
 export const DISPUTE_ISSUE_TYPES = Object.freeze([
   "MISSING_ITEM",
@@ -469,6 +470,23 @@ export async function createDispute({ requester, input, files = [] }) {
       [dispute.dispute_id, requester.user_id]
     );
 
+    await recordAuditLog({
+      client,
+      actor: requester,
+      action: AUDIT_ACTIONS.DISPUTE_RAISED,
+      entityType: "DISPUTE",
+      entityId: dispute.dispute_id,
+      entityReference: dispute.dispute_reference,
+      description: `Dispute ${dispute.dispute_reference} was raised for parcel ${parcel.tracking_number}.`,
+      metadata: {
+        dispute_reference: dispute.dispute_reference,
+        tracking_number: parcel.tracking_number,
+        courier: parcel.courier_name,
+        issue_type: issueType,
+        status: "OPEN"
+      }
+    });
+
     const guardsResult = await client.query(
       `
         SELECT user_id
@@ -814,6 +832,26 @@ export async function updateResidentDispute({ requester, disputeId, input, files
       [disputeId, requester.user_id]
     );
 
+    await recordAuditLog({
+      client,
+      actor: requester,
+      action: AUDIT_ACTIONS.DISPUTE_EDITED,
+      entityType: "DISPUTE",
+      entityId: disputeId,
+      entityReference: current.dispute_reference,
+      description: `Dispute ${current.dispute_reference} details were edited by the Resident.`,
+      metadata: {
+        dispute_reference: current.dispute_reference,
+        tracking_number: current.tracking_number,
+        unit: current.full_unit_code,
+        changes: {
+          issue_type: { before: current.issue_type, after: issueType },
+          description_updated: current.description !== description,
+          evidence_count_changed: evidenceResult.rows.length !== idsToKeep.length + files.length
+        }
+      }
+    });
+
     await client.query("COMMIT");
     transactionOpen = false;
     const updated = await getDispute({ requester, disputeId });
@@ -835,6 +873,10 @@ export async function deleteResidentDispute({ requester, disputeId }) {
   if (requester?.role !== "RESIDENT") return { error: "FORBIDDEN" };
   if (!isUuid(disputeId)) return { error: "INVALID_DISPUTE_ID" };
 
+  const current = await getDisputeRow(disputeId);
+  if (!current || current.resident_user_id !== requester.user_id) return { error: "DISPUTE_NOT_FOUND" };
+  if (current.status !== "OPEN") return { error: "DISPUTE_NOT_OPEN" };
+
   const result = await pool.query(
     `
       UPDATE disputes
@@ -849,6 +891,20 @@ export async function deleteResidentDispute({ requester, disputeId }) {
   );
 
   if (result.rows[0]) {
+    await recordAuditLogSafely({
+      actor: requester,
+      action: AUDIT_ACTIONS.DISPUTE_DELETED,
+      entityType: "DISPUTE",
+      entityId: disputeId,
+      entityReference: current.dispute_reference,
+      description: `Dispute ${current.dispute_reference} was deleted by the Resident.`,
+      metadata: {
+        dispute_reference: current.dispute_reference,
+        tracking_number: current.tracking_number,
+        unit: current.full_unit_code,
+        issue_type: current.issue_type
+      }
+    });
     return { message: "Dispute deleted successfully." };
   }
 
@@ -968,6 +1024,22 @@ export async function createDisputeMessage({ requester, disputeId, message }) {
       });
     }
 
+    await recordAuditLog({
+      client,
+      actor: requester,
+      action: AUDIT_ACTIONS.DISPUTE_MESSAGE_SENT,
+      entityType: "DISPUTE",
+      entityId: disputeId,
+      entityReference: dispute.dispute_reference,
+      description: `A ${requester.role.toLowerCase()} message was sent in dispute ${dispute.dispute_reference}.`,
+      metadata: {
+        dispute_reference: dispute.dispute_reference,
+        tracking_number: dispute.tracking_number,
+        unit: dispute.full_unit_code,
+        sender_role: requester.role
+      }
+    });
+
     await client.query("COMMIT");
     transactionOpen = false;
     await deliverNotifications(envelopes);
@@ -1011,6 +1083,16 @@ function historyNote(targetStatus) {
     RESOLVED: "Dispute resolved."
   };
   return notes[targetStatus];
+}
+
+function auditActionForTransition(targetStatus) {
+  const actions = {
+    IN_REVIEW_GUARD: AUDIT_ACTIONS.GUARD_REVIEW_STARTED,
+    ESCALATED: AUDIT_ACTIONS.DISPUTE_ESCALATED,
+    IN_REVIEW_ADMIN: AUDIT_ACTIONS.ADMIN_REVIEW_STARTED,
+    RESOLVED: AUDIT_ACTIONS.DISPUTE_RESOLVED
+  };
+  return actions[targetStatus];
 }
 
 export async function transitionDispute({ requester, disputeId, input }) {
@@ -1101,6 +1183,25 @@ export async function transitionDispute({ requester, disputeId, input }) {
       [disputeId, current.status, targetStatus, requester.user_id, historyNote(targetStatus)]
     );
 
+    await recordAuditLog({
+      client,
+      actor: requester,
+      action: auditActionForTransition(targetStatus),
+      entityType: "DISPUTE",
+      entityId: disputeId,
+      entityReference: current.dispute_reference,
+      description: `Dispute ${current.dispute_reference} moved from ${current.status} to ${targetStatus}.`,
+      metadata: {
+        dispute_reference: current.dispute_reference,
+        tracking_number: current.tracking_number,
+        unit: current.full_unit_code,
+        previous_status: current.status,
+        new_status: targetStatus,
+        assigned_staff_user_id: assignedStaffUserId,
+        resolved_by_user_id: isResolved ? requester.user_id : null
+      }
+    });
+
     envelopes = await persistRecipientNotifications({
       client,
       recipientIds: [current.resident_user_id],
@@ -1164,6 +1265,21 @@ export async function updateGuardResponse({ requester, disputeId, response }) {
     [value, disputeId, requester.user_id]
   );
   if (!result.rows[0]) return { error: "RESPONSE_UPDATE_NOT_ALLOWED" };
+  const dispute = await getDisputeRow(disputeId);
+  await recordAuditLogSafely({
+    actor: requester,
+    action: AUDIT_ACTIONS.DISPUTE_EDITED,
+    entityType: "DISPUTE",
+    entityId: disputeId,
+    entityReference: dispute?.dispute_reference,
+    description: `Guard response was updated for dispute ${dispute?.dispute_reference || disputeId}.`,
+    metadata: {
+      dispute_reference: dispute?.dispute_reference,
+      tracking_number: dispute?.tracking_number,
+      unit: dispute?.full_unit_code,
+      changed_fields: ["guard_response"]
+    }
+  });
   await emitDisputeChanged(disputeId, "GUARD_RESPONSE_UPDATED");
   return { message: "Guard response updated successfully." };
 }
@@ -1187,6 +1303,21 @@ export async function updateAdminResolutionNotes({ requester, disputeId, notes }
     [value, disputeId, requester.user_id]
   );
   if (!result.rows[0]) return { error: "NOTES_UPDATE_NOT_ALLOWED" };
+  const dispute = await getDisputeRow(disputeId);
+  await recordAuditLogSafely({
+    actor: requester,
+    action: AUDIT_ACTIONS.DISPUTE_EDITED,
+    entityType: "DISPUTE",
+    entityId: disputeId,
+    entityReference: dispute?.dispute_reference,
+    description: `Admin resolution notes were updated for dispute ${dispute?.dispute_reference || disputeId}.`,
+    metadata: {
+      dispute_reference: dispute?.dispute_reference,
+      tracking_number: dispute?.tracking_number,
+      unit: dispute?.full_unit_code,
+      changed_fields: ["admin_resolution_notes"]
+    }
+  });
   await emitDisputeChanged(disputeId, "ADMIN_NOTES_UPDATED");
   return { message: "Admin resolution notes updated successfully." };
 }

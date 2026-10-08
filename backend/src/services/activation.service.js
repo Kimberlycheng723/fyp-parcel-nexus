@@ -2,6 +2,7 @@ import { pool } from "../db/pool.js";
 import { hashPassword } from "../utils/password.js";
 import { validatePasswordStrength } from "../utils/passwordValidation.js";
 import { generateSecureToken, hashToken } from "../utils/token.js";
+import { AUDIT_ACTIONS, recordAuditLog } from "./audit.service.js";
 
 const ACTIVATION_TOKEN_EXPIRY_DAYS = 30;
 
@@ -82,7 +83,7 @@ export async function activateAccount({ token, newPassword }) {
 
     const userResult = await client.query(
       `
-        SELECT user_id, status
+        SELECT user_id, status, role, email
         FROM users
         WHERE user_id = $1
         LIMIT 1
@@ -127,6 +128,17 @@ export async function activateAccount({ token, newPassword }) {
       `,
       [activationToken.token_id]
     );
+
+    await recordAuditLog({
+      client,
+      actor: { user_id: user.user_id, role: user.role },
+      action: AUDIT_ACTIONS.ACCOUNT_ACTIVATED,
+      entityType: "USER_ACCOUNT",
+      entityId: user.user_id,
+      entityReference: user.email,
+      description: `${user.role} account ${user.email} completed activation.`,
+      metadata: { account_role: user.role, changes: { status: { before: user.status, after: "ACTIVE" } } }
+    });
 
     await client.query("COMMIT");
 

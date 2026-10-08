@@ -1,6 +1,7 @@
 import { activateAccount } from "../services/activation.service.js";
 import { getSafeUserById, loginWithEmailAndPassword } from "../services/auth.service.js";
 import { createPasswordResetToken, resetPassword } from "../services/passwordReset.service.js";
+import { AUDIT_ACTIONS, recordAuditLogSafely } from "../services/audit.service.js";
 
 function isBlank(value) {
   return typeof value !== "string" || value.trim() === "";
@@ -150,6 +151,16 @@ export async function login(req, res) {
     return res.status(response.status).json(response.body);
   }
 
+  await recordAuditLogSafely({
+    actor: result.user,
+    action: AUDIT_ACTIONS.LOGIN,
+    entityType: "AUTH_SESSION",
+    entityId: result.user.user_id,
+    entityReference: result.user.email,
+    description: `${result.user.role} account ${result.user.email} logged in.`,
+    metadata: { account_role: result.user.role }
+  });
+
   return res.json({
     accessToken: result.accessToken,
     user: result.user
@@ -226,7 +237,16 @@ export async function getCurrentUser(req, res) {
   });
 }
 
-export function logout(req, res) {
+export async function logout(req, res) {
+  await recordAuditLogSafely({
+    actor: req.user,
+    action: AUDIT_ACTIONS.LOGOUT,
+    entityType: "AUTH_SESSION",
+    entityId: req.user.user_id,
+    entityReference: req.user.email,
+    description: `${req.user.role} account ${req.user.email} logged out.`,
+    metadata: { account_role: req.user.role }
+  });
   return res.json({
     message: "Logout successful. Please remove the access token on the client."
   });
