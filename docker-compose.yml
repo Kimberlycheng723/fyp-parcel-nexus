@@ -38,6 +38,8 @@ services:
       VAPID_SUBJECT: ${VAPID_SUBJECT:-}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-replace_with_a_long_random_access_secret}
       JWT_RESET_SECRET: ${JWT_RESET_SECRET:-replace_with_a_long_random_reset_secret}
       JWT_ACTIVATION_SECRET: ${JWT_ACTIVATION_SECRET:-replace_with_a_long_random_activation_secret}

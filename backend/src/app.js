@@ -5,6 +5,7 @@ import path from "node:path";
 
 import authRoutes from "./routes/auth.routes.js";
 import auditRoutes from "./routes/audit.routes.js";
+import chatbotRoutes from "./routes/chatbot.routes.js";
 import courierRoutes from "./routes/courier.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import disputeRoutes from "./routes/dispute.routes.js";
@@ -25,6 +26,8 @@ app.use(helmet());
 app.use(cors({
   exposedHeaders: ["Content-Disposition"]
 }));
+// Apply the chatbot's smaller JSON limit before the shared parser consumes the body.
+app.use("/api/chatbot", chatbotRoutes);
 app.use(express.json({ limit: "2mb" }));
 app.use("/uploads/parcels", express.static(parcelUploadsDirectory));
 

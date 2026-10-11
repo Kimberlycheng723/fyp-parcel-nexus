@@ -8,10 +8,12 @@
     "db:migrate": "node src/db/migrate.js",
     "db:seed:superadmin": "node src/db/seedSuperAdmin.js",
     "webpush:generate-vapid": "node src/utils/generateVapidKeys.js",
+    "test:chatbot": "node --test tests/chatbot.test.js",
     "dev": "nodemon src/server.js",
     "start": "node src/server.js"
   },
   "dependencies": {
+    "@google/genai": "^2.28.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

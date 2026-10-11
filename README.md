@@ -31,6 +31,7 @@ The project currently includes:
 - Notification Module
 - Native Web Push notifications
 - Dispute Module
+- Resident AI chatbot backend (Step 16A, Google Gemini; no chatbot frontend yet)
 
 
 ## Environment Setup
@@ -145,6 +146,25 @@ environment only, then recreate the backend container. Never commit the private
 key and never generate a new key pair on every server start, because existing
 browser subscriptions are bound to the original public key.
 
+
+## Resident AI Chatbot Backend
+
+`POST /api/chatbot/message` reuses JWT authentication and allows Residents only.
+The official Google Gen AI SDK uses configurable `GEMINI_MODEL` (default
+`gemini-3.5-flash-lite`) and backend-only `GEMINI_API_KEY`. Configure the key
+privately in your environment and recreate the backend; no `.env` files are
+automatically changed. Missing Gemini configuration does not stop other modules.
+
+Personalized answers use bounded, read-only tools scoped to the authenticated
+Resident's unit. The chatbot cannot change records or generate collection QR
+tokens. Parcel storage locations are currently absent from the schema and are
+not invented. Requests/history, tool calls, tokens, timeouts and request rates
+are bounded; conversations are not persisted. Existing HTTP/HTTPS `/api`
+proxying, notifications and business workflows are unchanged.
+
+Run tests with `npm run test:chatbot --workspace backend`. See
+[backend chatbot documentation](backend/docs/chatbot.md) for configuration,
+free-tier privacy considerations, API limits, error contracts and Postman checks.
 
 ## Notes And Warnings
 
