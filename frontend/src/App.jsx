@@ -13,6 +13,7 @@ import { ParcelRegistrationPage } from "./pages/ParcelRegistrationPage.jsx";
 import { ProfilePage } from "./pages/ProfilePage.jsx";
 import { GuardVerifyCollectionPage } from "./pages/GuardVerifyCollectionPage.jsx";
 import { ResidentCollectionPage } from "./pages/ResidentCollectionPage.jsx";
+import { ResidentChatbotPage } from "./pages/ResidentChatbotPage.jsx";
 import { ResidentDisputeDetailPage } from "./pages/ResidentDisputeDetailPage.jsx";
 import { ResidentDisputesPage } from "./pages/ResidentDisputesPage.jsx";
 import { StaffDisputesPage } from "./pages/StaffDisputesPage.jsx";
@@ -37,6 +38,7 @@ const APP_PATHS = new Set([
   "/parcels/new",
   "/parcel-collection",
   "/notifications",
+  "/chatbot",
   "/disputes",
   "/disputes/new",
   "/verify-collection"
@@ -191,6 +193,14 @@ function Router() {
     return (
       <ProtectedRoute allowedRoles={["SUPER_ADMIN", "ADMIN", "GUARD", "RESIDENT"]}>
         <ResidentNotificationsPage />
+      </ProtectedRoute>
+    );
+  }
+
+  if (path === "/chatbot") {
+    return (
+      <ProtectedRoute allowedRoles={["RESIDENT"]}>
+        <ResidentChatbotPage />
       </ProtectedRoute>
     );
   }

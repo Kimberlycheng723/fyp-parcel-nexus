@@ -1,5 +1,6 @@
 import { getAccessToken } from "./tokenStorage.js";
 import { auditQuery } from "../utils/audit.js";
+import { readChatbotReply } from "../utils/chatbot.js";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 const SESSION_EXPIRED_EVENT = "parcel-nexus-session-expired";
@@ -45,10 +46,21 @@ export async function apiRequest(path, options = {}) {
     const error = new Error(data.message || "Request failed. Please try again.");
     error.status = response.status;
     error.errors = data.errors;
+    error.code = data.code;
+    error.retryAfter = response.headers.get("Retry-After");
     throw error;
   }
 
   return data;
+}
+
+export async function sendChatbotMessage({ message, history = [] }, options = {}) {
+  const data = await apiRequest("/chatbot/message", {
+    ...options,
+    method: "POST",
+    body: { message, history }
+  });
+  return { reply: readChatbotReply(data) };
 }
 
 export async function apiDownload(path, options = {}) {

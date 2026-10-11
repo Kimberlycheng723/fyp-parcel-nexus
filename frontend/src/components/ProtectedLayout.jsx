@@ -2,6 +2,7 @@ import {
   Bell,
   Box,
   Building2,
+  Bot,
   ClipboardList,
   Gauge,
   LogOut,
@@ -84,7 +85,8 @@ const MENU_GROUPS = {
     {
       label: "Operations",
       items: [
-        { key: "dashboard", label: "Dashboard", icon: Gauge, path: "/dashboard" }
+        { key: "dashboard", label: "Dashboard", icon: Gauge, path: "/dashboard" },
+        { key: "chatbot", label: "AI Chatbot", icon: Bot, path: "/chatbot" }
       ]
     }
   ]
@@ -129,7 +131,7 @@ export function ProtectedLayout({ profile, children, hideTopActions = false }) {
   const menuGroups = MENU_GROUPS[role] || [];
   const currentPath = getCurrentPath();
   const residentUnitCode = sidebarUser?.unit?.full_unit_code || sidebarUser?.unit_full_code;
-  const mobileTitle = currentPath === "/audit-logs" ? "Audit Trail" : currentPath === "/notifications"
+  const mobileTitle = currentPath === "/chatbot" ? "AI Chatbot" : currentPath === "/audit-logs" ? "Audit Trail" : currentPath === "/notifications"
     ? "Notifications"
     : currentPath === "/disputes/new"
       ? "Raise Dispute"
