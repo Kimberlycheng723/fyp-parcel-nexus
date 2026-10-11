@@ -53,7 +53,7 @@ const MENU_GROUPS = {
     {
       label: "Insight",
       items: [
-        { key: "audit-log", label: "Audit Log", icon: ClipboardList, muted: true }
+        { key: "audit-log", label: "Audit Trail", icon: ClipboardList, path: "/audit-logs" }
       ]
     },
     {
@@ -76,7 +76,7 @@ const MENU_GROUPS = {
     {
       label: "Insight",
       items: [
-        { key: "audit-log", label: "Audit Log", icon: ClipboardList, muted: true }
+        { key: "audit-log", label: "Audit Trail", icon: ClipboardList, path: "/audit-logs" }
       ]
     }
   ],
@@ -129,7 +129,7 @@ export function ProtectedLayout({ profile, children, hideTopActions = false }) {
   const menuGroups = MENU_GROUPS[role] || [];
   const currentPath = getCurrentPath();
   const residentUnitCode = sidebarUser?.unit?.full_unit_code || sidebarUser?.unit_full_code;
-  const mobileTitle = currentPath === "/notifications"
+  const mobileTitle = currentPath === "/audit-logs" ? "Audit Trail" : currentPath === "/notifications"
     ? "Notifications"
     : currentPath === "/disputes/new"
       ? "Raise Dispute"

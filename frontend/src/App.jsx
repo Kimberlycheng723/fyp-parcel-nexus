@@ -4,6 +4,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute.jsx";
 import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
 import { ResidentNotificationProvider } from "./context/ResidentNotificationContext.jsx";
 import { AccountsPage } from "./pages/AccountsPage.jsx";
+import { AuditTrailPage } from "./pages/AuditTrailPage.jsx";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
@@ -30,6 +31,7 @@ const APP_PATHS = new Set([
   "/verify-email-change",
   "/profile",
   "/accounts",
+  "/audit-logs",
   "/dashboard",
   "/parcels",
   "/parcels/new",
@@ -141,6 +143,14 @@ function Router() {
     return (
       <ProtectedRoute>
         <AccountsPage />
+      </ProtectedRoute>
+    );
+  }
+
+  if (path === "/audit-logs") {
+    return (
+      <ProtectedRoute allowedRoles={["ADMIN", "GUARD"]}>
+        <AuditTrailPage />
       </ProtectedRoute>
     );
   }

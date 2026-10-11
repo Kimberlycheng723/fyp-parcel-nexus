@@ -1,4 +1,5 @@
 import { getAccessToken } from "./tokenStorage.js";
+import { auditQuery } from "../utils/audit.js";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 const SESSION_EXPIRED_EVENT = "parcel-nexus-session-expired";
@@ -72,6 +73,15 @@ export async function apiDownload(path, options = {}) {
     filename: response.headers.get("Content-Disposition") || "",
     contentType: response.headers.get("Content-Type") || ""
   };
+}
+
+export function getAuditLogs(filters, options = {}) {
+  return apiRequest(`/audit-logs?${auditQuery(filters)}`, options);
+}
+
+export function exportAuditLogs(filters, options = {}) {
+  const { search, date, actions, role } = filters;
+  return apiDownload(`/audit-logs/export?${auditQuery({ search, date, actions, role })}`, options);
 }
 
 export function getResidentParcelSummary() {
