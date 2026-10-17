@@ -6,6 +6,7 @@ import { ResidentNotificationProvider } from "./context/ResidentNotificationCont
 import { AccountsPage } from "./pages/AccountsPage.jsx";
 import { AuditTrailPage } from "./pages/AuditTrailPage.jsx";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
+import { AnalyticsAndReportingPage } from "./pages/AnalyticsAndReportingPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { ParcelManagementPage } from "./pages/ParcelManagementPage.jsx";
 import { ParcelRegistrationPage } from "./pages/ParcelRegistrationPage.jsx";
@@ -35,6 +36,7 @@ const APP_PATHS = new Set([
   "/accounts",
   "/audit-logs",
   "/dashboard",
+  "/analytics",
   "/parcels",
   "/parcels/new",
   "/parcel-rooms",
@@ -166,6 +168,10 @@ function Router() {
         <DashboardPage />
       </ProtectedRoute>
     );
+  }
+
+  if (path === "/analytics") {
+    return <ProtectedRoute allowedRoles={["ADMIN"]}><AnalyticsAndReportingPage /></ProtectedRoute>;
   }
 
   if (path === "/parcels") {

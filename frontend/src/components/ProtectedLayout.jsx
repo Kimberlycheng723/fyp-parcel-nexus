@@ -1,4 +1,5 @@
 import {
+  ChartNoAxesCombined,
   Package,
   Building2,
   Bot,
@@ -58,6 +59,7 @@ const MENU_GROUPS = {
     {
       label: "Insight",
       items: [
+        { key: "analytics", label: "Analytics and Reporting", icon: ChartNoAxesCombined, path: "/analytics" },
         { key: "audit-log", label: "Audit Trail", icon: ClipboardList, path: "/audit-logs" }
       ]
     },
