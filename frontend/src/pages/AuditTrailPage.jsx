@@ -1,11 +1,11 @@
-import { AlertCircle, Box, Check, ChevronDown, ChevronLeft, ChevronRight, Download, FileText, Filter, LogIn, Search, Users, X } from "lucide-react";
+import { AlertCircle, Box, Building2, Check, ChevronDown, ChevronLeft, ChevronRight, Download, FileText, Filter, LogIn, Search, Users, X } from "lucide-react";
 import { Fragment, useEffect, useRef, useState } from "react";
 
 import { ProtectedLayout } from "../components/ProtectedLayout.jsx";
 import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { exportAuditLogs, getAuditLogs } from "../services/api.js";
-import { auditDayHeading, auditDayKey, auditExportFilename, auditLabel, auditMetadataRows, auditRelativeTime, malaysiaAuditDate } from "../utils/audit.js";
+import { auditDayHeading, auditDayKey, auditDescription, auditEntityReference, auditExportFilename, auditLabel, auditMetadataRows, auditRelativeTime, malaysiaAuditDate } from "../utils/audit.js";
 import "../styles/audit-trail.css";
 
 const DEFAULT_FILTERS = { search: "", date: "", actions: [], role: "" };
@@ -14,7 +14,7 @@ function ActionIcon({ log }) {
   const action = log.action?.toLowerCase() || "";
   const type = log.entity_type?.toUpperCase();
   const positive = /collected|resolved|activated/.test(action) && !action.includes("deactivated");
-  const Icon = positive ? Check : type === "PARCEL" ? Box : type === "DISPUTE" ? AlertCircle : type === "ACCOUNT" ? Users : LogIn;
+  const Icon = positive ? Check : type === "PARCEL_ROOM" ? Building2 : type === "PARCEL" ? Box : type === "DISPUTE" ? AlertCircle : type === "ACCOUNT" ? Users : LogIn;
   return <span className={`audit-action-icon ${positive ? "positive" : type === "DISPUTE" ? "dispute" : "standard"}`}><Icon size={16} aria-hidden="true" /></span>;
 }
 
@@ -58,7 +58,7 @@ function ActionFilter({ options, selected, onChange }) {
 
 function AuditDetails({ log, onClose }) {
   const dialog = useRef(null);
-  const metadata = auditMetadataRows(log.metadata);
+  const metadata = auditMetadataRows(log.metadata, { entityType: log.entity_type });
   useEffect(() => {
     const element = dialog.current;
     element.showModal();
@@ -69,8 +69,8 @@ function AuditDetails({ log, onClose }) {
     ["Performed by", log.actor?.name || log.actor?.email || "Not available"],
     ["Role", auditLabel(log.actor?.role)],
     ["Entity type", auditLabel(log.entity_type)],
-    ["Entity reference", log.entity_reference || "Not available"],
-    ["Record ID", log.entity_id || "Not available"]
+    ["Entity reference", log.entity_type === "PARCEL_ROOM" ? auditEntityReference(log) : log.entity_reference || "Not available"],
+    ...(log.entity_type === "PARCEL_ROOM" ? [] : [["Record ID", log.entity_id || "Not available"]])
   ];
   return <dialog ref={dialog} className="audit-details-dialog" aria-labelledby="audit-details-title" onCancel={onClose} onClick={(event) => {
     if (event.target === dialog.current) {
@@ -81,7 +81,7 @@ function AuditDetails({ log, onClose }) {
     <header><div><span>ACTIVITY DETAILS</span><h2 id="audit-details-title">{auditLabel(log.action)}</h2></div><button type="button" className="audit-icon-button" autoFocus onClick={onClose} title="Close details" aria-label="Close details"><X size={18} /></button></header>
     <div className="audit-details-body">
       <dl>{details.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
-      <h3>Details</h3><p>{log.description || "No description available."}</p>
+      <h3>Details</h3><p>{auditDescription(log)}</p>
       <h3>Additional information</h3>
       {metadata.length > 0 ? <dl>{metadata.map((row, index) => <div key={`${row.label}-${index}`}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl> : <p className="audit-muted">No additional information recorded.</p>}
     </div>
@@ -214,8 +214,8 @@ export function AuditTrailPage() {
             {group.logs.map((log) => <tr key={log.audit_log_id}>
               <td data-label="Date & time"><time dateTime={log.created_at} title={malaysiaAuditDate(log.created_at, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}>{malaysiaAuditDate(log.created_at, { hour: "2-digit", minute: "2-digit", second: "2-digit", day: undefined, month: undefined, year: undefined })}</time><small>{auditRelativeTime(log.created_at)}</small></td>
               <td data-label="Performed by"><strong>{log.actor?.name || log.actor?.email || "Not available"}</strong><small>{auditLabel(log.actor?.role)}</small></td>
-              <td data-label="Action"><div className="audit-action"><ActionIcon log={log} /><div><strong>{auditLabel(log.action)}</strong><small>{auditLabel(log.entity_type)}{(log.entity_reference || log.entity_id) && <> - <span className="audit-reference">{log.entity_reference || log.entity_id}</span></>}</small></div></div></td>
-              <td data-label="Details"><div className="audit-row-details"><p>{log.description || "No description available."}</p><button type="button" className="audit-icon-button" title="View activity details" aria-label={`View details: ${auditLabel(log.action)} ${log.entity_reference || ""}`} onClick={() => setSelected(log)}><ChevronRight size={17} /></button></div></td>
+              <td data-label="Action"><div className="audit-action"><ActionIcon log={log} /><div><strong>{auditLabel(log.action)}</strong><small>{auditLabel(log.entity_type)}{(log.entity_reference || log.entity_id || log.entity_type === "PARCEL_ROOM") && <> - <span className="audit-reference">{auditEntityReference(log)}</span></>}</small></div></div></td>
+              <td data-label="Details"><div className="audit-row-details"><p>{auditDescription(log)}</p><button type="button" className="audit-icon-button" title="View activity details" aria-label={`View details: ${auditLabel(log.action)} ${auditEntityReference(log)}`} onClick={() => setSelected(log)}><ChevronRight size={17} /></button></div></td>
             </tr>)}
           </tbody>)}
         </table>}

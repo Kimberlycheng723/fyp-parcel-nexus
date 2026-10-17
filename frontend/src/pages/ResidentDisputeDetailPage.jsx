@@ -19,6 +19,7 @@ import {
   getDisputeHistory
 } from "../services/api.js";
 import { navigate } from "../utils/navigation.js";
+import { parcelRoomLabel } from "../utils/parcelRooms.js";
 import {
   disputeIssueLabel,
   disputeStatusLabel,
@@ -155,6 +156,7 @@ export function ResidentDisputeDetailPage({ disputeId }) {
                   <dl className="resident-related-parcel">
                     <div><dt>Tracking</dt><dd>{dispute.parcel.tracking_number}</dd></div>
                     <div><dt>Courier</dt><dd>{dispute.parcel.courier_name}</dd></div>
+                    <div className="dispute-parcel-room-row"><dt>Parcel Room</dt><dd>{parcelRoomLabel(dispute.parcel)}</dd></div>
                     <div><dt>Unit</dt><dd>{dispute.parcel.unit_full_code}</dd></div>
                     <div><dt>Registered</dt><dd>{formatMalaysiaDate(dispute.parcel.created_at, { hour: "2-digit", minute: "2-digit" })}</dd></div>
                     <div><dt>Parcel Status</dt><dd>{dispute.parcel.status === "COLLECTED" ? "Collected" : "Pending Collection"}</dd></div>

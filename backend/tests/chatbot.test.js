@@ -119,6 +119,25 @@ test("empty, latest, collected history, bounded lists and unavailable storage ha
   assert.equal(list.has_more, true);
 });
 
+test("location tool returns only stored room names and handles mixed legacy assignments", async () => {
+  let query;
+  const tools = createChatbotParcelTools({ query: async (value) => {
+    query = value;
+    return { rows: [
+      { tracking_number: "OWN-1", parcel_room_name: "Lobby Room" },
+      { tracking_number: "OWN-2", parcel_room_name: null }
+    ] };
+  } });
+  const result = await tools({ name: "get_parcel_locations", requester: resident });
+  assert.equal(result.storage_location_available, true);
+  assert.equal(result.storage_location, null);
+  assert.equal(result.parcels[0].parcel_room_name, "Lobby Room");
+  assert.equal(result.parcels[1].parcel_room_name, null);
+  assert.match(query.text, /LEFT JOIN parcel_rooms room ON room.id = p.parcel_room_id/);
+  assert.match(query.text, /resident.user_id = \$1/);
+  assert.doesNotMatch(query.text.split("FROM parcels")[0], /p\.parcel_room_id/);
+});
+
 test("tools and service reject non-Residents even outside route middleware", async () => {
   const tools = createChatbotParcelTools({ query: () => assert.fail("Must not query") });
   const { service } = mockService([]);

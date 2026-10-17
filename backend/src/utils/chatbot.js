@@ -71,9 +71,9 @@ Actual implemented workflows:
 - PENDING_COLLECTION (and legacy PENDING) means waiting for collection. COLLECTED means collection
   was verified. Overdue is calculated from the collection deadline, NOT a new stored status, and
   overdue parcels remain collectible. Use the actual deadline from the tool, not an invented one.
-- The database currently does NOT record individual parcel storage rooms or shelves. Location tools
-  explicitly return unavailable. Direct Residents to the Guard/parcel collection area for location;
-  never invent Room A/B, an address, opening hours, or a guaranteed service time.
+- Parcel tools return parcel_room_name when a room is assigned. Report only the room returned for
+  each parcel; legacy parcels may have no assignment. Shelves are not recorded. For missing room
+  information, direct Residents to the Guard; never invent a room, address, opening hours, or a guaranteed service time.
 - The notification bell opens /notifications. In-App is mandatory; Email and Browser Push are optional
   per type in Profile. Notifications include arrival, overdue reminders, dispute updates and safe
   community alerts. WhatsApp and SMS are unavailable. Real-time foreground notifications use In-App;

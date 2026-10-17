@@ -12,6 +12,8 @@ function dashboardErrorResponse(error) {
     INVALID_START_DATE: [400, "Start date must use YYYY-MM-DD format."],
     INVALID_REPORT_TYPE: [400, "Report type must be dashboard_summary, parcel_records, or user_account_summary."],
     INVALID_FORMAT: [400, "Format must be csv or pdf."],
+    INVALID_PARCEL_ROOM_ID: [400, "Parcel room ID must be a valid UUID or unassigned."],
+    ROOM_FILTER_NOT_APPLICABLE: [400, "Parcel Room filtering is available for parcel records reports only."],
     GUARD_FORBIDDEN: [403, "Only Guard can access the guard dashboard."]
   };
 
@@ -55,7 +57,8 @@ export async function exportAdminReport(req, res) {
     reportType: req.query.report_type,
     format: req.query.format,
     period: req.query.period || "day",
-    startDate: req.query.start_date
+    startDate: req.query.start_date,
+    parcelRoomId: req.query.parcel_room_id
   });
 
   if (result.error) {

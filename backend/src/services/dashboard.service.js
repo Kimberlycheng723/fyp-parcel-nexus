@@ -1,6 +1,7 @@
 import PDFDocument from "pdfkit";
 
 import { pool } from "../db/pool.js";
+import { validateParcelRoomId } from "../utils/parcelRoomValidation.js";
 
 const VALID_PERIODS = ["day", "week", "month"];
 const VALID_GUARD_PERIODS = ["today", "day", "week", "month"];
@@ -181,6 +182,11 @@ function csvEscape(value) {
 
 function csvRow(values) {
   return values.map(csvEscape).join(",");
+}
+
+function csvRoomName(value) {
+  const text = String(value || "Not Assigned");
+  return /^[=+\-@\t\r\n]/.test(text) ? `'${text}` : text;
 }
 
 function csvSection(title, rows = []) {
@@ -400,23 +406,29 @@ async function getRangeCollectedCount({ start, end }) {
 async function getCurrentPendingAndOverdue() {
   const result = await pool.query(
     `
-      SELECT
+      SELECT room.name AS parcel_room_name, room.is_active,
+        COUNT(*)::int AS pending_collection,
         COUNT(*) FILTER (
-          WHERE status IN ('PENDING', 'PENDING_COLLECTION')
-        )::int AS pending_collection,
-        COUNT(*) FILTER (
-          WHERE status IN ('PENDING', 'PENDING_COLLECTION')
-            AND collection_deadline IS NOT NULL
-            AND collection_deadline < NOW()
+          WHERE p.collection_deadline IS NOT NULL
+            AND p.collection_deadline < NOW()
         )::int AS overdue_count
-      FROM parcels
-      WHERE deleted_at IS NULL
+      FROM parcels p
+      LEFT JOIN parcel_rooms room ON room.id = p.parcel_room_id
+      WHERE p.deleted_at IS NULL AND p.status IN ('PENDING', 'PENDING_COLLECTION')
+      GROUP BY room.id, room.name, room.is_active
+      ORDER BY COUNT(*) DESC, LOWER(room.name) NULLS LAST, room.id
     `
   );
 
   return {
-    pendingCollection: numberValue(result.rows[0]?.pending_collection),
-    overdueCount: numberValue(result.rows[0]?.overdue_count)
+    // Totals and room bars share one database snapshot, including overdue parcels.
+    pendingCollection: result.rows.reduce((sum, row) => sum + numberValue(row.pending_collection), 0),
+    overdueCount: result.rows.reduce((sum, row) => sum + numberValue(row.overdue_count), 0),
+    roomDistribution: result.rows.map((row) => ({
+      parcel_room_name: row.parcel_room_name || "Not Assigned",
+      is_active: row.is_active,
+      count: numberValue(row.pending_collection)
+    }))
   };
 }
 
@@ -743,7 +755,14 @@ async function getPendingCollectionParcelsForGuard() {
   return result.rows.map(mapGuardParcelRow);
 }
 
-async function getParcelRecordsForReport(config) {
+async function getParcelRecordsForReport(config, parcelRoomId) {
+  const params = [config.start, config.end];
+  let roomFilter = "";
+  if (parcelRoomId === "unassigned") roomFilter = "AND p.parcel_room_id IS NULL";
+  else if (parcelRoomId) {
+    params.push(parcelRoomId);
+    roomFilter = "AND p.parcel_room_id = $3";
+  }
   const result = await pool.query(
     `
       SELECT
@@ -751,6 +770,7 @@ async function getParcelRecordsForReport(config) {
         p.status,
         CASE
           WHEN p.status = 'COLLECTED' THEN 'Collected'
+          WHEN p.status = 'CANCELLED' THEN 'Cancelled'
           WHEN p.status IN ('PENDING', 'PENDING_COLLECTION')
             AND p.collection_deadline IS NOT NULL
             AND p.collection_deadline < NOW()
@@ -765,6 +785,7 @@ async function getParcelRecordsForReport(config) {
         u.full_unit_code AS unit_full_code,
         c.courier_name,
         c.courier_code,
+        room.name AS parcel_room_name,
         COALESCE(NULLIF(TRIM(CONCAT(registered.first_name, ' ', registered.last_name)), ''), registered.email) AS registered_by_name,
         registered.email AS registered_by_email,
         p.delivery_person_contact,
@@ -776,12 +797,14 @@ async function getParcelRecordsForReport(config) {
       LEFT JOIN units u ON u.unit_id = p.unit_id
       LEFT JOIN courier_companies c ON c.courier_id = p.courier_id
       LEFT JOIN users registered ON registered.user_id = p.registered_by
+      LEFT JOIN parcel_rooms room ON room.id = p.parcel_room_id
       WHERE p.deleted_at IS NULL
         AND p.created_at >= $1
         AND p.created_at < $2
+        ${roomFilter}
       ORDER BY p.created_at DESC
     `,
-    [config.start, config.end]
+    params
   );
 
   return result.rows.map((row) => ({
@@ -792,6 +815,7 @@ async function getParcelRecordsForReport(config) {
     unit_full_code: row.unit_full_code,
     courier_name: row.courier_name,
     courier_code: row.courier_code,
+    parcel_room_name: row.parcel_room_name || "Not Assigned",
     registered_by_name: row.registered_by_name,
     registered_by_email: row.registered_by_email,
     delivery_person_contact: row.delivery_person_contact,
@@ -870,6 +894,10 @@ function buildDashboardSummaryCsv({ metadata, dashboard }) {
         numberValue(item.percentage)
       ])
     ]),
+    csvSection("Parcel Distribution by Room", [
+      ["Parcel Room", "Pending Collection"],
+      ...(dashboard.parcel_room_distribution || []).map((item) => [csvRoomName(item.parcel_room_name), item.count])
+    ]),
     csvSection("System Summary", [
       ["Metric", "Value"],
       ["Active Users", numberValue(dashboard.system_summary?.active_users)],
@@ -912,7 +940,8 @@ function buildParcelRecordsCsv({ metadata, records }) {
       "Parcel Photo URL",
       "Collection Deadline",
       "Created At",
-      "Updated At"
+      "Updated At",
+      "Parcel Room"
     ],
     ...records.map((record) => [
       record.tracking_number,
@@ -928,7 +957,8 @@ function buildParcelRecordsCsv({ metadata, records }) {
       record.parcel_photo_url,
       record.collection_deadline,
       record.created_at,
-      record.updated_at
+      record.updated_at,
+      csvRoomName(record.parcel_room_name)
     ])
   ])}\n`;
 }
@@ -1373,7 +1403,8 @@ function buildPdfBuffer(render) {
         .fontSize(8)
         .fillColor("#88919b")
         .text(`Parcel Nexus · Page ${index + 1} of ${pageCount}`, 42, doc.page.height - 34, {
-          align: "center"
+          align: "center",
+          lineBreak: false
         });
     }
 
@@ -1409,6 +1440,11 @@ function buildDashboardSummaryPdf({ metadata, dashboard }) {
       ]), { widths: [230, 90, 120] });
 
     ensurePdfSpace(doc, 95);
+    addPdfSectionTitle(doc, "Parcel Distribution by Room");
+    addPdfTable(doc, ["Parcel Room", "Pending Collection"], (dashboard.parcel_room_distribution || [])
+      .map((item) => [item.parcel_room_name, item.count]));
+
+    ensurePdfSpace(doc, 95);
     addPdfSectionTitle(doc, "System Summary");
     addPdfSystemCards(doc, [
       ["Active Users", numberValue(dashboard.system_summary?.active_users)],
@@ -1441,12 +1477,13 @@ function buildParcelRecordsPdf({ metadata, records }) {
   return buildPdfBuffer((doc) => {
     addPdfHeader(doc, metadata);
     addPdfSectionTitle(doc, "Parcel Records");
-    addPdfRows(doc, ["Tracking", "Unit", "Courier", "Status", "Registered At"], records.map((record) => [
+    addPdfRows(doc, ["Tracking", "Unit", "Courier", "Status", "Registered At", "Parcel Room"], records.map((record) => [
       record.tracking_number,
       record.unit_full_code,
       record.courier_name,
       record.display_status,
-      record.created_at
+      record.created_at,
+      record.parcel_room_name
     ]));
 
     if (records.length === 0) {
@@ -1478,7 +1515,7 @@ function buildReportFilename({ reportType, format, period, startDate }) {
   return `parcel-nexus-${reportSlug(reportType)}-${period}-${datePart}.${format}`;
 }
 
-async function buildReportContent({ reportType, format, config, metadata, requester }) {
+async function buildReportContent({ reportType, format, config, metadata, requester, parcelRoomId }) {
   if (reportType === "dashboard_summary") {
     const dashboard = await getAdminDashboard({
       requester,
@@ -1498,7 +1535,7 @@ async function buildReportContent({ reportType, format, config, metadata, reques
   }
 
   if (reportType === "parcel_records") {
-    const records = await getParcelRecordsForReport(config);
+    const records = await getParcelRecordsForReport(config, parcelRoomId);
 
     return {
       content: format === "csv"
@@ -1613,6 +1650,7 @@ export async function getAdminDashboard({ requester, period = "day", startDate }
           },
     parcel_trend: parcelTrend,
     status_distribution: statusDistribution,
+    parcel_room_distribution: pendingData.roomDistribution,
     dispute_summary: disputeData.summary,
     system_summary: systemSummary,
     audit_log_summary: auditLogSummary,
@@ -1632,11 +1670,14 @@ export async function getGuardDashboard({ requester, period = "today", startDate
     return { error: config.error };
   }
 
-  const [summary, latestLoggedParcels, pendingCollectionParcels] = await Promise.all([
+  const [summary, latestLoggedParcels, pendingCollectionParcels, pendingData] = await Promise.all([
     getGuardSummary(config),
     getLatestLoggedParcelsForGuard(),
-    getPendingCollectionParcelsForGuard()
+    getPendingCollectionParcelsForGuard(),
+    getCurrentPendingAndOverdue()
   ]);
+  summary.pending_collection = pendingData.pendingCollection;
+  summary.overdue_parcels = pendingData.overdueCount;
   const overdueCount = numberValue(summary.overdue_parcels);
 
   return {
@@ -1651,6 +1692,7 @@ export async function getGuardDashboard({ requester, period = "today", startDate
       label: config.label
     },
     summary,
+    parcel_room_distribution: pendingData.roomDistribution,
     alert:
       overdueCount > 0
         ? {
@@ -1677,7 +1719,8 @@ export async function generateAdminReport({
   reportType,
   format,
   period = "day",
-  startDate
+  startDate,
+  parcelRoomId
 }) {
   if (requester.role !== "ADMIN") {
     return { error: "FORBIDDEN" };
@@ -1689,6 +1732,15 @@ export async function generateAdminReport({
 
   if (!VALID_REPORT_TYPES.includes(normalizedReportType)) {
     return { error: "INVALID_REPORT_TYPE" };
+  }
+
+  if (parcelRoomId !== undefined && parcelRoomId !== "") {
+    if (normalizedReportType !== "parcel_records") return { error: "ROOM_FILTER_NOT_APPLICABLE" };
+    if (parcelRoomId !== "unassigned") {
+      const validation = validateParcelRoomId(parcelRoomId);
+      if (validation.error) return { error: "INVALID_PARCEL_ROOM_ID" };
+      parcelRoomId = validation.parcelRoomId;
+    }
   }
 
   if (!VALID_REPORT_FORMATS.includes(normalizedFormat)) {
@@ -1717,7 +1769,8 @@ export async function generateAdminReport({
     format: normalizedFormat,
     config,
     metadata,
-    requester
+    requester,
+    parcelRoomId
   });
 
   if (reportContent.error) {

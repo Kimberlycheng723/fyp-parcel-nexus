@@ -1,4 +1,5 @@
 import {
+  Building2,
   CalendarDays,
   Check,
   ChevronDown,
@@ -17,11 +18,12 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ProtectedLayout } from "../components/ProtectedLayout.jsx";
-import { ParcelDetailsDialog } from "../components/ParcelDetailsDialog.jsx";
 import { useSearchQuery } from '../hooks/useSearchQuery.js';
+import { ParcelDetailsDialog } from "../components/ParcelDetailsDialog.jsx";
 import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { apiRequest, getParcelRegistrationPhoto } from "../services/api.js";
+import { apiRequest, getParcelRooms, getActiveParcelRooms, getParcelRegistrationPhoto } from "../services/api.js";
+import { parcelRoomCsvValue, parcelRoomLabel, parcelRoomUpdate } from "../utils/parcelRooms.js";
 import { navigate } from "../utils/navigation.js";
 
 const STATUS_OPTIONS = [
@@ -36,8 +38,6 @@ const DATE_RANGE_OPTIONS = [
   { label: "Last 30 days", value: "last_30_days" },
   { label: "All", value: "all" }
 ];
-
-
 
 
 function roleCanAccess(role) {
@@ -135,8 +135,6 @@ function courierBadgeStyle(courier) {
   };
 }
 
-
-
 function searchText(value) {
   return String(value || "").trim().toLowerCase();
 }
@@ -171,8 +169,6 @@ function exportRowMatchesSearchFields(row, term) {
   ].some((value) => searchText(value).includes(query));
 }
 
-
-
 function csvEscape(value) {
   const text = String(value ?? "");
 
@@ -185,7 +181,8 @@ function csvEscape(value) {
 
 function exportCsv(rows) {
   const headers = rows.length ? Object.keys(rows[0]) : [];
-  const csv = [headers, ...rows.map((row) => headers.map((header) => row[header]))]
+  const csv = [headers.map((header) => header === "parcel_room_name" ? "Parcel Room" : header),
+    ...rows.map((row) => headers.map((header) => header === "parcel_room_name" ? parcelRoomCsvValue(row[header]) : row[header]))]
     .map((row) => row.map(csvEscape).join(","))
     .join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -220,15 +217,20 @@ export function ParcelManagementPage() {
   const canAccess = roleCanAccess(user?.role);
   const isAdmin = user?.role === "ADMIN";
   const isGuard = user?.role === "GUARD";
-  const [summary, setSummary] = useState(null);
+const [summary, setSummary] = useState(null);
   const [parcels, setParcels] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [status, setStatus] = useState("ALL");
   const [dateRange, setDateRange] = useState(() => new URLSearchParams(window.location.search).get('search') ? 'all' : 'last_7_days');
+  const [roomFilter, setRoomFilter] = useState("");
+  const [rooms, setRooms] = useState([]);
+  const [roomsLoading, setRoomsLoading] = useState(true);
+  const [roomsError, setRoomsError] = useState("");
+  const parcelRequestRef = useRef(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useSearchQuery({ setPage, setDateRange });
   const [limit, setLimit] = useState(5);
-  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const [isLoadingParcels, setIsLoadingParcels] = useState(false);
   const [toast, setToast] = useState(null);
   const [openFilter, setOpenFilter] = useState(null);
@@ -238,12 +240,8 @@ export function ParcelManagementPage() {
 
   const activeFilterText = useMemo(() => {
     const selectedDate = DATE_RANGE_OPTIONS.find((option) => option.value === dateRange)?.label || "All";
-    return `${search || status !== "ALL" ? "FILTERS ACTIVE" : "NO FILTERS ACTIVE"} · SHOWING REGISTERED: ${selectedDate.toUpperCase()}`;
-  }, [dateRange, search, status]);
-
-  function showToast(message, type = "success") {
-    setToast({ id: Date.now(), message, type });
-  }
+    return `${search || status !== "ALL" || roomFilter ? "FILTERS ACTIVE" : "NO FILTERS ACTIVE"} · SHOWING REGISTERED: ${selectedDate.toUpperCase()}`;
+  }, [dateRange, search, status, roomFilter]);
 
   async function loadSummary() {
     if (!canAccess) {
@@ -262,11 +260,35 @@ export function ParcelManagementPage() {
     }
   }
 
+  async function loadRooms() {
+    setRoomsLoading(true);
+    setRoomsError("");
+    try {
+      const data = await getParcelRooms();
+      setRooms(data.parcel_rooms || []);
+    } catch (error) {
+      setRoomsError(error.message || "Unable to load parcel rooms.");
+    } finally {
+      setRoomsLoading(false);
+    }
+  }
+
+  useEffect(() => { if (canAccess) loadRooms(); }, [canAccess]);
+
+  function showToast(message, type = "success") {
+    setToast({ id: Date.now(), message, type });
+  }
+
+  useEffect(() => {
+    loadSummary();
+  }, [canAccess]);
+
   async function loadParcels() {
     if (!canAccess) {
       return;
     }
 
+    const requestId = ++parcelRequestRef.current;
     setIsLoadingParcels(true);
 
     try {
@@ -280,8 +302,10 @@ export function ParcelManagementPage() {
       if (search.trim()) {
         query.set("search", search.trim());
       }
+      if (roomFilter) query.set("parcel_room_id", roomFilter);
 
       const data = await apiRequest(`/parcels?${query.toString()}`);
+      if (requestId !== parcelRequestRef.current) return;
       const serverParcels = data.data || [];
       const visibleParcels = search.trim()
         ? serverParcels.filter((parcel) => parcelMatchesSearchFields(parcel, search))
@@ -302,23 +326,19 @@ export function ParcelManagementPage() {
         setPagination(data.pagination || null);
       }
     } catch (error) {
-      showToast(error.message || "Unable to load parcel records.", "error");
+      if (requestId === parcelRequestRef.current) showToast(error.message || "Unable to load parcel records.", "error");
     } finally {
-      setIsLoadingParcels(false);
+      if (requestId === parcelRequestRef.current) setIsLoadingParcels(false);
     }
   }
-
-  useEffect(() => {
-    loadSummary();
-  }, [canAccess]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       loadParcels();
     }, 250);
 
-    return () => window.clearTimeout(timer);
-  }, [canAccess, search, status, dateRange, page, limit]);
+    return () => { window.clearTimeout(timer); parcelRequestRef.current += 1; };
+  }, [canAccess, search, status, dateRange, roomFilter, page, limit]);
 
   useEffect(() => {
     if (!toast) {
@@ -359,6 +379,7 @@ export function ParcelManagementPage() {
     setSearch("");
     setStatus("ALL");
     setDateRange("last_7_days");
+    setRoomFilter("");
     setPage(1);
   }
 
@@ -387,6 +408,7 @@ export function ParcelManagementPage() {
       if (search.trim()) {
         query.set("search", search.trim());
       }
+      if (roomFilter) query.set("parcel_room_id", roomFilter);
 
       const data = await apiRequest(`/parcels/export?${query.toString()}`);
 
@@ -496,6 +518,18 @@ export function ParcelManagementPage() {
             </div>
           )}
         </section>
+
+        <div className="parcel-room-filter-row">
+          <Building2 size={16} aria-hidden="true" />
+          <label htmlFor="parcel-room-filter">Parcel Room</label>
+          <select id="parcel-room-filter" value={roomFilter} onChange={(event) => { setRoomFilter(event.target.value); setPage(1); }}>
+            <option value="">All Rooms</option>
+            <option value="unassigned">Not Assigned</option>
+            {rooms.map((room) => <option key={room.id} value={room.id}>{room.name}{room.is_active ? "" : " (inactive)"}</option>)}
+          </select>
+          {roomsLoading && <span role="status">Loading rooms...</span>}
+          {roomsError && <><span role="alert">{roomsError}</span><button className="secondary-button" type="button" onClick={loadRooms}>Retry</button></>}
+        </div>
 
         <p className="parcel-filter-note">{activeFilterText}</p>
 
@@ -621,6 +655,7 @@ function ParcelTable({
               <th>TRACKING NUMBER</th>
               <th>UNIT</th>
               <th>COURIER</th>
+              <th>PARCEL ROOM</th>
               <th>STATUS</th>
               <th>ACTIONS</th>
             </tr>
@@ -628,7 +663,7 @@ function ParcelTable({
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={6} className="parcel-empty-cell">
+                <td colSpan={7} className="parcel-empty-cell">
                   <Spinner label="Loading parcels" />
                 </td>
               </tr>
@@ -636,7 +671,7 @@ function ParcelTable({
 
             {!isLoading && parcels.length === 0 && (
               <tr>
-                <td colSpan={6} className="parcel-empty-cell">
+                <td colSpan={7} className="parcel-empty-cell">
                   <strong>No parcels found.</strong>
                   <span>Adjust filters or register a new parcel session.</span>
                 </td>
@@ -659,6 +694,7 @@ function ParcelTable({
                     <strong>{parcel.courier?.courier_name || "-"}</strong>
                   </div>
                 </td>
+                <td className="parcel-room-cell">{parcelRoomLabel(parcel)}</td>
                 <td><ParcelStatusBadge parcel={parcel} /></td>
                 <td>
                   <div className="parcel-row-actions">
@@ -715,6 +751,7 @@ function ParcelTable({
                 <dt>Registered</dt>
                 <dd>{formatDate(parcel.created_at)}{formatTime(parcel.created_at) ? ` · ${formatTime(parcel.created_at)}` : ""}</dd>
               </div>
+              <div><dt>Parcel Room</dt><dd>{parcelRoomLabel(parcel)}</dd></div>
             </dl>
 
             <div className="parcel-mobile-actions">
@@ -825,12 +862,13 @@ function ParcelToast({ type = "success", message, onClose }) {
     </div>
   );
 }
-
-
-
-
-
 function ParcelEditModal({ parcel, onClose, onSaved, onError }) {
+  const [activeRooms, setActiveRooms] = useState([]);
+  const [selectedRoomId, setSelectedRoomId] = useState("");
+  const [roomsLoading, setRoomsLoading] = useState(true);
+  const [roomsError, setRoomsError] = useState("");
+  const roomRequestRef = useRef(0);
+  const savingRef = useRef(false);
   const [trackingNumber, setTrackingNumber] = useState(parcel.tracking_number || "");
   const [deliveryContact, setDeliveryContact] = useState(parcel.delivery_person_contact || "");
   const [selectedCourierId, setSelectedCourierId] = useState(parcel.courier?.courier_id || parcel.courier_id || "");
@@ -858,6 +896,25 @@ function ParcelEditModal({ parcel, onClose, onSaved, onError }) {
     [couriers, selectedCourierId, parcel.courier]
   );
   const hasPhoto = Boolean(String(photoValue || "").trim());
+
+  async function loadActiveRooms() {
+    const requestId = ++roomRequestRef.current;
+    setRoomsLoading(true);
+    setRoomsError("");
+    try {
+      const data = await getActiveParcelRooms();
+      if (requestId === roomRequestRef.current) setActiveRooms((data.parcel_rooms || []).filter((room) => room.is_active === true));
+    } catch (error) {
+      if (requestId === roomRequestRef.current) setRoomsError(error.message || "Unable to load active parcel rooms.");
+    } finally {
+      if (requestId === roomRequestRef.current) setRoomsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadActiveRooms();
+    return () => { roomRequestRef.current += 1; };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -1027,7 +1084,13 @@ function ParcelEditModal({ parcel, onClose, onSaved, onError }) {
 
   async function handleSubmit(event) {
     event.preventDefault();
+    if (savingRef.current || isUploadingPhoto) return;
     setFormError("");
+    const roomResult = parcelRoomUpdate(parcel, selectedRoomId, activeRooms);
+    if (roomResult.error || (selectedRoomId && (roomsLoading || roomsError))) {
+      setFormError(roomResult.error || "Wait for active rooms to load, or keep the current assignment.");
+      return;
+    }
 
     if (!trackingNumber.trim()) {
       setFormError("Tracking number is required.");
@@ -1049,46 +1112,47 @@ function ParcelEditModal({ parcel, onClose, onSaved, onError }) {
       return;
     }
 
+    savingRef.current = true;
     setIsSaving(true);
 
     try {
-      await apiRequest(`/parcels/${parcel.parcel_id}`, {
-        method: "PATCH",
-        body: {
-          tracking_number: trackingNumber.trim(),
-          unit_id: selectedUnit.unit_id,
-          courier_id: selectedCourierId,
-          delivery_person_contact: deliveryContact.trim(),
-          collection_deadline: collectionDeadline ? new Date(collectionDeadline).toISOString() : null,
-          parcel_photo_url: photoValue || null
-        }
-      });
+      // Only changed fields are sent: a room-only edit must not rewrite stale parcel data.
+      const body = { ...roomResult.updates };
+      if (trackingNumber.trim() !== parcel.tracking_number) body.tracking_number = trackingNumber.trim();
+      if (selectedUnit.unit_id !== parcel.unit_id) body.unit_id = selectedUnit.unit_id;
+      if (selectedCourierId !== parcel.courier_id) body.courier_id = selectedCourierId;
+      if (deliveryContact.trim() !== parcel.delivery_person_contact) body.delivery_person_contact = deliveryContact.trim();
+      if (collectionDeadline !== toDatetimeLocal(parcel.collection_deadline)) body.collection_deadline = collectionDeadline ? new Date(collectionDeadline).toISOString() : null;
+      if ((photoValue || null) !== (parcel.parcel_photo_url || null)) body.parcel_photo_url = photoValue || null;
+      if (Object.keys(body).length) await apiRequest(`/parcels/${parcel.parcel_id}`, { method: "PATCH", body });
       await onSaved();
     } catch (error) {
       const message = error.message || "Unable to update parcel.";
       setFormError(message);
       onError(message);
+      if (selectedRoomId) await loadActiveRooms();
     } finally {
+      savingRef.current = false;
       setIsSaving(false);
     }
   }
 
   return (
     <div className="modal-backdrop parcel-management-modal-backdrop parcel-edit-modal-backdrop">
-      <form className="parcel-management-modal parcel-edit-modal animate-modal" onSubmit={handleSubmit}>
+      <form className="parcel-management-modal parcel-edit-modal animate-modal" role="dialog" aria-modal="true" aria-labelledby="parcel-edit-title" onSubmit={handleSubmit}>
         <header>
           <div>
-            <h2>Edit parcel</h2>
+            <h2 id="parcel-edit-title">Edit parcel</h2>
             <p>Correct parcel registration details when needed.</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close edit modal">
+          <button type="button" onClick={onClose} disabled={isSaving} aria-label="Close edit modal">
             <X size={19} />
           </button>
         </header>
 
         {formError && <p className="form-error compact">{formError}</p>}
 
-        <div className="parcel-edit-body">
+        <fieldset className="parcel-edit-body" disabled={isSaving}>
           <label className="parcel-modal-field">
             <span>Tracking number <em>*</em></span>
             <input value={trackingNumber} onChange={(event) => setTrackingNumber(event.target.value)} />
@@ -1175,6 +1239,24 @@ function ParcelEditModal({ parcel, onClose, onSaved, onError }) {
             <input value={deliveryContact} onChange={(event) => setDeliveryContact(event.target.value)} />
           </label>
 
+          <div className="parcel-modal-field parcel-room-edit-field">
+            <label htmlFor="edit-parcel-room">Parcel Room</label>
+            <small>Current: {parcelRoomLabel(parcel)}</small>
+            <select id="edit-parcel-room" value={selectedRoomId} disabled={roomsLoading || Boolean(roomsError)}
+              onChange={(event) => { setSelectedRoomId(event.target.value); setFormError(""); }}>
+              <option value="">Keep current assignment</option>
+              {selectedRoomId && !activeRooms.some((room) => room.id === selectedRoomId) && <option value={selectedRoomId} disabled>Selected room is no longer available</option>}
+              {activeRooms.map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}
+            </select>
+            {roomsLoading && <small role="status">Loading active rooms...</small>}
+            {!roomsLoading && !roomsError && activeRooms.length === 0 && <small>No active rooms available. The current assignment will be kept.</small>}
+            {roomsError && <small role="alert">{roomsError}</small>}
+            {selectedRoomId && <button className="secondary-button parcel-room-refresh" type="button" onClick={() => { setSelectedRoomId(""); setFormError(""); }}>
+              <X size={14} /> Keep current assignment
+            </button>}
+            <button className="secondary-button parcel-room-refresh" type="button" disabled={roomsLoading} onClick={loadActiveRooms}>{roomsError ? "Retry loading rooms" : "Refresh rooms"}</button>
+          </div>
+
           <label className="parcel-modal-field">
             <span>Collection deadline</span>
             <input className="parcel-deadline-input" type="datetime-local" value={collectionDeadline} onChange={(event) => setCollectionDeadline(event.target.value)} />
@@ -1219,11 +1301,11 @@ function ParcelEditModal({ parcel, onClose, onSaved, onError }) {
               )}
             </div>
           </div>
-        </div>
+        </fieldset>
 
         <footer>
-          <button className="secondary-button" type="button" onClick={onClose}>Cancel</button>
-          <button className="dark-action-button" type="submit" disabled={isSaving}>
+          <button className="secondary-button" type="button" onClick={onClose} disabled={isSaving}>Cancel</button>
+          <button className="dark-action-button" type="submit" disabled={isSaving || isUploadingPhoto || Boolean(selectedRoomId && (roomsLoading || roomsError))}>
             {isSaving ? "Saving..." : "Save changes"}
           </button>
         </footer>

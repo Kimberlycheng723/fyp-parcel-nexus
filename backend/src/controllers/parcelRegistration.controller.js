@@ -1,7 +1,9 @@
 import { registerParcelSession } from "../services/parcelRegistration.service.js";
+import { PARCEL_ROOM_ERROR_RESPONSES } from "../utils/parcelRoomValidation.js";
 
 function registrationErrorResponse(error) {
   const responses = {
+    ...PARCEL_ROOM_ERROR_RESPONSES,
     COURIER_REQUIRED: [400, "Courier company is required."],
     DELIVERY_CONTACT_REQUIRED: [400, "Delivery person contact number is required."],
     PARCELS_REQUIRED: [400, "At least one parcel is required."],

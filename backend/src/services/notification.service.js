@@ -379,7 +379,8 @@ export async function persistParcelArrivalNotification({
   parcelId,
   unitId,
   trackingNumber,
-  courierName
+  courierName,
+  parcelRoomName = null
 }) {
   const residentResult = await client.query(
     `
@@ -397,13 +398,14 @@ export async function persistParcelArrivalNotification({
   if (!resident) {
     return null;
   }
+  const roomName = typeof parcelRoomName === "string" ? parcelRoomName.trim() : "";
 
   return persistNotification({
     client,
     recipientUserId: resident.user_id,
     type: "PARCEL_ARRIVAL",
     title: "Parcel arrived",
-    message: `Your ${courierName} parcel (${trackingNumber}) is ready for collection.`,
+    message: `Your ${courierName} parcel (${trackingNumber}) is ready for collection${roomName ? ` at ${roomName}` : ""}.`,
     relatedParcelId: parcelId,
     deduplicationKey: `parcel-arrival:${parcelId}`,
     emailSubject: `Parcel Arrived — ${courierName} ${trackingNumber}`

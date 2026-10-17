@@ -65,12 +65,58 @@ function displayValue(value, key) {
   return String(value);
 }
 
-export function auditMetadataRows(metadata) {
+const ROOM_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function recordedRoomName(value) {
+  return typeof value === "string" && value.trim() && !ROOM_UUID.test(value.trim()) ? value : "Room name not recorded";
+}
+
+function assignmentRoom(metadata, nameKey, idKey) {
+  if (typeof metadata[nameKey] === "string" && metadata[nameKey].trim()) return recordedRoomName(metadata[nameKey]);
+  if (metadata[idKey] === null || (metadata[nameKey] === null && !metadata[idKey])) return "Not Assigned";
+  return "Room name not recorded";
+}
+
+export function auditEntityReference(log) {
+  if (log.entity_type !== "PARCEL_ROOM") return log.entity_reference || log.entity_id || "Not available";
+  const reference = recordedRoomName(log.entity_reference);
+  return reference !== "Room name not recorded" ? reference : recordedRoomName(log.metadata?.name);
+}
+
+export function auditDescription(log) {
+  const description = log.description || "No description available.";
+  if (log.entity_type !== "PARCEL_ROOM" && log.action !== "Parcel Room Assignment Changed") return description;
+  return description.replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, "[room reference]");
+}
+
+export function auditMetadataRows(metadata, { entityType = "" } = {}) {
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return [];
   const rows = Object.entries(metadata)
     .filter(([key, value]) => SAFE_FIELDS.has(key) && (value === null || typeof value !== "object"))
     .map(([key, value]) => ({ label: auditLabel(key), value: displayValue(value, key) }));
+  if (Object.hasOwn(metadata, "previous_parcel_room_name") || Object.hasOwn(metadata, "previous_parcel_room_id")) {
+    rows.push({ label: "Previous Room", value: assignmentRoom(metadata, "previous_parcel_room_name", "previous_parcel_room_id") });
+    rows.push({ label: "New Room", value: assignmentRoom(metadata, "parcel_room_name", "parcel_room_id") });
+  } else if (Object.hasOwn(metadata, "parcel_room_name") || Object.hasOwn(metadata, "parcel_room_id")) {
+    rows.push({ label: "Parcel Room", value: assignmentRoom(metadata, "parcel_room_name", "parcel_room_id") });
+  }
+  if (entityType === "PARCEL_ROOM") {
+    if (Object.hasOwn(metadata, "name")) rows.push({ label: "Room", value: recordedRoomName(metadata.name) });
+    if (typeof metadata.is_active === "boolean") rows.push({ label: "Availability", value: metadata.is_active ? "Active" : "Inactive" });
+    for (const [key, label] of [["name", "Room name"], ["description", "Description"], ["is_active", "Availability"]]) {
+      const change = metadata.changes?.[key];
+      if (change && typeof change === "object" && "before" in change && "after" in change) {
+        const value = (item) => key === "name" ? recordedRoomName(item) : key === "is_active" && typeof item === "boolean" ? (item ? "Active" : "Inactive") : displayValue(item, key);
+        rows.push({ label: `${label} changed`, value: `${value(change.before)} -> ${value(change.after)}` });
+      }
+    }
+  }
   if (metadata.changes && typeof metadata.changes === "object") {
+    const roomChange = metadata.changes.parcel_room;
+    if (roomChange && typeof roomChange === "object" && "before" in roomChange && "after" in roomChange) {
+      const value = (item) => item === null ? "Not Assigned" : recordedRoomName(item);
+      rows.push({ label: "Parcel Room changed", value: `${value(roomChange.before)} -> ${value(roomChange.after)}` });
+    }
     Object.entries(metadata.changes).filter(([key]) => SAFE_FIELDS.has(key)).forEach(([key, change]) => {
       if (change && typeof change === "object" && "before" in change && "after" in change) {
         rows.push({ label: `${auditLabel(key)} changed`, value: `${displayValue(change.before, key)} -> ${displayValue(change.after, key)}` });

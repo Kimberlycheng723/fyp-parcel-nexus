@@ -273,6 +273,18 @@
   padding: 0 12px;
 }
 
+.parcel-room-select-field > label { display: block; margin-bottom: 7px; font-size: 12.5px; font-weight: 700; color: var(--workspace-dark-ink, #111820); }
+.parcel-room-select-row { display: flex; gap: 8px; align-items: center; }
+.parcel-room-select-row select { min-width: 0; flex: 1; }
+.parcel-room-refresh { display: grid; place-items: center; flex: 0 0 42px; height: 42px; border: 1px solid var(--workspace-dark-border, #c6ccd4); border-radius: 8px; background: var(--workspace-dark-surface, #fff); color: var(--workspace-dark-ink, #17202b); }
+.parcel-room-refresh:hover:not(:disabled) { background: var(--workspace-dark-soft, #f4f6f8); }
+.parcel-room-select-field select:disabled { background: var(--workspace-dark-soft, #f4f6f8); }
+.parcel-room-selection-error { color: #b42318; font-size: 12px; line-height: 1.5; margin: 6px 0 0; }
+.parcel-room-select-field select[aria-invalid="true"], .session-room-field select[aria-invalid="true"] { border-color: #b42318; }
+.session-room-field { display: block; margin-top: 6px; }
+.session-room-field select { display: block; width: 100%; min-width: 0; height: 36px; padding: 0 6px; border: 1px solid var(--workspace-dark-border, #c6ccd4); border-radius: 6px; background: var(--workspace-dark-surface, #fff); color: var(--workspace-dark-ink, #17202b); font: inherit; font-size: 12px; }
+.session-room-field select:focus-visible, .parcel-room-refresh:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+
 .parcel-text-input::placeholder,
 .parcel-phone-row input::placeholder,
 .parcel-input-icon input::placeholder {

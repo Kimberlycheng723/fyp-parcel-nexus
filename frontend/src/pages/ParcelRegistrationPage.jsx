@@ -7,6 +7,7 @@ import {
   Edit2,
   ImagePlus,
   Package,
+  RefreshCw,
   Search,
   Trash2,
   UploadCloud,
@@ -17,8 +18,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ProtectedLayout } from "../components/ProtectedLayout.jsx";
 import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { apiRequest } from "../services/api.js";
+import { apiRequest, getActiveParcelRooms } from "../services/api.js";
 import { navigate } from "../utils/navigation.js";
+import { sessionHasActiveRooms } from "../utils/parcelRooms.js";
 
 const SCAN_MAX_GAP_MS = 80;
 const SCAN_MIN_LENGTH = 5;
@@ -177,15 +179,23 @@ export function ParcelRegistrationPage() {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState("");
   const [capturedPhoto, setCapturedPhoto] = useState(null);
+  const videoRef = useRef(null);
+  const cameraStreamRef = useRef(null);
   const [parcelFormError, setParcelFormError] = useState("");
   const [sessionParcels, setSessionParcels] = useState([]);
   const [sessionStartedAt, setSessionStartedAt] = useState(() => new Date());
   const [isFinishModalOpen, setIsFinishModalOpen] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
+  const [activeRooms, setActiveRooms] = useState([]);
+  const [isLoadingRooms, setIsLoadingRooms] = useState(true);
+  const [roomLoadError, setRoomLoadError] = useState("");
+  const [selectedRoomId, setSelectedRoomId] = useState("");
+  const [roomSelectionError, setRoomSelectionError] = useState("");
+  const roomRequestSequence = useRef(0);
+  const roomSelectRef = useRef(null);
+  const finishing = useRef(false);
 
   const fileInputRef = useRef(null);
-  const videoRef = useRef(null);
-  const cameraStreamRef = useRef(null);
   const courierDropdownRef = useRef(null);
   const phoneDropdownRef = useRef(null);
   const unitDropdownRef = useRef(null);
@@ -206,6 +216,37 @@ export function ParcelRegistrationPage() {
     [deliveryCountryCode]
   );
   const dateTimeParts = useMemo(() => formatDateTimeParts(sessionStartedAt), [sessionStartedAt]);
+  const canFinishWithRooms = !isLoadingRooms && !roomLoadError && sessionHasActiveRooms(sessionParcels, activeRooms);
+
+  useEffect(() => {
+    if (!isCameraOpen || !videoRef.current || !cameraStreamRef.current) {
+      return;
+    }
+
+    videoRef.current.srcObject = cameraStreamRef.current;
+  }, [isCameraOpen, cameraStreamRef.current]);
+
+  async function loadRooms() {
+    const sequence = ++roomRequestSequence.current;
+    setIsLoadingRooms(true);
+    setRoomLoadError("");
+    try {
+      const data = await getActiveParcelRooms();
+      if (sequence !== roomRequestSequence.current) return;
+      const rooms = data.parcel_rooms.filter((room) => room.is_active === true);
+      setActiveRooms(rooms);
+      setSelectedRoomId((current) => rooms.some((room) => room.id === current) ? current : "");
+    } catch (error) {
+      if (sequence === roomRequestSequence.current) setRoomLoadError(error.message || "Unable to load parcel rooms.");
+    } finally {
+      if (sequence === roomRequestSequence.current) setIsLoadingRooms(false);
+    }
+  }
+
+  useEffect(() => {
+    if (user?.role === "GUARD") void loadRooms();
+    return () => { roomRequestSequence.current += 1; };
+  }, [user?.role]);
 
   function showToast(message, type = "success") {
     setToast({ id: Date.now(), message, type });
@@ -267,14 +308,6 @@ export function ParcelRegistrationPage() {
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, []);
-
-  useEffect(() => {
-    if (!isCameraOpen || !videoRef.current || !cameraStreamRef.current) {
-      return;
-    }
-
-    videoRef.current.srcObject = cameraStreamRef.current;
-  }, [isCameraOpen, cameraStreamRef.current]);
 
   useEffect(() => {
     if (step !== 2 || isCourierModalOpen || isFinishModalOpen) {
@@ -452,37 +485,6 @@ export function ParcelRegistrationPage() {
     }
   }
 
-  async function uploadPhotoFile(file, previewUrl) {
-    setUploadedPhoto(null);
-    setParcelFormError("");
-    setIsUploadingPhoto(true);
-
-    const formData = new FormData();
-    formData.append("photo", file);
-
-    try {
-      const data = await apiRequest("/parcel-registration/photos", {
-        method: "POST",
-        body: formData
-      });
-      setPhotoPreviewUrl(previewUrl);
-      setUploadedPhoto(data.photo || data);
-      showToast("Parcel photo uploaded.");
-    } catch (error) {
-      setUploadedPhoto(null);
-      setParcelFormError(error.message || "Photo upload failed. Please try again.");
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-        objectUrlsRef.current.delete(previewUrl);
-      }
-    } finally {
-      setIsUploadingPhoto(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    }
-  }
-
   async function handlePhotoChange(event) {
     const file = event.target.files?.[0];
 
@@ -607,6 +609,43 @@ export function ParcelRegistrationPage() {
     await uploadPhotoFile(capturedPhoto.file, previewUrl);
   }
 
+  async function uploadPhotoFile(file, previewUrl) {
+    setUploadedPhoto(null);
+    setParcelFormError("");
+    setIsUploadingPhoto(true);
+
+    const formData = new FormData();
+    formData.append("photo", file);
+
+    try {
+      const data = await apiRequest("/parcel-registration/photos", {
+        method: "POST",
+        body: formData
+      });
+      setPhotoPreviewUrl(previewUrl);
+      setUploadedPhoto(data.photo || data);
+      showToast("Parcel photo uploaded.");
+    } catch (error) {
+      setUploadedPhoto(null);
+      setParcelFormError(error.message || "Photo upload failed. Please try again.");
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+        objectUrlsRef.current.delete(previewUrl);
+      }
+    } finally {
+      setIsUploadingPhoto(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  }
+
+  
+
+  
+
+  
+
   function clearPhoto({ revoke = true } = {}) {
     if (photoPreviewUrl && revoke) {
       URL.revokeObjectURL(photoPreviewUrl);
@@ -635,6 +674,13 @@ export function ParcelRegistrationPage() {
       return;
     }
 
+    const selectedRoom = activeRooms.find((room) => room.id === selectedRoomId);
+    if (isLoadingRooms || roomLoadError || !selectedRoom) {
+      setRoomSelectionError("Please select an active parcel room.");
+      roomSelectRef.current?.focus();
+      return;
+    }
+
     const isDuplicate = sessionParcels.some(
       (parcel) => parcel.tracking_number.toLowerCase() === normalizedTrackingNumber.toLowerCase()
     );
@@ -654,6 +700,8 @@ export function ParcelRegistrationPage() {
       unit: selectedUnit,
       unit_id: selectedUnit.unit_id,
       tracking_number: normalizedTrackingNumber,
+      parcel_room_id: selectedRoom.id,
+      parcel_room_name: selectedRoom.name,
       parcel_photo_url: uploadedPhoto?.parcel_photo_url || null,
       photoPreviewUrl
     };
@@ -663,6 +711,8 @@ export function ParcelRegistrationPage() {
     setUnitSearch("");
     setUnitResults([]);
     setTrackingNumber("");
+    setSelectedRoomId("");
+    setRoomSelectionError("");
     clearPhoto({ revoke: false });
     showToast("Parcel added to this session.");
   }
@@ -681,11 +731,18 @@ export function ParcelRegistrationPage() {
   }
 
   async function finishRegistration() {
+    if (finishing.current) return;
     if (sessionParcels.length === 0) {
       showToast("Add at least one parcel before finishing.", "error");
       return;
     }
 
+    if (!canFinishWithRooms) {
+      showToast("Select an active room for every parcel before finishing.", "error");
+      return;
+    }
+
+    finishing.current = true;
     setIsFinishing(true);
     try {
       const data = await apiRequest("/parcel-registration/sessions", {
@@ -696,6 +753,7 @@ export function ParcelRegistrationPage() {
           parcels: sessionParcels.map((parcel) => ({
             unit_id: parcel.unit_id,
             tracking_number: parcel.tracking_number,
+            parcel_room_id: parcel.parcel_room_id,
             ...(parcel.parcel_photo_url ? { parcel_photo_url: parcel.parcel_photo_url } : {})
           }))
         }
@@ -718,7 +776,10 @@ export function ParcelRegistrationPage() {
       showToast(data.message || "Parcels registered successfully.");
     } catch (error) {
       showToast(error.message || "Unable to finish registration.", "error");
+      void loadRooms();
+      setIsFinishModalOpen(false);
     } finally {
+      finishing.current = false;
       setIsFinishing(false);
     }
   }
@@ -983,6 +1044,24 @@ export function ParcelRegistrationPage() {
                   <small>Scan barcode or type tracking number manually.</small>
                 </label>
 
+                <div className="parcel-field parcel-room-select-field">
+                  <label htmlFor="registration-parcel-room">Parcel Room <em>*</em></label>
+                  <div className="parcel-room-select-row">
+                    <select ref={roomSelectRef} id="registration-parcel-room" className="parcel-text-input" value={selectedRoomId}
+                      required disabled={isLoadingRooms || Boolean(roomLoadError) || activeRooms.length === 0}
+                      aria-invalid={Boolean(roomSelectionError)} aria-describedby={roomSelectionError ? "registration-room-error" : "registration-room-state"}
+                      onChange={(event) => { setSelectedRoomId(event.target.value); setRoomSelectionError(""); }}>
+                      <option value="">{isLoadingRooms ? "Loading parcel rooms..." : "Select parcel room"}</option>
+                      {activeRooms.map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}
+                    </select>
+                    <button type="button" className="parcel-room-refresh" title="Refresh active rooms" aria-label="Refresh active rooms" disabled={isLoadingRooms || isFinishing} onClick={loadRooms}><RefreshCw size={17} /></button>
+                  </div>
+                  <small id="registration-room-state" role={roomLoadError ? "alert" : "status"}>
+                    {isLoadingRooms ? "Loading active parcel rooms..." : roomLoadError || (activeRooms.length === 0 ? "No active parcel rooms available. Please ask Admin to create or activate a room." : "")}
+                  </small>
+                  {roomSelectionError && <p className="parcel-room-selection-error" id="registration-room-error" role="alert">{roomSelectionError}</p>}
+                </div>
+
                 <div className="parcel-field">
                   <span>Parcel photo (optional)</span>
                   <input
@@ -1044,9 +1123,9 @@ export function ParcelRegistrationPage() {
 
                 <div className="parcel-add-row">
                   <small>
-                    <Package size={14} /> Fill barcode and unit to add this parcel. Photo is optional.
+                    <Package size={14} /> Fill barcode, unit and room to add this parcel. Photo is optional.
                   </small>
-                  <button className="parcel-secondary-button" type="button" onClick={addParcelToSession}>
+                  <button className="parcel-secondary-button" type="button" onClick={addParcelToSession} disabled={isLoadingRooms || Boolean(roomLoadError) || activeRooms.length === 0}>
                     <Check size={16} /> Add Parcel
                   </button>
                 </div>
@@ -1082,6 +1161,20 @@ export function ParcelRegistrationPage() {
                             Parcel #{index + 1} · {parcel.unit.full_unit_code}
                           </strong>
                           <span>{parcel.tracking_number}</span>
+                          <label className="session-room-field">
+                            <span className="sr-only">Room for {parcel.tracking_number}</span>
+                            <select value={parcel.parcel_room_id} aria-label={`Room for ${parcel.tracking_number}`}
+                              disabled={isLoadingRooms || isFinishing || Boolean(roomLoadError)}
+                              aria-invalid={!activeRooms.some((room) => room.id === parcel.parcel_room_id)}
+                              onChange={(event) => {
+                                const room = activeRooms.find((item) => item.id === event.target.value);
+                                if (room) setSessionParcels((current) => current.map((item) => item.localId === parcel.localId
+                                  ? { ...item, parcel_room_id: room.id, parcel_room_name: room.name } : item));
+                              }}>
+                              {!activeRooms.some((room) => room.id === parcel.parcel_room_id) && <option value={parcel.parcel_room_id} disabled>{parcel.parcel_room_name} (unavailable)</option>}
+                              {activeRooms.map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}
+                            </select>
+                          </label>
                         </div>
                         <button type="button" onClick={() => removeSessionParcel(parcel.localId)} aria-label="Remove parcel">
                           <X size={16} />
@@ -1096,7 +1189,7 @@ export function ParcelRegistrationPage() {
                   <button
                     className="finish-registration-button"
                     type="button"
-                    disabled={sessionParcels.length === 0}
+                    disabled={!canFinishWithRooms}
                     onClick={() => setIsFinishModalOpen(true)}
                   >
                     <Check size={16} /> Finish registration
@@ -1235,10 +1328,10 @@ export function ParcelRegistrationPage() {
                 {sessionParcels.length} parcel{sessionParcels.length === 1 ? "" : "s"} ready to save
               </div>
               <div className="finish-session-actions">
-                <button className="parcel-secondary-button" type="button" onClick={() => setIsFinishModalOpen(false)}>
+                <button className="parcel-secondary-button" type="button" disabled={isFinishing} onClick={() => setIsFinishModalOpen(false)}>
                   Keep adding
                 </button>
-                <button className="finish-registration-button" type="button" onClick={finishRegistration} disabled={isFinishing}>
+                <button className="finish-registration-button" type="button" onClick={finishRegistration} disabled={isFinishing || !canFinishWithRooms}>
                   {isFinishing ? <Spinner label="Finishing" /> : "Yes, finish & notify"}
                 </button>
               </div>

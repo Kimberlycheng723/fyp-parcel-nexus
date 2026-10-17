@@ -19,6 +19,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { ProtectedLayout } from "../components/ProtectedLayout.jsx";
+import { ParcelDetailsDialog } from "../components/ParcelDetailsDialog.jsx";
+import { ParcelRoomDistribution } from "../components/ParcelRoomDistribution.jsx";
 import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useResidentNotifications } from "../context/ResidentNotificationContext.jsx";
@@ -27,10 +29,13 @@ import {
   apiRequest,
   createResidentCollection,
   getResidentParcels,
-  getResidentParcelSummary
+  getResidentParcelSummary,
+  getResidentParcelDetails,
+  getParcelRooms
 } from "../services/api.js";
 import { saveResidentCollectionSession } from "../utils/collectionSession.js";
 import { navigate } from "../utils/navigation.js";
+import { parcelRoomLabel } from "../utils/parcelRooms.js";
 
 const PERIODS = [
   { label: "Day", value: "day" },
@@ -49,6 +54,11 @@ const REPORT_TYPES = [
     label: "Dashboard Summary Report",
     value: "dashboard_summary",
     description: "Summary of dashboard cards, parcel trend, and status distribution."
+  },
+  {
+    label: "Parcel Records Report",
+    value: "parcel_records",
+    description: "Parcel records registered in the selected period."
   }
 ];
 
@@ -900,6 +910,9 @@ function GuardDashboard() {
               </div>
             )}
 
+            <ParcelRoomDistribution data={dashboard?.parcel_room_distribution} loading={isLoading}
+              error={error} onRetry={loadGuardDashboard} />
+
             <div className="guard-dashboard-grid">
               <section className="guard-table-card">
                 <div className="guard-table-heading">
@@ -984,7 +997,9 @@ function ResidentParcelList({
   onToggleParcel,
   onToggleAllVisible,
   isLoading,
-  search
+  search,
+  onView,
+  detailsLoading
 }) {
   const isPending = tab === "pending";
   const selectableParcelIds = isPending ? parcels.map((parcel) => parcel.parcel_id).filter(Boolean) : [];
@@ -1072,10 +1087,14 @@ function ResidentParcelList({
                   </span>
                 </td>
                 <td className="resident-tracking-cell" title={parcel.tracking_number || ""}>
-                  {parcel.tracking_number || "No tracking number"}
+                  <button className="resident-parcel-detail-link" type="button" onClick={() => onView(parcel)} disabled={detailsLoading}
+                    title="View parcel details" aria-label={`View parcel ${parcel.tracking_number || "details"}`}>
+                    {parcel.tracking_number || "No tracking number"}
+                  </button>
                 </td>
                 <td>
                   <ResidentCourier parcel={parcel} />
+                  <span className="resident-parcel-room">Parcel Room: {parcelRoomLabel(parcel)}</span>
                 </td>
                 <td>
                   <ResidentStatusBadge status={parcel.display_status} />
@@ -1116,7 +1135,11 @@ function ResidentParcelList({
                   <ResidentCourier parcel={parcel} />
                   <ResidentStatusBadge status={parcel.display_status} />
                 </div>
-                <span className="resident-mobile-tracking">{parcel.tracking_number || "No tracking number"}</span>
+                <button className="resident-parcel-detail-link resident-mobile-tracking" type="button" onClick={() => onView(parcel)} disabled={detailsLoading}
+                  title="View parcel details" aria-label={`View parcel ${parcel.tracking_number || "details"}`}>
+                  {parcel.tracking_number || "No tracking number"}
+                </button>
+                <span className="resident-parcel-room">Parcel Room: {parcelRoomLabel(parcel)}</span>
                 {!isPending && (
                   <span>Collected: {parcel.collected_at ? formatCompactDate(parcel.collected_at) : "Not recorded"}</span>
                 )}
@@ -1144,6 +1167,27 @@ function ResidentDashboard() {
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
   const [error, setError] = useState("");
   const [toastMessage, setToastMessage] = useState("");
+
+  const [detailsParcel, setDetailsParcel] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState("");
+  const detailsPendingRef = useRef(false);
+
+  async function viewParcel(parcel) {
+    if (detailsPendingRef.current) return;
+    detailsPendingRef.current = true;
+    setDetailsLoading(true);
+    setDetailsError("");
+    try {
+      const data = await getResidentParcelDetails(parcel.parcel_id);
+      setDetailsParcel(data.parcel);
+    } catch (requestError) {
+      setDetailsError(requestError.message || "Unable to load parcel details. Please try again.");
+    } finally {
+      detailsPendingRef.current = false;
+      setDetailsLoading(false);
+    }
+  }
 
   async function loadSummary() {
     setIsSummaryLoading(true);
@@ -1408,7 +1452,11 @@ function ResidentDashboard() {
                 onToggleAllVisible={toggleAllVisibleParcels}
                 isLoading={isParcelsLoading}
                 search={debouncedSearch}
+                onView={viewParcel}
+                detailsLoading={detailsLoading}
               />
+              {detailsLoading && <p role="status" className="resident-detail-status">Loading parcel details...</p>}
+              {detailsError && <p role="alert" className="resident-detail-error">{detailsError}</p>}
 
               <div className="resident-pagination">
                 <span>
@@ -1456,6 +1504,7 @@ function ResidentDashboard() {
           </>
         )}
       </section>
+    {detailsParcel && <ParcelDetailsDialog resident parcel={detailsParcel} onClose={() => setDetailsParcel(null)} />}
     </ProtectedLayout>
   );
 }
@@ -1468,7 +1517,11 @@ export function DashboardPage() {
   const [chartPeriod, setChartPeriod] = useState("day");
   const [chartStartDate, setChartStartDate] = useState(getLocalDateInputValue());
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [reportType] = useState("dashboard_summary");
+  const [reportType, setReportType] = useState("dashboard_summary");
+  const [reportRoomId, setReportRoomId] = useState("");
+  const [reportRooms, setReportRooms] = useState([]);
+  const [reportRoomsLoading, setReportRoomsLoading] = useState(false);
+  const [reportRoomsError, setReportRoomsError] = useState("");
   const [reportFormat, setReportFormat] = useState("pdf");
   const [reportPeriod, setReportPeriod] = useState("week");
   const [reportStartDate, setReportStartDate] = useState(getLocalDateInputValue());
@@ -1559,6 +1612,23 @@ export function DashboardPage() {
     setIsReportModalOpen(true);
   }
 
+  async function loadReportRooms() {
+    setReportRoomsLoading(true);
+    setReportRoomsError("");
+    try {
+      const data = await getParcelRooms();
+      setReportRooms(data.parcel_rooms || []);
+    } catch (requestError) {
+      setReportRoomsError(requestError.message || "Unable to load parcel rooms.");
+    } finally {
+      setReportRoomsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (isAdmin && isReportModalOpen && reportType === "parcel_records") loadReportRooms();
+  }, [isAdmin, isReportModalOpen, reportType]);
+
   function closeReportModal() {
     if (isGeneratingReport) {
       return;
@@ -1570,6 +1640,7 @@ export function DashboardPage() {
 
   async function handleGenerateReport(event) {
     event.preventDefault();
+    if (isGeneratingReport) return;
     setReportError("");
     setIsGeneratingReport(true);
 
@@ -1580,6 +1651,7 @@ export function DashboardPage() {
         period: reportPeriod,
         start_date: reportStartDate
       });
+      if (reportType === "parcel_records" && reportRoomId) params.set("parcel_room_id", reportRoomId);
       const { blob, filename: disposition } = await apiDownload(
         `/dashboard/admin/reports/export?${params.toString()}`
       );
@@ -1683,7 +1755,7 @@ export function DashboardPage() {
               <div className="dashboard-report-modal-header">
                 <div>
                   <h2>Generate System Report</h2>
-                  <p>Download a dashboard summary report for the selected period.</p>
+                  <p>Download a report for the selected period.</p>
                 </div>
                 <button
                   aria-label="Close report modal"
@@ -1707,16 +1779,18 @@ export function DashboardPage() {
                   <label>Report Type</label>
                   <div className="dashboard-report-type-list">
                     {REPORT_TYPES.map((option) => (
-                      <div
+                      <button type="button"
                         className={`dashboard-report-type ${reportType === option.value ? "active" : ""}`}
                         key={option.value}
+                        aria-pressed={reportType === option.value}
+                        onClick={() => setReportType(option.value)}
                       >
                         <span>
                           <FileText size={16} />
                         </span>
                         <strong>{option.label}</strong>
                         <small>{option.description}</small>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -1772,6 +1846,18 @@ export function DashboardPage() {
                   <span>Range preview</span>
                   <strong>{reportRangePreview(reportPeriod, reportStartDate)}</strong>
                 </div>
+                {reportType === "parcel_records" && <div className="dashboard-report-field dashboard-report-room-field">
+                  <label htmlFor="report-parcel-room">Parcel Room</label>
+                  <select id="report-parcel-room" className="dashboard-report-date" value={reportRoomId}
+                    onChange={(event) => setReportRoomId(event.target.value)}>
+                    <option value="">All Rooms</option>
+                    <option value="unassigned">Not Assigned</option>
+                    {reportRooms.map((room) => <option key={room.id} value={room.id}>{room.name}{room.is_active ? "" : " (inactive)"}</option>)}
+                  </select>
+                  {reportRoomsLoading && <p role="status">Loading parcel rooms...</p>}
+                  {reportRoomsError && <div role="alert"><p>{reportRoomsError}</p>
+                    <button className="secondary-button" type="button" onClick={loadReportRooms}>Retry loading rooms</button></div>}
+                </div>}
               </div>
 
               <div className="dashboard-report-modal-footer">

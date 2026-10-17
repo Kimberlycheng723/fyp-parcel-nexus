@@ -1,4 +1,5 @@
 import { pool } from "../db/pool.js";
+import { validateParcelRoomId } from "../utils/parcelRoomValidation.js";
 
 const RESIDENT_ROLE = "RESIDENT";
 const VALID_TABS = ["pending", "history"];
@@ -59,6 +60,8 @@ function toUnit(row) {
 function toResidentParcelListItem(row) {
   return {
     parcel_id: row.parcel_id,
+    parcel_room_id: row.parcel_room_id,
+    parcel_room_name: row.parcel_room_name,
     tracking_number: row.tracking_number,
     unit_full_code: row.full_unit_code,
     courier_name: row.courier_name,
@@ -75,6 +78,8 @@ function toResidentParcelListItem(row) {
 function toResidentParcelDetail(row) {
   return {
     parcel_id: row.parcel_id,
+    parcel_room_id: row.parcel_room_id,
+    parcel_room_name: row.parcel_room_name,
     tracking_number: row.tracking_number,
     unit_full_code: row.full_unit_code,
     courier_name: row.courier_name,
@@ -184,6 +189,12 @@ export async function listResidentParcels({ requester, filters = {} }) {
   const search = normalizeSearch(filters.search);
   const params = [residentUnit.unit.unit_id];
   const whereClauses = ["p.unit_id = $1", "p.deleted_at IS NULL"];
+  if (filters.parcel_room_id !== undefined) {
+    const validation = validateParcelRoomId(filters.parcel_room_id);
+    if (validation.error) return validation;
+    params.push(validation.parcelRoomId);
+    whereClauses.push(`p.parcel_room_id = $${params.length}`);
+  }
 
   if (tab === "pending") {
     whereClauses.push("p.status IN ('PENDING', 'PENDING_COLLECTION')");
@@ -225,6 +236,8 @@ export async function listResidentParcels({ requester, filters = {} }) {
     `
       SELECT
         p.parcel_id,
+        p.parcel_room_id,
+        room.name AS parcel_room_name,
         p.tracking_number,
         p.status,
         p.collection_deadline,
@@ -250,6 +263,7 @@ export async function listResidentParcels({ requester, filters = {} }) {
       FROM parcels p
       INNER JOIN units u ON u.unit_id = p.unit_id
       INNER JOIN courier_companies c ON c.courier_id = p.courier_id
+      LEFT JOIN parcel_rooms room ON room.id = p.parcel_room_id
       WHERE ${whereClauses.join(" AND ")}
       ORDER BY ${orderBy}
       LIMIT $${limitIndex}
@@ -287,6 +301,8 @@ export async function getResidentParcelById({ requester, parcelId }) {
     `
       SELECT
         p.parcel_id,
+        p.parcel_room_id,
+        room.name AS parcel_room_name,
         p.tracking_number,
         p.delivery_person_contact,
         p.parcel_photo_url,
@@ -316,6 +332,7 @@ export async function getResidentParcelById({ requester, parcelId }) {
       INNER JOIN units u ON u.unit_id = p.unit_id
       INNER JOIN courier_companies c ON c.courier_id = p.courier_id
       LEFT JOIN users registered ON registered.user_id = p.registered_by
+      LEFT JOIN parcel_rooms room ON room.id = p.parcel_room_id
       WHERE p.parcel_id = $1
         AND p.unit_id = $2
         AND p.deleted_at IS NULL

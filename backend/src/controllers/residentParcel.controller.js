@@ -3,9 +3,11 @@ import {
   getResidentParcelSummary,
   listResidentParcels
 } from "../services/residentParcel.service.js";
+import { PARCEL_ROOM_ERROR_RESPONSES } from "../utils/parcelRoomValidation.js";
 
 function residentParcelErrorResponse(error) {
   const responses = {
+    ...PARCEL_ROOM_ERROR_RESPONSES,
     FORBIDDEN: [403, "Only residents can access resident parcel records."],
     RESIDENT_UNIT_NOT_FOUND: [404, "Resident unit is not assigned."],
     INVALID_TAB: [400, "Tab must be pending or history."],

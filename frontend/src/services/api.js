@@ -126,8 +126,8 @@ export function getResidentParcels({ tab = "pending", search = "", page = 1, lim
   return apiRequest(`/resident/parcels?${params.toString()}`);
 }
 
-export function getResidentParcelDetails(parcelId) {
-  return apiRequest(`/resident/parcels/${parcelId}`);
+export function getResidentParcelDetails(parcelId, options = {}) {
+  return apiRequest(`/resident/parcels/${parcelId}`, options);
 }
 
 export function createResidentCollection(parcelIds) {

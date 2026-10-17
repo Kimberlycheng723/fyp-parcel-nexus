@@ -6,7 +6,7 @@ const definitions = [
   ["get_pending_parcel_count", "Count all own uncollected parcels, including overdue, with overdue subtotal.", {}],
   ["list_pending_parcels", "List own pending parcels, newest first, including overdue.", { limit: limitProperty }],
   ["get_parcel_status", "Get the status and identity of the Resident's latest registered parcel.", {}],
-  ["get_parcel_locations", "Get own pending parcel identities and location availability. No storage location is currently recorded.", { limit: limitProperty }],
+  ["get_parcel_locations", "Get own pending parcel identities and assigned parcel rooms when recorded.", { limit: limitProperty }],
   ["get_collection_history", "List own recently collected parcels, most recent collection first.", { limit: limitProperty }],
   ["get_parcel_by_tracking_number", "Look up an own parcel using an exact tracking number, case insensitive.", { tracking_number: trackingProperty }]
 ];
@@ -26,11 +26,13 @@ const OWN_PARCELS = `
   FROM parcels p
   INNER JOIN users resident ON resident.unit_id = p.unit_id
   INNER JOIN courier_companies c ON c.courier_id = p.courier_id
+  LEFT JOIN parcel_rooms room ON room.id = p.parcel_room_id
   WHERE resident.user_id = $1 AND resident.role = 'RESIDENT' AND resident.status = 'ACTIVE'
     AND p.deleted_at IS NULL AND p.status IN ('PENDING', 'PENDING_COLLECTION', 'COLLECTED')
 `;
 const PARCEL_FIELDS = `
   p.tracking_number, c.courier_name,
+  room.name AS parcel_room_name,
   CASE WHEN p.status = 'PENDING' THEN 'PENDING_COLLECTION' ELSE p.status END AS status,
   (p.status IN ('PENDING', 'PENDING_COLLECTION') AND p.collection_deadline < NOW()) AS is_overdue,
   p.collection_deadline, p.created_at AS registered_at, p.collected_at
@@ -89,9 +91,9 @@ export function createChatbotParcelTools(db) {
     if (name === "get_parcel_status") return { parcel: rows[0] ?? null };
     const result = { parcels: rows.slice(0, limit), has_more: rows.length > limit };
     if (name === "get_parcel_locations" || name === "get_parcel_by_tracking_number") {
-      result.storage_location_available = false;
+      result.storage_location_available = result.parcels.some((parcel) => Boolean(parcel.parcel_room_name));
       result.storage_location = null;
-      result.location_note = "Parcel storage rooms/shelves are not recorded in Parcel Nexus. Ask the Guard for the actual location.";
+      result.location_note = "Each parcel's assigned room is shown when recorded. If no room is assigned, ask the Guard for its location. Shelves are not recorded.";
     }
     return result;
   };

@@ -620,6 +620,9 @@
 
 .resident-dispute-muted { color: var(--workspace-dark-muted, #84909c); font-size: 12px; }
 
+.resident-related-parcel .dispute-parcel-room-row dt,
+.staff-dispute-parcel-details .dispute-parcel-room-row dt { color: var(--workspace-dark-ink, #535d68); }
+
 .resident-related-parcel {
   display: grid;
   gap: 12px;

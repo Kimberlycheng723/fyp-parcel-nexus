@@ -1,6 +1,8 @@
 import { pool } from "../db/pool.js";
 import { normalizeOptionalString, normalizeRequiredString } from "../utils/userValidation.js";
 import { AUDIT_ACTIONS, recordAuditLog, recordAuditLogSafely } from "./audit.service.js";
+import { validateParcelRoomId } from "../utils/parcelRoomValidation.js";
+import { getActiveParcelRoomForAssignment } from "./parcelRoom.service.js";
 
 const MANAGEMENT_ROLES = ["ADMIN", "GUARD"];
 const EXPORT_ROLES = ["ADMIN"];
@@ -10,6 +12,8 @@ const DISPLAY_STATUSES = ["PENDING_COLLECTION", "OVERDUE", "COLLECTED"];
 
 const PARCEL_DETAIL_COLUMNS = `
   p.parcel_id,
+  p.parcel_room_id,
+  room.name AS parcel_room_name,
   p.tracking_number,
   p.courier_id,
   p.unit_id,
@@ -61,6 +65,7 @@ const PARCEL_JOINS = `
   INNER JOIN courier_companies c ON c.courier_id = p.courier_id
   INNER JOIN users registered_user ON registered_user.user_id = p.registered_by
   LEFT JOIN users deleted_user ON deleted_user.user_id = p.deleted_by
+  LEFT JOIN parcel_rooms room ON room.id = p.parcel_room_id
 `;
 
 function canManageParcels(role) {
@@ -130,6 +135,8 @@ function toSafeUser(row, prefix) {
 function toSafeParcel(row, { includeDeleted = false } = {}) {
   const safeParcel = {
     parcel_id: row.parcel_id,
+    parcel_room_id: row.parcel_room_id,
+    parcel_room_name: row.parcel_room_name,
     tracking_number: row.tracking_number,
     status: row.status === "PENDING" ? "PENDING_COLLECTION" : row.status,
     display_status: row.display_status,
@@ -180,6 +187,21 @@ function buildParcelFilters({ filters = {}, requesterRole, forExport = false }) 
   const dateFrom = normalizeRequiredString(filters.date_from);
   const dateTo = normalizeRequiredString(filters.date_to);
   const dateRange = normalizeRequiredString(filters.date_range).toLowerCase();
+  
+  
+  let parcelRoomId = null;
+  if (filters.parcel_room_id !== undefined) {
+    if (filters.parcel_room_id === "unassigned") {
+      parcelRoomId = "unassigned";
+      whereClauses.push("p.parcel_room_id IS NULL");
+    } else {
+      const validation = validateParcelRoomId(filters.parcel_room_id);
+      if (validation.error) return validation;
+      parcelRoomId = validation.parcelRoomId;
+      params.push(parcelRoomId);
+      whereClauses.push(`p.parcel_room_id = $${params.length}`);
+    }
+  }
 
   if (!includeDeleted) {
     whereClauses.push("p.deleted_at IS NULL");
@@ -259,23 +281,28 @@ function buildParcelFilters({ filters = {}, requesterRole, forExport = false }) 
     whereClauses.push(`p.created_at < ($${params.length}::date + INTERVAL '1 day')`);
   }
 
+  
+
   return {
     whereSql: whereClauses.length ? `WHERE ${whereClauses.join(" AND ")}` : "",
     params,
     includeDeleted,
     appliedFilters: {
       search: search || null,
+      parcel_room_id: parcelRoomId,
       status: status || "ALL",
       date_from: dateFrom || null,
       date_to: dateTo || null,
       date_range: dateRange || null,
+      
+      
       include_deleted: includeDeleted,
       for_export: forExport
     }
   };
 }
 
-async function getParcelRowById(parcelId, { includeDeleted = false } = {}, client = pool) {
+async function getParcelRowById(parcelId, { includeDeleted = false, lock = false } = {}, client = pool) {
   const result = await client.query(
     `
       SELECT ${PARCEL_DETAIL_COLUMNS}
@@ -284,6 +311,7 @@ async function getParcelRowById(parcelId, { includeDeleted = false } = {}, clien
       WHERE p.parcel_id = $1
         AND ($2::boolean = TRUE OR p.deleted_at IS NULL)
       LIMIT 1
+      ${lock ? "FOR UPDATE OF p" : ""}
     `,
     [parcelId, includeDeleted]
   );
@@ -459,51 +487,37 @@ export async function updateParcel({ requester, parcelId, updates }) {
     return { error: "FORBIDDEN" };
   }
 
-  const currentParcel = await getParcelRowById(parcelId);
-
-  if (!currentParcel) {
-    return { error: "PARCEL_NOT_FOUND" };
-  }
-
-  const trackingNumber = normalizeRequiredString(updates.tracking_number ?? currentParcel.tracking_number);
-  const courierId = normalizeRequiredString(updates.courier_id ?? currentParcel.courier_id);
-  const unitId = normalizeRequiredString(updates.unit_id ?? currentParcel.unit_id);
-  const deliveryPersonContact = normalizeRequiredString(
-    updates.delivery_person_contact ?? currentParcel.delivery_person_contact
-  );
-  const parcelPhotoUrl =
-    updates.parcel_photo_url === null
-      ? null
-      : normalizeOptionalString(updates.parcel_photo_url ?? currentParcel.parcel_photo_url);
-  const collectionDeadline =
-    updates.collection_deadline === null
-      ? null
-      : normalizeDateTimeInput(updates.collection_deadline ?? currentParcel.collection_deadline);
-
-  if (!trackingNumber) {
-    return { error: "TRACKING_NUMBER_REQUIRED" };
-  }
-
-  if (!courierId || !isUuid(courierId)) {
-    return { error: "COURIER_REQUIRED" };
-  }
-
-  if (!unitId || !isUuid(unitId)) {
-    return { error: "UNIT_REQUIRED" };
-  }
-
-  if (!deliveryPersonContact) {
-    return { error: "DELIVERY_CONTACT_REQUIRED" };
-  }
-
-  if (collectionDeadline && Number.isNaN(Date.parse(collectionDeadline))) {
-    return { error: "INVALID_COLLECTION_DEADLINE" };
-  }
-
+  if (!updates || typeof updates !== "object" || Array.isArray(updates)) return { error: "INVALID_PARCEL_UPDATES" };
+  const hasRoomUpdate = Object.hasOwn(updates, "parcel_room_id");
+  const roomValidation = hasRoomUpdate ? validateParcelRoomId(updates.parcel_room_id) : {};
+  if (roomValidation.error) return roomValidation;
   const client = await pool.connect();
-
   try {
     await client.query("BEGIN");
+    const reject = async (error) => { await client.query("ROLLBACK"); return { error }; };
+    const currentParcel = await getParcelRowById(parcelId, { lock: true }, client);
+    if (!currentParcel) return await reject("PARCEL_NOT_FOUND");
+
+    const trackingNumber = normalizeRequiredString(updates.tracking_number ?? currentParcel.tracking_number);
+    const courierId = normalizeRequiredString(updates.courier_id ?? currentParcel.courier_id);
+    const unitId = normalizeRequiredString(updates.unit_id ?? currentParcel.unit_id);
+    const deliveryPersonContact = normalizeRequiredString(
+      updates.delivery_person_contact ?? currentParcel.delivery_person_contact
+    );
+    const parcelPhotoUrl = updates.parcel_photo_url === null
+      ? null : normalizeOptionalString(updates.parcel_photo_url ?? currentParcel.parcel_photo_url);
+    const collectionDeadline = updates.collection_deadline === null
+      ? null : normalizeDateTimeInput(updates.collection_deadline ?? currentParcel.collection_deadline);
+    const roomId = hasRoomUpdate ? roomValidation.parcelRoomId : currentParcel.parcel_room_id;
+    if (!trackingNumber) return await reject("TRACKING_NUMBER_REQUIRED");
+    if (!courierId || !isUuid(courierId)) return await reject("COURIER_REQUIRED");
+    if (!unitId || !isUuid(unitId)) return await reject("UNIT_REQUIRED");
+    if (!deliveryPersonContact) return await reject("DELIVERY_CONTACT_REQUIRED");
+    if (collectionDeadline && Number.isNaN(Date.parse(collectionDeadline))) return await reject("INVALID_COLLECTION_DEADLINE");
+    if (hasRoomUpdate) {
+      const room = await getActiveParcelRoomForAssignment(roomId, client);
+      if (room.error) return await reject(room.error);
+    }
 
     if (await trackingExists(trackingNumber, courierId, parcelId, client)) {
       await client.query("ROLLBACK");
@@ -530,11 +544,12 @@ export async function updateParcel({ requester, parcelId, updates }) {
           delivery_person_contact = $4,
           parcel_photo_url = $5,
           collection_deadline = $6,
+          parcel_room_id = $8,
           updated_at = NOW()
         WHERE parcel_id = $7
           AND deleted_at IS NULL
       `,
-      [trackingNumber, courierId, unitId, deliveryPersonContact, parcelPhotoUrl, collectionDeadline, parcelId]
+      [trackingNumber, courierId, unitId, deliveryPersonContact, parcelPhotoUrl, collectionDeadline, parcelId, roomId]
     );
 
     const updatedRow = await getParcelRowById(parcelId, {}, client);
@@ -550,6 +565,19 @@ export async function updateParcel({ requester, parcelId, updates }) {
     addChange("delivery_person_contact", currentParcel.delivery_person_contact, updatedRow.delivery_person_contact);
     addChange("parcel_photo", Boolean(currentParcel.parcel_photo_url), Boolean(updatedRow.parcel_photo_url));
     addChange("collection_deadline", currentParcel.collection_deadline, updatedRow.collection_deadline);
+    addChange("parcel_room", currentParcel.parcel_room_name, updatedRow.parcel_room_name);
+    if (currentParcel.parcel_room_id !== updatedRow.parcel_room_id) {
+      await recordAuditLog({ client, actor: requester, action: AUDIT_ACTIONS.PARCEL_ROOM_ASSIGNMENT_CHANGED,
+        entityType: "PARCEL", entityId: parcelId, entityReference: updatedRow.tracking_number,
+        description: `Parcel ${updatedRow.tracking_number} room changed from ${currentParcel.parcel_room_name || "Unassigned"} to ${updatedRow.parcel_room_name}.`,
+        metadata: {
+          tracking_number: updatedRow.tracking_number,
+          previous_parcel_room_id: currentParcel.parcel_room_id,
+          previous_parcel_room_name: currentParcel.parcel_room_name,
+          parcel_room_id: updatedRow.parcel_room_id,
+          parcel_room_name: updatedRow.parcel_room_name
+        } });
+    }
     await recordAuditLog({
       client,
       actor: requester,
@@ -727,6 +755,7 @@ export async function exportParcels({ requester, filters = {} }) {
       courier_code: row.courier_code,
       registered_by_name: registeredByName || registeredBy?.role || null,
       registered_by_email: registeredBy?.email || null,
+      parcel_room_name: row.parcel_room_name || "Not Assigned",
       delivery_person_contact: row.delivery_person_contact,
       parcel_photo_url: row.parcel_photo_url,
       collection_deadline: row.collection_deadline,

@@ -34,6 +34,8 @@ function normalizeParcelIds(parcelIds) {
 function toCollectionParcel(row) {
   return {
     parcel_id: row.parcel_id,
+    parcel_room_id: row.parcel_room_id,
+    parcel_room_name: row.parcel_room_name,
     tracking_number: row.tracking_number,
     courier_name: row.courier_name,
     is_overdue: Boolean(row.is_overdue)
@@ -79,6 +81,8 @@ export async function createResidentCollection({ requester, parcelIds }) {
       `
         SELECT
           p.parcel_id,
+          p.parcel_room_id,
+          room.name AS parcel_room_name,
           p.tracking_number,
           p.status,
           p.collection_deadline,
@@ -89,6 +93,7 @@ export async function createResidentCollection({ requester, parcelIds }) {
           ) AS is_overdue
         FROM parcels p
         INNER JOIN courier_companies c ON c.courier_id = p.courier_id
+        LEFT JOIN parcel_rooms room ON room.id = p.parcel_room_id
         WHERE p.parcel_id = ANY($1::uuid[])
           AND p.unit_id = $2
           AND p.deleted_at IS NULL

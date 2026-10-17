@@ -329,7 +329,7 @@
 
 .parcel-management-table {
   width: 100%;
-  min-width: 900px;
+  table-layout: fixed;
   border-collapse: collapse;
 }
 
@@ -348,6 +348,52 @@
   border-bottom: 1px solid var(--workspace-dark-border, #e1e5e9);
   padding: 10px 16px;
 }
+
+.parcel-management-table th,
+.parcel-management-table td {
+  padding-inline: 10px;
+  overflow-wrap: anywhere;
+}
+
+.parcel-management-table th:nth-child(1) { width: 16%; }
+.parcel-management-table th:nth-child(2) { width: 18%; }
+.parcel-management-table th:nth-child(3) { width: 11%; }
+.parcel-management-table th:nth-child(4) { width: 15%; }
+.parcel-management-table th:nth-child(5) { width: 16%; }
+.parcel-management-table th:nth-child(6) { width: 14%; }
+.parcel-management-table th:nth-child(7) { width: 10%; }
+.parcel-management-table .parcel-courier-cell span { flex-shrink: 0; }
+.parcel-management-table .parcel-unit-chip { padding-inline: 5px; }
+.parcel-management-table .parcel-row-actions { gap: 0; }
+.parcel-room-cell { line-height: 1.5; }
+
+.parcel-room-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  min-width: 0;
+  color: var(--workspace-dark-ink, #535d68);
+  font-size: 13px;
+}
+.parcel-room-filter-row label { font-weight: 600; }
+.parcel-room-filter-row select,
+.parcel-room-edit-field select {
+  width: min(100%, 280px);
+  min-width: 0;
+  height: 38px;
+  border: 1px solid var(--workspace-dark-border, #c6ccd4);
+  border-radius: 8px;
+  background: var(--workspace-dark-surface, #fff);
+  padding: 0 10px;
+  color: var(--workspace-dark-ink, #1f2730);
+  font: inherit;
+}
+.parcel-room-filter-row [role="alert"] { color: var(--danger); overflow-wrap: anywhere; }
+.parcel-room-filter-row .secondary-button { min-height: 36px; padding: 0 12px; }
+.parcel-room-filter-row select:focus-visible,
+.parcel-room-edit-field select:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
 
 .parcel-management-table th:last-child,
 .parcel-management-table td:last-child {
@@ -724,8 +770,17 @@
   gap: 14px 16px;
   overflow-y: auto;
   padding: 16px 22px 18px;
+  border: 0;
+  margin: 0;
+  min-width: 0;
 }
 
+.parcel-room-edit-field { grid-column: 1 / -1; min-width: 0; }
+.parcel-room-edit-field label { color: var(--workspace-dark-ink, #151b23); font-size: 13px; font-weight: 800; }
+.parcel-room-edit-field small { color: var(--workspace-dark-ink, #535d68); overflow-wrap: anywhere; }
+.parcel-room-edit-field select { width: 100%; height: 44px; font-size: 13px; }
+.parcel-room-refresh.secondary-button { justify-self: start; min-height: 34px; padding: 0 10px; font-size: 12px; }
+.parcel-room-edit-field [role="alert"] { color: var(--danger); }
 .parcel-details-dialog.parcel-management-modal {
   border: 0;
   padding: 0;
@@ -1160,12 +1215,7 @@
   }
 }
 
-@media (max-width: 640px) {
-  .parcel-management-toolbar {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
+@media (max-width: 1100px) {
   .parcel-table-card {
     overflow: visible;
   }
@@ -1310,4 +1360,16 @@
     width: 100%;
     justify-content: space-between;
   }
+}
+
+@media (max-width: 640px) {
+  .parcel-management-toolbar { align-items: stretch; flex-direction: column; }
+  .parcel-room-filter-row select { width: 100%; }
+}
+
+@media (min-width: 761px) and (max-width: 1100px) {
+  .parcel-table-footer { padding: 14px 16px; }
+  .parcel-table-footer > span { flex-shrink: 0; }
+  .parcel-pagination { margin: 0 auto; }
+  .parcel-rows-select { width: auto; flex-shrink: 0; }
 }

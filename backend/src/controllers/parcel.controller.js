@@ -8,9 +8,12 @@ import {
   updateParcel,
   updateParcelStatus
 } from "../services/parcel.service.js";
+import { PARCEL_ROOM_ERROR_RESPONSES } from "../utils/parcelRoomValidation.js";
 
 function parcelErrorResponse(error) {
   const responses = {
+    ...PARCEL_ROOM_ERROR_RESPONSES,
+    INVALID_PARCEL_UPDATES: [400, "Parcel updates must be an object."],
     FORBIDDEN: [403, "You do not have permission to access parcel management."],
     FORBIDDEN_DELETE: [403, "Only Admin can delete parcel records."],
     FORBIDDEN_EXPORT: [403, "Only Admin can export parcel records."],
@@ -22,7 +25,7 @@ function parcelErrorResponse(error) {
       "Collected status will be handled through the Parcel Collection Module."
     ],
     INVALID_DATE_RANGE: [400, "Date range must be last_7_days, last_30_days, last_90_days, or all."],
-    TRACKING_NUMBER_REQUIRED: [400, "Tracking number is required."],
+        TRACKING_NUMBER_REQUIRED: [400, "Tracking number is required."],
     DELIVERY_CONTACT_REQUIRED: [400, "Delivery person contact number is required."],
     COURIER_REQUIRED: [400, "Courier company is required."],
     UNIT_REQUIRED: [400, "Unit is required."],

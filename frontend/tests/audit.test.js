@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { auditDayHeading, auditDayKey, auditExportFilename, auditLabel, auditMetadataRows, auditQuery, malaysiaAuditDate } from "../src/utils/audit.js";
+import { auditDayHeading, auditDayKey, auditDescription, auditEntityReference, auditExportFilename, auditLabel, auditMetadataRows, auditQuery, malaysiaAuditDate } from "../src/utils/audit.js";
 
 test("audit filters preserve exact API action labels and repeated action parameters", () => {
   const query = new URLSearchParams(auditQuery({
@@ -61,4 +61,34 @@ test("export preserves the server filename and safely handles missing/malformed 
   assert.equal(auditExportFilename('attachment; filename="../../audit.csv"'), "audit.csv");
   assert.equal(auditExportFilename(""), "parcel-nexus-audit-trail.csv");
   assert.equal(auditExportFilename("attachment; filename*=UTF-8''%bad"), "parcel-nexus-audit-trail.csv");
+});
+
+test("room assignments use recorded before/after names, never raw IDs or current-name guesses", () => {
+  const id = "11111111-1111-4111-8111-111111111111";
+  assert.deepEqual(auditMetadataRows({ tracking_number: "SPX1", previous_parcel_room_id: null, previous_parcel_room_name: null, parcel_room_id: id, parcel_room_name: "Lobby Room" }), [
+    { label: "Tracking Number", value: "SPX1" }, { label: "Previous Room", value: "Not Assigned" }, { label: "New Room", value: "Lobby Room" }
+  ]);
+  const rows = auditMetadataRows({ previous_parcel_room_id: id, parcel_room_id: id });
+  assert.deepEqual(rows, [{ label: "Previous Room", value: "Room name not recorded" }, { label: "New Room", value: "Room name not recorded" }]);
+  assert.ok(!JSON.stringify(rows).includes(id));
+  assert.deepEqual(auditMetadataRows({ changes: { parcel_room: { before: "Old Room", after: "Renamed Room" } } }), [{ label: "Parcel Room changed", value: "Old Room -> Renamed Room" }]);
+});
+test("room configuration safely displays recorded names, availability and changes only in room context", () => {
+  const metadata = { name: "Room B", is_active: false, description: "ignored direct field", password: "hidden",
+    changes: { name: { before: "Room A", after: "Room B" }, description: { before: null, after: "Near lobby" }, is_active: { before: true, after: false } } };
+  assert.deepEqual(auditMetadataRows(metadata, { entityType: "PARCEL_ROOM" }), [
+    { label: "Room", value: "Room B" }, { label: "Availability", value: "Inactive" },
+    { label: "Room name changed", value: "Room A -> Room B" }, { label: "Description changed", value: "Not set -> Near lobby" },
+    { label: "Availability changed", value: "Active -> Inactive" }
+  ]);
+  assert.deepEqual(auditMetadataRows(metadata), []);
+});
+test("room audit references and descriptions hide historical room IDs without changing unrelated logs", () => {
+  const id = "11111111-1111-4111-8111-111111111111";
+  const log = { entity_type: "PARCEL_ROOM", entity_id: id, entity_reference: id, description: `Room ${id} updated`, metadata: { name: "Recorded Room" } };
+  assert.equal(auditEntityReference(log), "Recorded Room");
+  assert.equal(auditEntityReference({ ...log, metadata: {} }), "Room name not recorded");
+  assert.equal(auditDescription(log), "Room [room reference] updated");
+  assert.equal(auditEntityReference({ entity_type: "PARCEL", entity_id: id }), id);
+  assert.equal(auditDescription({ entity_type: "PARCEL", description: "Original description" }), "Original description");
 });

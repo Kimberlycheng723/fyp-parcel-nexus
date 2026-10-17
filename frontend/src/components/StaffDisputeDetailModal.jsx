@@ -29,6 +29,7 @@ import {
   formatMalaysiaDate
 } from "../utils/disputes.js";
 import { Spinner } from "./Spinner.jsx";
+import { parcelRoomLabel } from "../utils/parcelRooms.js";
 
 const MAX_MESSAGE = 2000;
 const MAX_STAFF_NOTE = 4000;
@@ -332,6 +333,7 @@ export function StaffDisputeDetailModal({ disputeId, onClose, onChanged }) {
                     <dl className="staff-dispute-parcel-details">
                       <div><dt>Tracking Number</dt><dd>{dispute.parcel.tracking_number}</dd></div>
                       <div><dt>Courier</dt><dd>{dispute.parcel.courier_name}</dd></div>
+                      <div className="dispute-parcel-room-row"><dt>Parcel Room</dt><dd>{parcelRoomLabel(dispute.parcel)}</dd></div>
                       <div><dt>Resident Unit</dt><dd>{dispute.resident?.unit_full_code}</dd></div>
                       <div><dt>Parcel Status</dt><dd>{dispute.parcel.status === "COLLECTED" ? "Collected" : "Pending Collection"}</dd></div>
                       <div><dt>Registered</dt><dd>{formatMalaysiaDate(dispute.parcel.created_at, { hour: "2-digit", minute: "2-digit" })}</dd></div>

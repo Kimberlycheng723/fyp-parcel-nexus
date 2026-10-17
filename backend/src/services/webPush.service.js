@@ -108,7 +108,8 @@ export async function sendBrowserPush({ userId, notification }) {
 
   const payload = JSON.stringify({
     title: "Parcel Nexus",
-    body: safePushBody(notification.type),
+    body: notification.type === "PARCEL_ARRIVAL" && typeof notification.message === "string" && notification.message.trim()
+      ? notification.message : safePushBody(notification.type),
     data: {
       url: "/dashboard",
       notification_id: notification.notification_id,

@@ -67,6 +67,7 @@ const DISPUTE_SELECT = `
   ) AS latest_activity_at,
   (SELECT COUNT(*)::integer FROM dispute_evidence de WHERE de.dispute_id = d.dispute_id) AS evidence_count,
   p.tracking_number,
+  room.name AS parcel_room_name,
   p.status AS parcel_status,
   p.collection_deadline,
   p.collected_at AS parcel_collected_at,
@@ -127,6 +128,7 @@ function toSafeDispute(row, { includePrivateStaffFields = false } = {}) {
     parcel: {
       parcel_id: row.parcel_id,
       tracking_number: row.tracking_number,
+      parcel_room_name: row.parcel_room_name,
       status: normalizeParcelStatus(row.parcel_status),
       courier_name: row.courier_name,
       courier_code: row.courier_code,
@@ -178,6 +180,7 @@ async function getDisputeRow(disputeId, client = pool, { lock = false } = {}) {
       SELECT ${DISPUTE_SELECT}
       FROM disputes d
       INNER JOIN parcels p ON p.parcel_id = d.parcel_id
+      LEFT JOIN parcel_rooms room ON room.id = p.parcel_room_id
       INNER JOIN courier_companies c ON c.courier_id = p.courier_id
       INNER JOIN units u ON u.unit_id = p.unit_id
       INNER JOIN users resident ON resident.user_id = d.resident_user_id
@@ -594,6 +597,7 @@ export async function listDisputes({ requester, filters = {} }) {
       SELECT ${DISPUTE_SELECT}, COUNT(*) OVER() AS total_count
       FROM disputes d
       INNER JOIN parcels p ON p.parcel_id = d.parcel_id
+      LEFT JOIN parcel_rooms room ON room.id = p.parcel_room_id
       INNER JOIN courier_companies c ON c.courier_id = p.courier_id
       INNER JOIN units u ON u.unit_id = p.unit_id
       INNER JOIN users resident ON resident.user_id = d.resident_user_id

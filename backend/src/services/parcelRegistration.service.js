@@ -7,9 +7,13 @@ import {
 } from "./notification.service.js";
 import { normalizeRequiredString } from "../utils/userValidation.js";
 import { AUDIT_ACTIONS, recordAuditLog } from "./audit.service.js";
+import { validateParcelRoomId } from "../utils/parcelRoomValidation.js";
+import { getActiveParcelRoomForAssignment } from "./parcelRoom.service.js";
 
 const PARCEL_DETAIL_COLUMNS = `
   p.parcel_id,
+  p.parcel_room_id,
+  room.name AS parcel_room_name,
   p.tracking_number,
   p.courier_id,
   p.unit_id,
@@ -40,6 +44,8 @@ const PARCEL_DETAIL_COLUMNS = `
 function toSafeParcel(row) {
   return {
     parcel_id: row.parcel_id,
+    parcel_room_id: row.parcel_room_id,
+    parcel_room_name: row.parcel_room_name,
     tracking_number: row.tracking_number,
     courier_id: row.courier_id,
     courier: {
@@ -92,10 +98,15 @@ function validateSessionInput(input) {
     return { error: "PARCELS_REQUIRED" };
   }
 
+  if (parcels.some((parcel) => !parcel || typeof parcel !== "object" || Array.isArray(parcel))) {
+    return { error: "PARCELS_REQUIRED" };
+  }
+
   const normalizedParcels = parcels.map((parcel) => ({
     unit_id: normalizeRequiredString(parcel.unit_id),
     tracking_number: normalizeRequiredString(parcel.tracking_number),
-    parcel_photo_url: normalizeRequiredString(parcel.parcel_photo_url) || null
+    parcel_photo_url: normalizeRequiredString(parcel.parcel_photo_url) || null,
+    parcel_room_id: parcel.parcel_room_id
   }));
 
   for (const parcel of normalizedParcels) {
@@ -106,7 +117,9 @@ function validateSessionInput(input) {
     if (!parcel.tracking_number) {
       return { error: "TRACKING_NUMBER_REQUIRED" };
     }
-
+    const roomValidation = validateParcelRoomId(parcel.parcel_room_id);
+    if (roomValidation.error) return roomValidation;
+    parcel.parcel_room_id = roomValidation.parcelRoomId;
   }
 
   const trackingNumbers = normalizedParcels.map((parcel) => parcel.tracking_number.toLowerCase());
@@ -133,6 +146,7 @@ async function getParcelRowsByIds(parcelIds, client = pool) {
       INNER JOIN courier_companies c ON c.courier_id = p.courier_id
       INNER JOIN units ON units.unit_id = p.unit_id
       INNER JOIN users registered_user ON registered_user.user_id = p.registered_by
+      LEFT JOIN parcel_rooms room ON room.id = p.parcel_room_id
       WHERE p.parcel_id = ANY($1::uuid[])
       ORDER BY p.created_at ASC
     `,
@@ -143,7 +157,7 @@ async function getParcelRowsByIds(parcelIds, client = pool) {
 }
 
 export async function registerParcelSession({ requester, input }) {
-  if (!requester?.user_id) {
+  if (requester?.role !== "GUARD" || !requester.user_id) {
     return { error: "FORBIDDEN" };
   }
 
@@ -168,6 +182,13 @@ export async function registerParcelSession({ requester, input }) {
 
     const createdParcelIds = [];
     const pendingNotificationDeliveries = [];
+    const rooms = new Map();
+    // Consistent lock order avoids conflicts between concurrent multi-room batches.
+    for (const roomId of [...new Set(data.parcels.map((parcel) => parcel.parcel_room_id))].sort()) {
+      const result = await getActiveParcelRoomForAssignment(roomId, client);
+      if (result.error) { await client.query("ROLLBACK"); return result; }
+      rooms.set(roomId, result.parcel_room);
+    }
 
     for (const parcel of data.parcels) {
       const unit = await getUnitById(parcel.unit_id, client);
@@ -203,10 +224,11 @@ export async function registerParcelSession({ requester, input }) {
             registered_by,
             delivery_person_contact,
             parcel_photo_url,
+            parcel_room_id,
             status,
             collection_deadline
           )
-          VALUES ($1, $2, $3, $4, $5, $6, 'PENDING_COLLECTION', NOW() + INTERVAL '7 days')
+          VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING_COLLECTION', NOW() + INTERVAL '7 days')
           RETURNING parcel_id
         `,
         [
@@ -215,7 +237,8 @@ export async function registerParcelSession({ requester, input }) {
           parcel.unit_id,
           requester.user_id,
           data.deliveryPersonContact,
-          parcel.parcel_photo_url
+          parcel.parcel_photo_url,
+          parcel.parcel_room_id
         ]
       );
 
@@ -227,7 +250,8 @@ export async function registerParcelSession({ requester, input }) {
         parcelId,
         unitId: parcel.unit_id,
         trackingNumber: parcel.tracking_number,
-        courierName: courier.courier_name
+        courierName: courier.courier_name,
+        parcelRoomName: rooms.get(parcel.parcel_room_id).name
       });
 
       if (notificationEnvelope) {
@@ -245,7 +269,9 @@ export async function registerParcelSession({ requester, input }) {
         metadata: {
           tracking_number: parcel.tracking_number,
           courier: courier.courier_name,
-          unit: unit.full_unit_code
+          unit: unit.full_unit_code,
+          parcel_room_id: parcel.parcel_room_id,
+          parcel_room_name: rooms.get(parcel.parcel_room_id).name
         }
       });
     }
