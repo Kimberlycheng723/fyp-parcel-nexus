@@ -327,3 +327,23 @@ export function updateAdminDisputeNotes(disputeId, adminResolutionNotes) {
     body: { admin_resolution_notes: adminResolutionNotes }
   });
 }
+
+export function getParcelRooms(options = {}) {
+  return apiRequest("/parcel-rooms", options);
+}
+
+export function getActiveParcelRooms(options = {}) {
+  return apiRequest("/parcel-rooms/active", options);
+}
+
+export function createParcelRoom(input) {
+  return apiRequest("/parcel-rooms", { method: "POST", body: input });
+}
+
+export function updateParcelRoom(roomId, input) {
+  return apiRequest(`/parcel-rooms/${encodeURIComponent(roomId)}`, { method: "PATCH", body: input });
+}
+
+export function setParcelRoomStatus(roomId, isActive) {
+  return apiRequest(`/parcel-rooms/${encodeURIComponent(roomId)}/status`, { method: "PATCH", body: { is_active: isActive } });
+}

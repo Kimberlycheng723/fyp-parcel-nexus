@@ -62,6 +62,7 @@ const MENU_GROUPS = {
     {
       label: "System",
       items: [
+        { key: "parcel-rooms", label: "Parcel Rooms", icon: Building2, path: "/parcel-rooms" },
         { key: "settings", label: "Settings", icon: Settings, muted: true }
       ]
     }

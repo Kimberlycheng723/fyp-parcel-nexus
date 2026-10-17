@@ -1,0 +1,63 @@
+.parcel-rooms-page { width: 100%; min-width: 0; }
+.parcel-rooms-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 4px 0 24px; border-bottom: 1px solid var(--line); }
+.parcel-rooms-heading h1 { margin: 0 0 8px; font-size: 26px; line-height: 1.25; font-weight: 800; }
+.parcel-rooms-heading p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.parcel-rooms-heading > button { flex-shrink: 0; }
+.parcel-rooms-toolbar { display: flex; align-items: center; gap: 10px; padding: 20px 0; }
+.parcel-rooms-toolbar .accounts-search { flex: 1; max-width: 380px; height: 40px; }
+.parcel-rooms-toolbar .accounts-status-filter { height: 40px; }
+.parcel-rooms-toolbar .accounts-search button { flex: 0 0 28px; }
+.parcel-rooms-toolbar .accounts-search input:focus-visible, .parcel-rooms-toolbar select:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+.parcel-rooms-table-wrap { border: 1px solid var(--line); border-radius: 8px; background: var(--workspace-dark-surface, #fff); }
+.parcel-rooms-table { width: 100%; table-layout: fixed; border-collapse: collapse; text-align: left; font-size: 13px; }
+.parcel-rooms-table th { padding: 14px 18px; background: var(--workspace-dark-soft, #f8fafb); border-bottom: 1px solid var(--line); color: var(--muted); font-size: 11px; font-weight: 700; }
+.parcel-rooms-table th:first-child { width: 26%; border-top-left-radius: 8px; }
+.parcel-rooms-table th:nth-child(2) { width: 38%; }
+.parcel-rooms-table th:nth-child(3) { width: 14%; }
+.parcel-rooms-table th:last-child { width: 22%; text-align: right; border-top-right-radius: 8px; }
+.parcel-rooms-table td { padding: 18px; line-height: 1.6; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; vertical-align: middle; }
+.parcel-rooms-table td:nth-child(2) { white-space: pre-wrap; color: var(--workspace-dark-ink, #505b68); }
+.parcel-rooms-table tbody tr:last-child td { border-bottom: 0; }
+.parcel-rooms-table tbody tr:hover { background: var(--workspace-dark-soft, #fafcff); }
+.room-description-empty { color: var(--muted); }
+.parcel-room-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+.parcel-room-actions .secondary-button { min-height: 36px; padding: 6px 10px; font-size: 12px; white-space: nowrap; }
+.parcel-room-actions .icon-only-button { flex-shrink: 0; width: 36px; height: 36px; }
+.parcel-rooms-table-wrap > footer { padding: 12px 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.parcel-rooms-state { display: flex; min-height: 270px; flex-direction: column; justify-content: center; align-items: center; gap: 12px; padding: 32px 20px; text-align: center; }
+.parcel-rooms-state > svg { color: var(--muted); }
+.parcel-rooms-state h2 { margin: 0; font-size: 18px; }
+.parcel-rooms-state p { max-width: 440px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.65; }
+.parcel-room-dialog.account-modal { margin: auto; padding: 0; border: 0; width: min(520px, calc(100% - 32px)); max-height: calc(100svh - 32px); overflow-y: auto; border-radius: 8px; color: var(--ink); }
+.parcel-room-dialog::backdrop { background: rgba(8, 16, 28, .48); }
+.parcel-room-dialog .account-modal-heading h2 { font-size: 20px; line-height: 1.35; }
+.parcel-room-dialog-body { padding: 20px 24px 0; }
+.parcel-room-dialog-body strong { overflow-wrap: anywhere; }
+.parcel-room-dialog-body p { margin: 12px 0 0; font-size: 13px; line-height: 1.7; color: var(--muted); }
+.parcel-room-dialog textarea { width: 100%; min-height: 108px; padding: 10px 12px; border: 1px solid var(--workspace-dark-border, #cbd1d8); border-radius: 8px; font: inherit; font-size: 13px; line-height: 1.6; resize: vertical; }
+.parcel-room-dialog textarea:focus { outline: 2px solid var(--navy); outline-offset: 2px; }
+.parcel-room-dialog textarea:disabled { background: var(--workspace-dark-soft, #f5f7f9); }
+.parcel-room-dialog input[aria-invalid="true"], .parcel-room-dialog textarea[aria-invalid="true"] { border-color: var(--danger); }
+.parcel-room-field-error { margin: 6px 0 0; font-size: 12px; line-height: 1.5; color: #b42318; }
+.parcel-room-request-error { margin: 16px 24px 0; font-size: 13px; line-height: 1.5; color: #b42318; }
+.parcel-room-dialog .modal-footer-actions { flex-wrap: wrap; }
+.parcel-room-dialog .modal-footer-actions button { min-height: 40px; }
+@media (max-width: 1100px) { .parcel-rooms-table th:first-child { width: 24%; } .parcel-rooms-table th:nth-child(2) { width: 32%; } .parcel-rooms-table th:last-child { width: 30%; } .parcel-rooms-table td, .parcel-rooms-table th { padding: 14px 12px; } }
+@media (max-width: 640px) {
+  .parcel-rooms-heading { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .parcel-rooms-heading h1 { font-size: 24px; }
+  .parcel-rooms-toolbar { flex-wrap: wrap; }
+  .parcel-rooms-toolbar .accounts-search { flex-basis: 100%; max-width: none; width: 100%; }
+  .parcel-rooms-toolbar .accounts-status-filter { flex: 1; width: auto; min-width: 0; }
+  .parcel-rooms-table, .parcel-rooms-table tbody { display: block; }
+  .parcel-rooms-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .parcel-rooms-table tr { display: block; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .parcel-rooms-table tbody tr:last-child { border-bottom: 0; }
+  .parcel-rooms-table td { display: grid; grid-template-columns: 82px minmax(0, 1fr); align-items: start; gap: 12px; padding: 7px 0; border: 0; }
+  .parcel-rooms-table td::before { content: attr(data-label); font-size: 11px; color: var(--muted); font-weight: 600; white-space: normal; }
+  .parcel-rooms-table td .account-status-badge { width: max-content; }
+  .parcel-room-actions { justify-content: flex-start; flex-wrap: wrap; }
+  .parcel-room-dialog .account-modal-heading { padding: 18px 20px; }
+  .parcel-room-dialog .account-modal-grid { padding: 20px 20px 0; }
+  .parcel-room-dialog-body { padding: 20px 20px 0; }
+}
