@@ -3,6 +3,7 @@ import {
   Building2,
   Bot,
   ClipboardList,
+  FileSearch,
   Gauge,
   LogOut,
   Settings,
@@ -45,6 +46,7 @@ const MENU_GROUPS = {
         { key: "dashboard", label: "Dashboard", icon: Gauge, path: "/dashboard" },
         { key: "parcels", label: "Parcels", icon: Package, path: "/parcels" },
         { key: "disputes", label: "Disputes", icon: AlertCircle, path: "/disputes" },
+        { key: "parcel-trace", label: "Parcel Trace", icon: FileSearch, path: "/parcel-trace" }
       ]
     },
     {
@@ -75,6 +77,7 @@ const MENU_GROUPS = {
         { key: "parcels", label: "Parcels", icon: Package, path: "/parcels" },
         { key: "verify-collection", label: "Verify Collection", icon: ScanLine, path: "/verify-collection" },
         { key: "disputes", label: "Disputes", icon: AlertCircle, path: "/disputes" },
+        { key: "parcel-trace", label: "Parcel Trace", icon: FileSearch, path: "/parcel-trace" }
       ]
     },
     {

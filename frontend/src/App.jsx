@@ -10,6 +10,7 @@ import { LoginPage } from "./pages/LoginPage.jsx";
 import { ParcelManagementPage } from "./pages/ParcelManagementPage.jsx";
 import { ParcelRegistrationPage } from "./pages/ParcelRegistrationPage.jsx";
 import { ParcelRoomsPage } from "./pages/ParcelRoomsPage.jsx";
+import { ParcelTracePage } from "./pages/ParcelTracePage.jsx";
 import { ProfilePage } from "./pages/ProfilePage.jsx";
 import { GuardVerifyCollectionPage } from "./pages/GuardVerifyCollectionPage.jsx";
 import { ResidentCollectionPage } from "./pages/ResidentCollectionPage.jsx";
@@ -37,6 +38,7 @@ const APP_PATHS = new Set([
   "/parcels",
   "/parcels/new",
   "/parcel-rooms",
+  "/parcel-trace",
   "/parcel-collection",
   "/notifications",
   "/chatbot",
@@ -152,6 +154,10 @@ function Router() {
 
   if (path === "/parcel-rooms") {
     return <ProtectedRoute allowedRoles={["ADMIN"]}><ParcelRoomsPage /></ProtectedRoute>;
+  }
+
+  if (path === "/parcel-trace") {
+    return <ProtectedRoute allowedRoles={["ADMIN", "GUARD"]}><ParcelTracePage /></ProtectedRoute>;
   }
 
   if (path === "/dashboard") {

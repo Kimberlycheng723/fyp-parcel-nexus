@@ -1,6 +1,7 @@
 import { getAccessToken } from "./tokenStorage.js";
 import { auditQuery } from "../utils/audit.js";
 import { readChatbotReply } from "../utils/chatbot.js";
+import { traceQuery } from "../utils/parcelTrace.js";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 const SESSION_EXPIRED_EVENT = "parcel-nexus-session-expired";
@@ -101,6 +102,18 @@ export function getParcelRegistrationPhoto(photoPath, options = {}) {
 
 export function getAuditLogs(filters, options = {}) {
   return apiRequest(`/audit-logs?${auditQuery(filters)}`, options);
+}
+
+export function getParcelTrace(path, filters = {}, options = {}) {
+  return apiRequest(`/parcel-trace/${path}?${traceQuery(filters)}`, options);
+}
+export function mutateParcelInvestigation(path, body, method = 'POST', filters = {}) {
+  return apiRequest(`/parcel-trace/investigations${path}?${traceQuery(filters)}`, { method, body });
+}
+export function getParcelTracePhoto(parcelId, evidenceId, filters, options = {}) {
+  const { photoSource, ...downloadOptions } = options;
+  const resource = evidenceId ? photoSource === 'REGISTRATION' ? `registration-photos/${evidenceId}/photo` : `evidence/${evidenceId}/photo` : 'registration-photo';
+  return apiDownload(`/parcel-trace/parcels/${parcelId}/${resource}?${traceQuery(filters)}`, downloadOptions);
 }
 
 export function exportAuditLogs(filters, options = {}) {

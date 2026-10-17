@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   Clock3,
   FileImage,
+  FileSearch,
   MessageSquare,
   Send,
   ShieldCheck,
@@ -30,6 +31,7 @@ import {
 } from "../utils/disputes.js";
 import { Spinner } from "./Spinner.jsx";
 import { parcelRoomLabel } from "../utils/parcelRooms.js";
+import { navigate } from "../utils/navigation.js";
 
 const MAX_MESSAGE = 2000;
 const MAX_STAFF_NOTE = 4000;
@@ -330,6 +332,7 @@ export function StaffDisputeDetailModal({ disputeId, onClose, onChanged }) {
 
                   <section className="staff-dispute-section">
                     <h3>Related Parcel</h3>
+                    {dispute.parcel?.parcel_id && <button className="secondary-button" type="button" onClick={() => navigate(`/parcel-trace?parcel_id=${dispute.parcel.parcel_id}&dispute_id=${dispute.dispute_id}`)}><FileSearch size={15} /> Investigate Parcel</button>}
                     <dl className="staff-dispute-parcel-details">
                       <div><dt>Tracking Number</dt><dd>{dispute.parcel.tracking_number}</dd></div>
                       <div><dt>Courier</dt><dd>{dispute.parcel.courier_name}</dd></div>

@@ -1,4 +1,6 @@
 @import "./styles/base.css";
+@import "./styles/parcel-trace.css";
+@import "./styles/photo-analysis.css";
 @import "./styles/auth.css";
 @import "./styles/layout.css";
 @import "./styles/dashboard.css";

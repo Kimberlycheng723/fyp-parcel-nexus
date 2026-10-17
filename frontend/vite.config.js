@@ -3,6 +3,7 @@ import { defineConfig } from "vite";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { imageAnalysisAssets } from "./scripts/imageAnalysisAssets.js";
 
 const backendTarget = process.env.VITE_API_PROXY_TARGET || "http://localhost:5000";
 const configDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -41,7 +42,7 @@ function getHttpsOptions() {
 }
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), imageAnalysisAssets()],
   server: {
     host: true,
     https: getHttpsOptions(),
