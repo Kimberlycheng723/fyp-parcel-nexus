@@ -217,11 +217,10 @@ export function ParcelManagementPage() {
   const canAccess = roleCanAccess(user?.role);
   const isAdmin = user?.role === "ADMIN";
   const isGuard = user?.role === "GUARD";
-const [summary, setSummary] = useState(null);
   const [parcels, setParcels] = useState([]);
   const [pagination, setPagination] = useState(null);
-  const [status, setStatus] = useState("ALL");
-  const [dateRange, setDateRange] = useState(() => new URLSearchParams(window.location.search).get('search') ? 'all' : 'last_7_days');
+  const [status, setStatus] = useState(() => new URLSearchParams(window.location.search).get('status') === 'OVERDUE' ? 'OVERDUE' : 'ALL');
+  const [dateRange, setDateRange] = useState(() => { const params = new URLSearchParams(window.location.search); return params.get('search') || params.get('date_range') === 'all' ? 'all' : 'last_7_days'; });
   const [roomFilter, setRoomFilter] = useState("");
   const [rooms, setRooms] = useState([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
@@ -230,7 +229,6 @@ const [summary, setSummary] = useState(null);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useSearchQuery({ setPage, setDateRange });
   const [limit, setLimit] = useState(5);
-const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const [isLoadingParcels, setIsLoadingParcels] = useState(false);
   const [toast, setToast] = useState(null);
   const [openFilter, setOpenFilter] = useState(null);
@@ -242,23 +240,6 @@ const [isLoadingSummary, setIsLoadingSummary] = useState(false);
     const selectedDate = DATE_RANGE_OPTIONS.find((option) => option.value === dateRange)?.label || "All";
     return `${search || status !== "ALL" || roomFilter ? "FILTERS ACTIVE" : "NO FILTERS ACTIVE"} · SHOWING REGISTERED: ${selectedDate.toUpperCase()}`;
   }, [dateRange, search, status, roomFilter]);
-
-  async function loadSummary() {
-    if (!canAccess) {
-      return;
-    }
-
-    setIsLoadingSummary(true);
-
-    try {
-      const data = await apiRequest("/parcels/summary");
-      setSummary(data);
-    } catch (error) {
-      showToast(error.message || "Unable to load parcel summary.", "error");
-    } finally {
-      setIsLoadingSummary(false);
-    }
-  }
 
   async function loadRooms() {
     setRoomsLoading(true);
@@ -278,10 +259,6 @@ const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   function showToast(message, type = "success") {
     setToast({ id: Date.now(), message, type });
   }
-
-  useEffect(() => {
-    loadSummary();
-  }, [canAccess]);
 
   async function loadParcels() {
     if (!canAccess) {
@@ -385,7 +362,6 @@ const [isLoadingSummary, setIsLoadingSummary] = useState(false);
 
   async function refreshAfterAction(message) {
     showToast(message);
-    await loadSummary();
     await loadParcels();
   }
 
@@ -463,8 +439,6 @@ const [isLoadingSummary, setIsLoadingSummary] = useState(false);
             </div>
           )}
         </header>}
-
-        <SummaryCards summary={summary} isLoading={isLoadingSummary} />
 
         <section className="parcel-management-toolbar">
           <label className="parcel-management-search">
@@ -587,37 +561,6 @@ const [isLoadingSummary, setIsLoadingSummary] = useState(false);
         />
       )}
     </ProtectedLayout>
-  );
-}
-
-function SummaryCards({ summary, isLoading }) {
-  const cards = [
-    { label: "TOTAL PARCELS LOGGED", value: summary?.total_parcels, helper: "all active records" },
-    { label: "PENDING COLLECTION", value: summary?.pending_collection_parcels, helper: "current waiting pickup", dot: "amber" },
-    { label: "TOTAL PARCELS COLLECTED", value: summary?.collected_parcels, helper: "all collected records", dot: "green" },
-    { label: "OVERDUE PARCELS", value: summary?.overdue_parcels, helper: "current past deadline", dot: "red" }
-  ];
-
-  return (
-    <section className="parcel-summary-grid">
-      {cards.map((card) => {
-        const Icon = card.icon;
-        return (
-          <article className="parcel-summary-card" key={card.label}>
-            <span className="parcel-summary-label">
-              {card.dot && <i className={card.dot} />}
-              {card.label}
-            </span>
-            {isLoading ? (
-              <strong className="parcel-summary-loading">...</strong>
-            ) : (
-              <strong>{card.value ?? 0}</strong>
-            )}
-            <small>{Icon && <Icon size={13} />} {card.helper}</small>
-          </article>
-        );
-      })}
-    </section>
   );
 }
 

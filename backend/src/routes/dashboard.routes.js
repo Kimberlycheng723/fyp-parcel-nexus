@@ -8,10 +8,14 @@ import {
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/role.middleware.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { getOperations, sendReminder } from "../controllers/adminOperations.controller.js";
 
 const router = Router();
 
 router.use(requireAuth);
+
+router.get("/admin/operations", requireRole("ADMIN"), asyncHandler(getOperations));
+router.post("/admin/parcels/:parcelId/reminder", requireRole("ADMIN"), asyncHandler(sendReminder));
 
 router.get("/admin/reports/export", requireRole("ADMIN"), asyncHandler(exportAdminReport));
 router.get("/admin", requireRole("ADMIN"), asyncHandler(getAdminDashboardData));

@@ -1,6 +1,5 @@
 import {
   AlertTriangle,
-  Bell,
   Check,
   Clock3,
   Download,
@@ -21,21 +20,24 @@ import { createPortal } from "react-dom";
 import { ProtectedLayout } from "../components/ProtectedLayout.jsx";
 import { ParcelDetailsDialog } from "../components/ParcelDetailsDialog.jsx";
 import { ParcelRoomDistribution } from "../components/ParcelRoomDistribution.jsx";
+import { AdminDashboardView } from "../components/AdminDashboardView.jsx";
+import { useSearchQuery } from '../hooks/useSearchQuery.js';
+import { DashboardGreeting, OverdueCaution } from "../components/DashboardStatus.jsx";
 import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { useResidentNotifications } from "../context/ResidentNotificationContext.jsx";
 import {
   apiDownload,
   apiRequest,
   createResidentCollection,
   getResidentParcels,
-  getResidentParcelSummary,
   getResidentParcelDetails,
+  getResidentParcelSummary,
   getParcelRooms
 } from "../services/api.js";
 import { saveResidentCollectionSession } from "../utils/collectionSession.js";
 import { navigate } from "../utils/navigation.js";
 import { parcelRoomLabel } from "../utils/parcelRooms.js";
+import { adminRangeLabel, malaysiaToday } from "../utils/adminDashboard.js";
 
 const PERIODS = [
   { label: "Day", value: "day" },
@@ -72,37 +74,6 @@ const STATUS_COLORS = {
   Overdue: "#d64545",
   Collected: "#2ca866"
 };
-
-function roleLabel(role) {
-  return {
-    SUPER_ADMIN: "Super Admin",
-    ADMIN: "Admin",
-    GUARD: "Guard",
-    RESIDENT: "Resident"
-  }[role] || "User";
-}
-
-function displayName(user) {
-  if (user?.first_name || user?.last_name) {
-    return `${user.first_name || ""} ${user.last_name || ""}`.trim();
-  }
-
-  return roleLabel(user?.role);
-}
-
-function greeting() {
-  const hour = new Date().getHours();
-
-  if (hour < 12) {
-    return "Good morning";
-  }
-
-  if (hour < 18) {
-    return "Good afternoon";
-  }
-
-  return "Good evening";
-}
 
 function formatDate(value) {
   const date = value ? new Date(value) : new Date();
@@ -247,7 +218,7 @@ function formatOperationalRangeLabel(period, startDate) {
 }
 
 function reportRangePreview(period, startDate) {
-  const label = formatChartRangeLabel(period, startDate).replace(/^Showing\s/, "");
+  const label = adminRangeLabel(period, startDate).replace(/^Showing\s/, "");
   return label || "Select a start date";
 }
 
@@ -601,10 +572,6 @@ function ActivityFeed({ activities = [], emptyMessage = "No recent activity yet.
   );
 }
 
-function guardSubtitle(guard = {}) {
-  return guard.name ? "Parcel room operations" : "Guard dashboard";
-}
-
 function courierCode(code, name) {
   if (code) {
     return String(code).slice(0, 4).toUpperCase();
@@ -712,26 +679,19 @@ function GuardParcelTable({ type, parcels = [] }) {
   );
 }
 
-function GuardSummaryCard({ icon: Icon, tone, label, value, helper }) {
+function GuardSummaryCard({ tone, label, value, helper }) {
   return (
     <article className={`guard-summary-card ${tone}`}>
-      <div className="guard-summary-label">
-        <span>
-          <Icon size={15} />
-        </span>
-        <p>{label}</p>
-      </div>
       <div className="guard-summary-value-row">
         <strong>{numberValue(value)}</strong>
       </div>
+      <div className="guard-summary-label"><p>{label}</p></div>
       <small>{helper}</small>
     </article>
   );
 }
 
 function GuardDashboard() {
-  const { user } = useAuth();
-  const { unreadCount } = useResidentNotifications();
   const [period, setPeriod] = useState("today");
   const [startDate, setStartDate] = useState(getLocalDateInputValue());
   const [dashboard, setDashboard] = useState(null);
@@ -770,9 +730,6 @@ function GuardDashboard() {
     return () => window.clearTimeout(timer);
   }, [toastMessage]);
 
-  const guard = dashboard?.guard || {};
-  const guardName = guard.name || displayName(user);
-  const overdueMessage = dashboard?.alert?.type === "overdue" ? dashboard.alert.message : "";
   const operationalRangeLabel = useMemo(
     () => formatOperationalRangeLabel(period, startDate),
     [period, startDate]
@@ -781,29 +738,7 @@ function GuardDashboard() {
   return (
     <ProtectedLayout hideTopActions>
       <section className="dashboard-page guard-dashboard-page animate-rise">
-        <header className="dashboard-header">
-          <div>
-            <span>OPERATIONS / DASHBOARD</span>
-            <h1>
-              {greeting()}, {guardName}
-            </h1>
-            <p>{guardSubtitle(guard)}</p>
-          </div>
-          <div className="dashboard-header-actions">
-            <button
-              className="dashboard-bell"
-              type="button"
-              title="Notifications"
-              aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
-              onClick={() => navigate("/notifications")}
-            >
-              <Bell size={17} />
-              {unreadCount > 0 && (
-                <i className="notification-count-badge">{unreadCount > 99 ? "99+" : unreadCount}</i>
-              )}
-            </button>
-          </div>
-        </header>
+        <DashboardGreeting />
 
         {toastMessage && (
           <div className="dashboard-toast success" role="status">
@@ -874,28 +809,24 @@ function GuardDashboard() {
 
             <div className="guard-summary-grid">
               <GuardSummaryCard
-                icon={Package}
                 tone="blue"
                 label="Parcels Logged"
                 value={dashboard?.summary?.parcels_logged}
                 helper="selected period"
               />
               <GuardSummaryCard
-                icon={Clock3}
                 tone="amber"
                 label="Pending Collection"
                 value={dashboard?.summary?.pending_collection}
                 helper="current"
               />
               <GuardSummaryCard
-                icon={Check}
                 tone="green"
                 label="Collected Parcels"
                 value={dashboard?.summary?.collected_parcels}
                 helper="selected period"
               />
               <GuardSummaryCard
-                icon={AlertTriangle}
                 tone="red"
                 label="Overdue Parcels"
                 value={dashboard?.summary?.overdue_parcels}
@@ -903,17 +834,12 @@ function GuardDashboard() {
               />
             </div>
 
-            {overdueMessage && (
-              <div className="dashboard-alert">
-                <AlertTriangle size={19} />
-                <span>{overdueMessage}</span>
-              </div>
-            )}
+            <OverdueCaution count={dashboard?.summary?.overdue_over_60_days} />
 
             <ParcelRoomDistribution data={dashboard?.parcel_room_distribution} loading={isLoading}
               error={error} onRetry={loadGuardDashboard} />
 
-            <div className="guard-dashboard-grid">
+            <div className="guard-dashboard-grid guard-dashboard-single">
               <section className="guard-table-card">
                 <div className="guard-table-heading">
                   <div>
@@ -923,15 +849,6 @@ function GuardDashboard() {
                 <GuardParcelTable type="latest" parcels={dashboard?.latest_logged_parcels || []} />
               </section>
 
-              <section className="guard-table-card">
-                <div className="guard-table-heading">
-                  <div>
-                    <h2>Pending collection</h2>
-                  </div>
-                  <span>{numberValue(dashboard?.summary?.pending_collection)} pending</span>
-                </div>
-                <GuardParcelTable type="pending" parcels={dashboard?.pending_collection_parcels || []} />
-              </section>
             </div>
 
             <section className="guard-dispute-card">
@@ -959,18 +876,12 @@ function GuardDashboard() {
   );
 }
 
-function ResidentSummaryCard({ icon: Icon, tone, label, value, helper }) {
+function ResidentSummaryCard({ tone, label, value, helper }) {
   return (
     <article className={`resident-summary-card ${tone}`}>
-      <div>
-        <span className="resident-summary-dot" />
-        <p>{label}</p>
-      </div>
       <strong>{numberValue(value)}</strong>
+      <div><p>{label}</p></div>
       <small>{helper}</small>
-      <em>
-        <Icon size={17} />
-      </em>
     </article>
   );
 }
@@ -1154,12 +1065,11 @@ function ResidentParcelList({
 
 function ResidentDashboard() {
   const { user } = useAuth();
-  const { unreadCount } = useResidentNotifications();
   const [summary, setSummary] = useState(null);
   const [activeTab, setActiveTab] = useState("pending");
-  const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useSearchQuery({ setPage });
   const [parcelData, setParcelData] = useState({ items: [], pagination: { page: 1, limit: 10, total: 0, total_pages: 0 } });
   const [selectedParcelIds, setSelectedParcelIds] = useState([]);
   const [isSummaryLoading, setIsSummaryLoading] = useState(true);
@@ -1167,7 +1077,6 @@ function ResidentDashboard() {
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
   const [error, setError] = useState("");
   const [toastMessage, setToastMessage] = useState("");
-
   const [detailsParcel, setDetailsParcel] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState("");
@@ -1341,29 +1250,7 @@ function ResidentDashboard() {
   return (
     <ProtectedLayout profile={residentProfile} hideTopActions>
       <section className="dashboard-page resident-dashboard-page animate-rise">
-        <header className="dashboard-header resident-dashboard-header">
-          <div>
-            <span>OPERATIONS / DASHBOARD</span>
-            <h1>
-              {greeting()}, {displayName(user)}
-            </h1>
-            <p>Here&apos;s an overview of your parcels.</p>
-          </div>
-          <div className="dashboard-header-actions">
-            <button
-              className="dashboard-bell"
-              type="button"
-              title="Notifications"
-              aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
-              onClick={() => navigate("/notifications")}
-            >
-              <Bell size={17} />
-              {unreadCount > 0 && (
-                <i className="notification-count-badge">{unreadCount > 99 ? "99+" : unreadCount}</i>
-              )}
-            </button>
-          </div>
-        </header>
+        <DashboardGreeting />
 
         {toastMessage && (
           <div className="dashboard-toast success" role="status">
@@ -1386,21 +1273,18 @@ function ResidentDashboard() {
           <>
             <div className="resident-summary-grid">
               <ResidentSummaryCard
-                icon={Clock3}
                 tone="amber"
                 label="Pending Collection"
                 value={summary?.summary?.pending_collection}
                 helper="awaiting pickup at parcel room"
               />
               <ResidentSummaryCard
-                icon={AlertTriangle}
                 tone="red"
                 label="Overdue Parcels"
                 value={summary?.summary?.overdue_parcels}
                 helper="action needed"
               />
               <ResidentSummaryCard
-                icon={Check}
                 tone="green"
                 label="Collected Parcels"
                 value={summary?.summary?.collected_parcels}
@@ -1505,18 +1389,13 @@ function ResidentDashboard() {
           </>
         )}
       </section>
-    {detailsParcel && <ParcelDetailsDialog resident parcel={detailsParcel} onClose={() => setDetailsParcel(null)} />}
+      {detailsParcel && <ParcelDetailsDialog resident parcel={detailsParcel} onClose={() => setDetailsParcel(null)} />}
     </ProtectedLayout>
   );
 }
 
-export function DashboardPage() {
+export function DashboardPage({ analytics = false }) {
   const { user } = useAuth();
-  const { unreadCount } = useResidentNotifications();
-  const [summaryPeriod, setSummaryPeriod] = useState("day");
-  const [summaryStartDate, setSummaryStartDate] = useState(getLocalDateInputValue());
-  const [chartPeriod, setChartPeriod] = useState("day");
-  const [chartStartDate, setChartStartDate] = useState(getLocalDateInputValue());
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportType, setReportType] = useState("dashboard_summary");
   const [reportRoomId, setReportRoomId] = useState("");
@@ -1525,88 +1404,15 @@ export function DashboardPage() {
   const [reportRoomsError, setReportRoomsError] = useState("");
   const [reportFormat, setReportFormat] = useState("pdf");
   const [reportPeriod, setReportPeriod] = useState("week");
-  const [reportStartDate, setReportStartDate] = useState(getLocalDateInputValue());
+  const [reportStartDate, setReportStartDate] = useState(malaysiaToday());
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [reportError, setReportError] = useState("");
   const [toastMessage, setToastMessage] = useState("");
-  const [dashboard, setDashboard] = useState(null);
-  const [chartDashboard, setChartDashboard] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isChartLoading, setIsChartLoading] = useState(false);
-  const [error, setError] = useState("");
+
 
   const isAdmin = user?.role === "ADMIN";
   const isGuard = user?.role === "GUARD";
   const isResident = user?.role === "RESIDENT";
-  const adminName = displayName(user);
-
-  async function loadDashboard(selectedPeriod, selectedStartDate) {
-    if (!isAdmin) {
-      return;
-    }
-
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const params = new URLSearchParams({ period: selectedPeriod });
-
-      if (selectedStartDate) {
-        params.set("start_date", selectedStartDate);
-      }
-
-      const data = await apiRequest(`/dashboard/admin?${params.toString()}`);
-      setDashboard(data);
-    } catch (requestError) {
-      setError(requestError.message || "Unable to load dashboard data.");
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadDashboard(summaryPeriod, summaryStartDate);
-  }, [summaryPeriod, summaryStartDate, isAdmin]);
-
-  async function loadChartDashboard(selectedPeriod, selectedStartDate) {
-    if (!isAdmin) {
-      return;
-    }
-
-    setIsChartLoading(true);
-
-    try {
-      const params = new URLSearchParams({ period: selectedPeriod });
-
-      if (selectedStartDate) {
-        params.set("start_date", selectedStartDate);
-      }
-
-      const data = await apiRequest(`/dashboard/admin?${params.toString()}`);
-      setChartDashboard(data);
-    } catch (requestError) {
-      setError(requestError.message || "Unable to load dashboard data.");
-    } finally {
-      setIsChartLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadChartDashboard(chartPeriod, chartStartDate);
-  }, [chartPeriod, chartStartDate, isAdmin]);
-
-  const subtitle = "Here is the condominium parcel operation overview.";
-  const overdueCount = numberValue(dashboard?.alert?.overdue_count);
-  const summaryRangeLabel = useMemo(
-    () => formatChartRangeLabel(summaryPeriod, summaryStartDate),
-    [summaryPeriod, summaryStartDate]
-  );
-  const chartRangeLabel = useMemo(
-    () => formatChartRangeLabel(chartPeriod, chartStartDate),
-    [chartPeriod, chartStartDate]
-  );
-  const overdueAlertText =
-    overdueCount === 1 ? "1 parcel is overdue." : `${overdueCount} parcels are overdue.`;
 
   function openReportModal() {
     setReportError("");
@@ -1708,48 +1514,8 @@ export function DashboardPage() {
   }
 
   return (
-    <ProtectedLayout hideTopActions>
-      <section className="dashboard-page animate-rise">
-        <header className="dashboard-header">
-          <div>
-            <span>OPERATIONS / DASHBOARD</span>
-            <h1>
-              {greeting()}, {adminName}
-            </h1>
-            <p>{subtitle}</p>
-          </div>
-          <div className="dashboard-header-actions">
-            <button className="dashboard-report-button" type="button" onClick={openReportModal}>
-              <Download size={15} />
-              Generate Report
-            </button>
-            <button
-              className="dashboard-bell"
-              type="button"
-              title="Notifications"
-              aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
-              onClick={() => navigate("/notifications")}
-            >
-              <Bell size={17} />
-              {unreadCount > 0 && (
-                <i className="notification-count-badge">{unreadCount > 99 ? "99+" : unreadCount}</i>
-              )}
-            </button>
-          </div>
-        </header>
-
-        {error && (
-          <div className="dashboard-error" role="alert">
-            {error}
-          </div>
-        )}
-
-        {toastMessage && (
-          <div className="dashboard-toast success" role="status">
-            {toastMessage}
-          </div>
-        )}
-
+    <ProtectedLayout hideTopActions dashboardVariant>
+      <AdminDashboardView onReport={openReportModal} toast={toastMessage} analytics={analytics} />
         {isReportModalOpen && typeof document !== "undefined" && createPortal((
           <div className="dashboard-modal-overlay workspace-theme-surface" role="presentation">
             <form className="dashboard-report-modal" onSubmit={handleGenerateReport}>
@@ -1877,207 +1643,6 @@ export function DashboardPage() {
             </form>
           </div>
         ), document.body)}
-
-        {isLoading && !dashboard ? (
-          <div className="dashboard-loading">
-            <Spinner />
-            <span>Loading dashboard data...</span>
-          </div>
-        ) : (
-          <>
-            <section className="guard-period-panel dashboard-period-panel" aria-label="Admin summary card period">
-              <div>
-                <strong>Summary Card Period</strong>
-                <p>{summaryRangeLabel}</p>
-              </div>
-              <div className="dashboard-trend-filter">
-                <div className="dashboard-period-toggle">
-                  {PERIODS.map((option) => (
-                    <button
-                      className={summaryPeriod === option.value ? "active" : ""}
-                      type="button"
-                      key={option.value}
-                      onClick={() => setSummaryPeriod(option.value)}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  aria-label="Dashboard start date"
-                  className="dashboard-date-picker"
-                  type="date"
-                  value={summaryStartDate}
-                  onChange={(event) => setSummaryStartDate(event.target.value || getLocalDateInputValue())}
-                />
-              </div>
-            </section>
-
-            <div className="dashboard-kpi-grid">
-              <KpiCard
-                icon={Package}
-                tone="blue"
-                kpi={dashboard?.kpis?.total_parcels}
-                fallbackLabel="Parcels Logged"
-                displayLabel="Parcels Logged"
-                meta="selected period"
-              />
-              <KpiCard
-                icon={Clock3}
-                tone="amber"
-                kpi={dashboard?.kpis?.pending_collection}
-                fallbackLabel="Pending Collection"
-                displayLabel="Pending Collection"
-                meta="current"
-              />
-              <KpiCard
-                icon={Check}
-                tone="green"
-                kpi={dashboard?.kpis?.collected}
-                fallbackLabel="Collected Parcels"
-                displayLabel="Collected Parcels"
-                meta="selected period"
-              />
-              <KpiCard
-                icon={ShieldAlert}
-                tone="red"
-                kpi={dashboard?.kpis?.open_disputes}
-                fallbackLabel="Open Disputes"
-                displayLabel="Open Disputes"
-                meta={dashboard?.kpis?.open_disputes?.available === false ? "Module not implemented" : `${numberValue(dashboard?.kpis?.open_disputes?.new_count)} new`}
-              />
-            </div>
-
-            {overdueCount > 0 && (
-              <div className="dashboard-alert">
-                <AlertTriangle size={19} />
-                <span>{overdueAlertText}</span>
-              </div>
-            )}
-
-            <div className="dashboard-main-grid">
-              <section className="dashboard-card dashboard-trend-card">
-                <div className="dashboard-card-heading">
-                  <div>
-                    <h2>Parcels Received Trend</h2>
-                    <p>{chartRangeLabel}</p>
-                  </div>
-                  <div className="dashboard-trend-filter" aria-label="Parcels received trend period">
-                    <div className="dashboard-period-toggle">
-                      {PERIODS.map((option) => (
-                        <button
-                          className={chartPeriod === option.value ? "active" : ""}
-                          type="button"
-                          key={option.value}
-                          onClick={() => setChartPeriod(option.value)}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                    <input
-                      aria-label="Chart start date"
-                      className="dashboard-date-picker"
-                      type="date"
-                      value={chartStartDate}
-                      onChange={(event) => setChartStartDate(event.target.value || getLocalDateInputValue())}
-                    />
-                  </div>
-                </div>
-                {isChartLoading && !chartDashboard ? (
-                  <div className="dashboard-loading compact">
-                    <Spinner />
-                    <span>Loading chart...</span>
-                  </div>
-                ) : (
-                  <TrendChart data={chartDashboard?.parcel_trend || []} />
-                )}
-                <div className="dashboard-chart-legend">
-                  <span><i className="received" /> Parcels received</span>
-                  <span><i className="collected" /> Collected same day</span>
-                </div>
-              </section>
-
-              <section className="dashboard-card dashboard-status-card">
-                <div className="dashboard-card-heading">
-                  <div>
-                    <h2>Parcel Status Distribution</h2>
-                    <p>Current active parcel status</p>
-                  </div>
-                </div>
-                <DonutChart data={dashboard?.status_distribution || []} />
-              </section>
-
-              <section className="dashboard-card dashboard-dispute-card">
-                <div className="dashboard-card-heading">
-                  <div>
-                    <h2>Dispute Summary</h2>
-                    <p>Current dispute module status</p>
-                  </div>
-                  <button
-                    className="dashboard-card-action"
-                    type="button"
-                    disabled
-                    title="Dispute module is not implemented yet"
-                  >
-                    View disputes
-                  </button>
-                </div>
-                {dashboard?.dispute_summary?.available ? (
-                  <div className="dashboard-dispute-list">
-                    {dashboard.dispute_summary.items.map((item) => (
-                      <div key={item.status}>
-                        <span>{item.status}</span>
-                        <strong>{numberValue(item.count)}</strong>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="dashboard-empty-state">{dashboard?.dispute_summary?.message || "Dispute module is not implemented yet."}</div>
-                )}
-              </section>
-
-              <section className="dashboard-card dashboard-system-card-wrap">
-                <div className="dashboard-card-heading">
-                  <div>
-                    <h2>System Summary</h2>
-                    <p>Accounts and coverage</p>
-                  </div>
-                  <button
-                    className="dashboard-card-action"
-                    type="button"
-                    onClick={() => navigate("/accounts")}
-                  >
-                    Manage accounts
-                  </button>
-                </div>
-                <SystemSummary summary={dashboard?.system_summary || {}} />
-              </section>
-            </div>
-
-            <section className="dashboard-card dashboard-activity-card">
-              <div className="dashboard-card-heading">
-                <div>
-                  <h2>Recent Activity</h2>
-                  <p>Current audit log module status</p>
-                </div>
-                <button
-                  className="dashboard-card-action"
-                  type="button"
-                  disabled
-                  title="Audit Log module is not implemented yet"
-                >
-                  View audit log
-                </button>
-              </div>
-              <ActivityFeed
-                activities={dashboard?.recent_activity || []}
-                emptyMessage={dashboard?.audit_log_summary?.message || "Audit Log module is not implemented yet."}
-              />
-            </section>
-          </>
-        )}
-      </section>
     </ProtectedLayout>
   );
 }

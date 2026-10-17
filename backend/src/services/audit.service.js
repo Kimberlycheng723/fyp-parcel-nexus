@@ -8,6 +8,7 @@ export const AUDIT_ACTIONS = Object.freeze({
   PARCEL_EDITED: "Parcel Edited",
   PARCEL_DELETED: "Parcel Deleted",
   PARCEL_COLLECTED: "Parcel Collected",
+  PARCEL_REMINDER_SENT: "Parcel Reminder Sent",
   COLLECTION_VERIFICATION_STARTED: "Collection Verification Started",
   BARCODE_VERIFICATION_SUCCEEDED: "Barcode Verification Succeeded",
   BARCODE_VERIFICATION_FAILED: "Barcode Verification Failed",

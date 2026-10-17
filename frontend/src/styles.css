@@ -18,5 +18,7 @@
 @import "./styles/components.css";
 @import "./styles/chatbot.css";
 @import "./styles/login.css";
+@import "./styles/admin-dashboard.css";
+@import "./styles/admin-operations.css";
 @import "./styles/workspace-shell.css";
 @import "./styles/workspace-theme.css";

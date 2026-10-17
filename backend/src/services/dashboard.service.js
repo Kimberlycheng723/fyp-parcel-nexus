@@ -411,7 +411,8 @@ async function getCurrentPendingAndOverdue() {
         COUNT(*) FILTER (
           WHERE p.collection_deadline IS NOT NULL
             AND p.collection_deadline < NOW()
-        )::int AS overdue_count
+        )::int AS overdue_count,
+        COUNT(*) FILTER (WHERE p.collection_deadline < NOW() - INTERVAL '60 days')::int AS overdue_over_60_days
       FROM parcels p
       LEFT JOIN parcel_rooms room ON room.id = p.parcel_room_id
       WHERE p.deleted_at IS NULL AND p.status IN ('PENDING', 'PENDING_COLLECTION')
@@ -424,6 +425,7 @@ async function getCurrentPendingAndOverdue() {
     // Totals and room bars share one database snapshot, including overdue parcels.
     pendingCollection: result.rows.reduce((sum, row) => sum + numberValue(row.pending_collection), 0),
     overdueCount: result.rows.reduce((sum, row) => sum + numberValue(row.overdue_count), 0),
+    overdueOver60Days: result.rows.reduce((sum, row) => sum + numberValue(row.overdue_over_60_days), 0),
     roomDistribution: result.rows.map((row) => ({
       parcel_room_name: row.parcel_room_name || "Not Assigned",
       is_active: row.is_active,
@@ -1678,6 +1680,7 @@ export async function getGuardDashboard({ requester, period = "today", startDate
   ]);
   summary.pending_collection = pendingData.pendingCollection;
   summary.overdue_parcels = pendingData.overdueCount;
+  summary.overdue_over_60_days = pendingData.overdueOver60Days;
   const overdueCount = numberValue(summary.overdue_parcels);
 
   return {
