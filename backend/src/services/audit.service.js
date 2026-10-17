@@ -1,6 +1,9 @@
 import { pool } from "../db/pool.js";
 
 export const AUDIT_ACTIONS = Object.freeze({
+  INVESTIGATION_OPENED: "Investigation Opened",
+  INVESTIGATION_NOTE_ADDED: "Investigation Note Added",
+  INVESTIGATION_STATUS_CHANGED: "Investigation Status Changed",
   PARCEL_REGISTERED: "Parcel Registered",
   PARCEL_EDITED: "Parcel Edited",
   PARCEL_DELETED: "Parcel Deleted",
@@ -41,6 +44,9 @@ export const AUDIT_ACTIONS = Object.freeze({
 const ACTION_SET = new Set(Object.values(AUDIT_ACTIONS));
 const FILTER_ROLES = new Set(["ADMIN", "GUARD", "RESIDENT", "SYSTEM"]);
 const GUARD_OPERATIONAL_ACTIONS = Object.freeze([
+  AUDIT_ACTIONS.INVESTIGATION_OPENED,
+  AUDIT_ACTIONS.INVESTIGATION_NOTE_ADDED,
+  AUDIT_ACTIONS.INVESTIGATION_STATUS_CHANGED,
   AUDIT_ACTIONS.PARCEL_REGISTERED,
   AUDIT_ACTIONS.PARCEL_EDITED,
   AUDIT_ACTIONS.PARCEL_DELETED,
