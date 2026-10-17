@@ -64,7 +64,11 @@ export async function sendChatbotMessage({ message, history = [] }, options = {}
 }
 
 export async function apiDownload(path, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  return authenticatedDownload(`${API_BASE_URL}${path}`, options);
+}
+
+async function authenticatedDownload(url, options = {}) {
+  const response = await fetch(url, {
     ...options,
     headers: buildHeaders(options, true)
   });
@@ -85,6 +89,14 @@ export async function apiDownload(path, options = {}) {
     filename: response.headers.get("Content-Disposition") || "",
     contentType: response.headers.get("Content-Type") || ""
   };
+}
+
+export function getParcelRegistrationPhoto(photoPath, options = {}) {
+  if (!/^\/uploads\/parcels\/\d+-[0-9a-f-]{36}\.(jpg|jpeg|png|webp)$/i.test(photoPath || '')) {
+    return Promise.reject(new Error('Parcel photo unavailable.'));
+  }
+  const backend = API_BASE_URL.replace(/\/+$/, '').replace(/\/api$/, '');
+  return authenticatedDownload(`${backend}${photoPath}`, options);
 }
 
 export function getAuditLogs(filters, options = {}) {

@@ -17,10 +17,11 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ProtectedLayout } from "../components/ProtectedLayout.jsx";
+import { ParcelDetailsDialog } from "../components/ParcelDetailsDialog.jsx";
 import { useSearchQuery } from '../hooks/useSearchQuery.js';
 import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { apiRequest } from "../services/api.js";
+import { apiRequest, getParcelRegistrationPhoto } from "../services/api.js";
 import { navigate } from "../utils/navigation.js";
 
 const STATUS_OPTIONS = [
@@ -36,8 +37,8 @@ const DATE_RANGE_OPTIONS = [
   { label: "All", value: "all" }
 ];
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
-const BACKEND_BASE_URL = API_BASE_URL.replace(/\/+$/, "").replace(/\/api$/, "");
+
+
 
 function roleCanAccess(role) {
   return role === "ADMIN" || role === "GUARD";
@@ -134,13 +135,7 @@ function courierBadgeStyle(courier) {
   };
 }
 
-function userName(user) {
-  if (!user) {
-    return "-";
-  }
 
-  return `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.email || user.role || "-";
-}
 
 function searchText(value) {
   return String(value || "").trim().toLowerCase();
@@ -176,19 +171,7 @@ function exportRowMatchesSearchFields(row, term) {
   ].some((value) => searchText(value).includes(query));
 }
 
-function getUploadUrl(parcelPhotoUrl) {
-  const cleanedUrl = String(parcelPhotoUrl || "").trim();
 
-  if (!cleanedUrl) {
-    return "";
-  }
-
-  if (/^https?:\/\//i.test(cleanedUrl)) {
-    return cleanedUrl;
-  }
-
-  return `${BACKEND_BASE_URL}/${cleanedUrl.replace(/^\/+/, "")}`;
-}
 
 function csvEscape(value) {
   const text = String(value ?? "");
@@ -543,7 +526,7 @@ export function ParcelManagementPage() {
       </main>
 
       {detailsParcel && (
-        <ParcelDetailsModal parcel={detailsParcel} onClose={() => setDetailsParcel(null)} />
+        <ParcelDetailsDialog parcel={detailsParcel} onClose={() => setDetailsParcel(null)} />
       )}
 
       {editingParcel && (
@@ -843,124 +826,9 @@ function ParcelToast({ type = "success", message, onClose }) {
   );
 }
 
-function ParcelDetailsModal({ parcel, onClose }) {
-  const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
-  const [resolvedPhotoUrl, setResolvedPhotoUrl] = useState("");
-  const [isPhotoLoading, setIsPhotoLoading] = useState(false);
-  const parcelPhotoUrl = String(parcel?.parcel_photo_url || "").trim();
-  const builtPhotoUrl = getUploadUrl(parcelPhotoUrl);
 
-  useEffect(() => {
-    setPhotoLoadFailed(false);
-    setResolvedPhotoUrl("");
 
-    if (!parcelPhotoUrl || !builtPhotoUrl) {
-      setIsPhotoLoading(false);
-      return undefined;
-    }
 
-    let objectUrl = "";
-    let isMounted = true;
-
-    async function loadPhoto() {
-      setIsPhotoLoading(true);
-
-      try {
-        const response = await fetch(builtPhotoUrl, { mode: "cors" });
-
-        if (!response.ok) {
-          throw new Error("Photo request failed.");
-        }
-
-        const blob = await response.blob();
-        objectUrl = URL.createObjectURL(blob);
-
-        if (isMounted) {
-          setResolvedPhotoUrl(objectUrl);
-          setPhotoLoadFailed(false);
-        }
-      } catch {
-        if (isMounted) {
-          setPhotoLoadFailed(true);
-        }
-      } finally {
-        if (isMounted) {
-          setIsPhotoLoading(false);
-        }
-      }
-    }
-
-    loadPhoto();
-
-    return () => {
-      isMounted = false;
-
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
-    };
-  }, [parcel?.parcel_id, parcelPhotoUrl, builtPhotoUrl]);
-
-  function handleClose() {
-    setPhotoLoadFailed(false);
-    setResolvedPhotoUrl("");
-    onClose();
-  }
-
-  return (
-    <div className="modal-backdrop parcel-management-modal-backdrop">
-      <section className="parcel-management-modal parcel-details-modal animate-modal">
-        <header>
-          <div>
-            <h2>Parcel details</h2>
-            <p>{parcel.tracking_number}</p>
-          </div>
-          <button type="button" onClick={handleClose} aria-label="Close details">
-            <X size={19} />
-          </button>
-        </header>
-
-        <div className="parcel-management-details-grid">
-          <div className={`parcel-photo-preview ${!parcelPhotoUrl || photoLoadFailed ? "empty" : ""}`}>
-            {!parcelPhotoUrl ? (
-              <span><Package size={24} /> No photo uploaded</span>
-            ) : photoLoadFailed ? (
-              <span><Package size={24} /> Photo unavailable</span>
-            ) : isPhotoLoading || !resolvedPhotoUrl ? (
-              <span><Package size={24} /> Loading photo...</span>
-            ) : (
-              <img
-                src={resolvedPhotoUrl}
-                data-original-src={builtPhotoUrl}
-                alt="Parcel"
-                onError={() => setPhotoLoadFailed(true)}
-              />
-            )}
-          </div>
-
-          <div className="parcel-detail-list">
-            <DetailRow label="Status" value={<ParcelStatusBadge parcel={parcel} />} />
-            <DetailRow label="Unit" value={parcel.unit?.full_unit_code || "-"} />
-            <DetailRow label="Courier" value={`${courierCode(parcel.courier)} · ${parcel.courier?.courier_name || "-"}`} />
-            <DetailRow label="Registered by" value={`${userName(parcel.registered_by_user)} (${parcel.registered_by_user?.email || "-"})`} />
-            <DetailRow label="Delivery contact" value={parcel.delivery_person_contact || "-"} />
-            <DetailRow label="Registered date" value={`${formatDate(parcel.created_at)} · ${formatTime(parcel.created_at)}`} />
-            <DetailRow label="Collection deadline" value={parcel.collection_deadline ? `${formatDate(parcel.collection_deadline)} · ${formatTime(parcel.collection_deadline)}` : "-"} />
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function DetailRow({ label, value }) {
-  return (
-    <div className="parcel-detail-row">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
 
 function ParcelEditModal({ parcel, onClose, onSaved, onError }) {
   const [trackingNumber, setTrackingNumber] = useState(parcel.tracking_number || "");
@@ -1034,34 +902,27 @@ function ParcelEditModal({ parcel, onClose, onSaved, onError }) {
     setPhotoLoadFailed(false);
 
     const currentPhotoUrl = String(photoValue || "").trim();
-    const builtPhotoUrl = getUploadUrl(currentPhotoUrl);
-
-    if (!currentPhotoUrl || !builtPhotoUrl) {
+    if (!currentPhotoUrl) {
       setIsLoadingExistingPhoto(false);
       return undefined;
     }
 
     let objectUrl = "";
     let isMounted = true;
+    const controller = new AbortController();
 
     async function loadExistingPhoto() {
       setIsLoadingExistingPhoto(true);
 
       try {
-        const response = await fetch(builtPhotoUrl, { mode: "cors" });
-
-        if (!response.ok) {
-          throw new Error("Photo request failed.");
-        }
-
-        const blob = await response.blob();
+        const { blob } = await getParcelRegistrationPhoto(currentPhotoUrl, { signal: controller.signal });
         objectUrl = URL.createObjectURL(blob);
 
         if (isMounted) {
           objectUrlRef.current = objectUrl;
           setPhotoPreview(objectUrl);
           setPhotoLoadFailed(false);
-        }
+        } else URL.revokeObjectURL(objectUrl);
       } catch {
         if (isMounted) {
           setPhotoLoadFailed(true);
@@ -1077,6 +938,7 @@ function ParcelEditModal({ parcel, onClose, onSaved, onError }) {
 
     return () => {
       isMounted = false;
+      controller.abort();
 
       if (objectUrl) {
         URL.revokeObjectURL(objectUrl);

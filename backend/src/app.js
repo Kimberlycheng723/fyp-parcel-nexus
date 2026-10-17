@@ -1,7 +1,6 @@
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
-import path from "node:path";
 
 import authRoutes from "./routes/auth.routes.js";
 import auditRoutes from "./routes/audit.routes.js";
@@ -12,6 +11,7 @@ import disputeRoutes from "./routes/dispute.routes.js";
 import healthRoutes from "./routes/health.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import parcelRoutes from "./routes/parcel.routes.js";
+import parcelPhotoRoutes from "./routes/parcelPhoto.routes.js";
 import parcelRoomRoutes from "./routes/parcelRoom.routes.js";
 import parcelCollectionRoutes from "./routes/parcelCollection.routes.js";
 import parcelRegistrationRoutes from "./routes/parcelRegistration.routes.js";
@@ -21,7 +21,6 @@ import unitRoutes from "./routes/unit.routes.js";
 import userRoutes from "./routes/user.routes.js";
 
 const app = express();
-const parcelUploadsDirectory = path.resolve("uploads/parcels");
 
 app.use(helmet());
 app.use(cors({
@@ -30,7 +29,7 @@ app.use(cors({
 // Apply the chatbot's smaller JSON limit before the shared parser consumes the body.
 app.use("/api/chatbot", chatbotRoutes);
 app.use(express.json({ limit: "2mb" }));
-app.use("/uploads/parcels", express.static(parcelUploadsDirectory));
+app.use("/uploads/parcels", parcelPhotoRoutes);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/audit-logs", auditRoutes);

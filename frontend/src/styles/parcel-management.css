@@ -726,6 +726,20 @@
   padding: 16px 22px 18px;
 }
 
+.parcel-details-dialog.parcel-management-modal {
+  border: 0;
+  padding: 0;
+  max-height: calc(100svh - 32px);
+  overflow-y: auto;
+  border-radius: 8px;
+  color: var(--ink);
+}
+.parcel-details-dialog::backdrop { background: rgba(8, 16, 28, 0.45); }
+.parcel-details-dialog header p,
+.parcel-details-dialog .parcel-detail-row strong { overflow-wrap: anywhere; }
+.parcel-details-dialog .parcel-status-badge { font-style: normal; }
+.parcel-details-dialog .parcel-photo-preview img { max-height: 340px; }
+
 .parcel-modal-field {
   position: relative;
   display: grid;
