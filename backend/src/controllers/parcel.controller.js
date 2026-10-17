@@ -25,7 +25,8 @@ function parcelErrorResponse(error) {
       "Collected status will be handled through the Parcel Collection Module."
     ],
     INVALID_DATE_RANGE: [400, "Date range must be last_7_days, last_30_days, last_90_days, or all."],
-        TRACKING_NUMBER_REQUIRED: [400, "Tracking number is required."],
+    INVALID_COLLECTION_DATE_FILTER: [400, "Collection dates must be valid YYYY-MM-DD dates, with the start on or before the end."],
+    TRACKING_NUMBER_REQUIRED: [400, "Tracking number is required."],
     DELIVERY_CONTACT_REQUIRED: [400, "Delivery person contact number is required."],
     COURIER_REQUIRED: [400, "Courier company is required."],
     UNIT_REQUIRED: [400, "Unit is required."],

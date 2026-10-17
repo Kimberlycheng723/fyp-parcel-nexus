@@ -3,6 +3,7 @@ import { normalizeOptionalString, normalizeRequiredString } from "../utils/userV
 import { AUDIT_ACTIONS, recordAuditLog, recordAuditLogSafely } from "./audit.service.js";
 import { validateParcelRoomId } from "../utils/parcelRoomValidation.js";
 import { getActiveParcelRoomForAssignment } from "./parcelRoom.service.js";
+import { validateCollectionDateFilter } from "../utils/parcelCollectionDateFilter.js";
 
 const MANAGEMENT_ROLES = ["ADMIN", "GUARD"];
 const EXPORT_ROLES = ["ADMIN"];
@@ -187,8 +188,8 @@ function buildParcelFilters({ filters = {}, requesterRole, forExport = false }) 
   const dateFrom = normalizeRequiredString(filters.date_from);
   const dateTo = normalizeRequiredString(filters.date_to);
   const dateRange = normalizeRequiredString(filters.date_range).toLowerCase();
-  
-  
+  const collectionDates = validateCollectionDateFilter(filters);
+  if (collectionDates.error) return collectionDates;
   let parcelRoomId = null;
   if (filters.parcel_room_id !== undefined) {
     if (filters.parcel_room_id === "unassigned") {
@@ -281,7 +282,17 @@ function buildParcelFilters({ filters = {}, requesterRole, forExport = false }) 
     whereClauses.push(`p.created_at < ($${params.length}::date + INTERVAL '1 day')`);
   }
 
-  
+  if (collectionDates.collected_from || collectionDates.collected_to) {
+    whereClauses.push("p.status = 'COLLECTED'");
+    if (collectionDates.collected_from) {
+      params.push(collectionDates.collected_from);
+      whereClauses.push(`p.collected_at >= ($${params.length}::date::timestamp AT TIME ZONE 'Asia/Kuala_Lumpur')`);
+    }
+    if (collectionDates.collected_to) {
+      params.push(collectionDates.collected_to);
+      whereClauses.push(`p.collected_at < (($${params.length}::date + INTERVAL '1 day') AT TIME ZONE 'Asia/Kuala_Lumpur')`);
+    }
+  }
 
   return {
     whereSql: whereClauses.length ? `WHERE ${whereClauses.join(" AND ")}` : "",
@@ -294,8 +305,8 @@ function buildParcelFilters({ filters = {}, requesterRole, forExport = false }) 
       date_from: dateFrom || null,
       date_to: dateTo || null,
       date_range: dateRange || null,
-      
-      
+      collected_from: collectionDates.collected_from || null,
+      collected_to: collectionDates.collected_to || null,
       include_deleted: includeDeleted,
       for_export: forExport
     }
