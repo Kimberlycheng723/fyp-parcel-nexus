@@ -224,7 +224,13 @@ try {
 
   const pollingState = fixtures(); pollingState.active = true;
   const polling = await setup("GUARD", 390, pollingState, { restore: true });
+  const initialReadAbort = polling.page.waitForEvent("requestfailed", {
+    predicate: (request) => new URL(request.url()).pathname === `/api/collection-verifications/${sessionId}`
+      && request.failure()?.errorText === "net::ERR_ABORTED",
+  });
   await polling.page.goto(`${baseURL}/verify-collection`);
+  const abortedRequest = await initialReadAbort;
+  assert.equal(abortedRequest.failure()?.errorText, "net::ERR_ABORTED", "Strict Mode cleanup aborts the initial Guard read");
   await polling.page.getByRole("heading", { name: "Verification Started", exact: true }).waitFor();
   pollingState.readNetworkFailure = true;
   await polling.page.getByText(/Connection interrupted/).waitFor();
@@ -235,6 +241,9 @@ try {
   await delay(100); const reads = polling.requests.length; await delay(3300); assert.equal(polling.requests.length, reads);
   await polling.page.evaluate(() => { Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" }); document.dispatchEvent(new Event("visibilitychange")); });
   await delay(200); assert.ok(polling.requests.length > reads);
+  for (let attempt = 0; pollingState.guardReads !== 0 && attempt < 100; attempt++) await delay(10);
+  assert.equal(pollingState.guardReads, 0, "visibility recovery read settles before slow-poll measurement");
+  pollingState.maxGuardReads = 0;
   pollingState.readDelay = 3400; await delay(7200); assert.equal(pollingState.maxGuardReads, 1);
   await polling.context.close(); cases++;
 
