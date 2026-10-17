@@ -3,7 +3,6 @@ import {
   AlertTriangle,
   ArrowLeft,
   Camera,
-  Check,
   Flashlight,
   RefreshCw,
   ScanLine
@@ -12,7 +11,11 @@ import { useEffect, useRef, useState } from "react";
 
 import { ProtectedLayout } from "../components/ProtectedLayout.jsx";
 import { Spinner } from "../components/Spinner.jsx";
+import { GuardCollectionStatus } from "../components/GuardCollectionStatus.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
+import { useGuardCollectionVerification } from "../hooks/useGuardCollectionVerification.js";
 import { verifyGuardCollection } from "../services/api.js";
+import { guardCollectionError } from "../utils/guardCollectionVerification.js";
 import { navigate } from "../utils/navigation.js";
 
 function cameraErrorMessage(error) {
@@ -78,33 +81,38 @@ function videoTrackSupportsTorch(track) {
 }
 
 export function GuardVerifyCollectionPage() {
+  const { user } = useAuth();
+  const verification = useGuardCollectionVerification(user.user_id);
   const videoRef = useRef(null);
   const controlsRef = useRef(null);
   const streamRef = useRef(null);
   const videoTrackRef = useRef(null);
   const verifyingRef = useRef(false);
+  const retryVerificationRef = useRef(null);
   const [scanSession, setScanSession] = useState(0);
   const [status, setStatus] = useState("starting");
   const [error, setError] = useState("");
-  const [result, setResult] = useState(null);
   const [hasTorch, setHasTorch] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
   const [torchMessage, setTorchMessage] = useState("");
 
   useEffect(() => {
-    let isCancelled = false;
+    if (verification.sessionId) return;
+    let isCancelled = false, interrupted = false, scanTimeout;
+    const video = videoRef.current;
     const reader = new BrowserQRCodeReader(undefined, { delayBetweenScanAttempts: 250 });
 
     function releaseCamera() {
+      window.clearTimeout(scanTimeout);
       controlsRef.current?.stop?.();
       controlsRef.current = null;
       stopMediaStream(streamRef.current);
       streamRef.current = null;
       videoTrackRef.current = null;
 
-      if (videoRef.current) {
-        videoRef.current.pause();
-        videoRef.current.srcObject = null;
+      if (video) {
+        video.pause();
+        video.srcObject = null;
       }
     }
 
@@ -114,10 +122,9 @@ export function GuardVerifyCollectionPage() {
       }
 
       verifyingRef.current = true;
+      retryVerificationRef.current = null;
       controls?.stop();
-      stopMediaStream(streamRef.current);
-      streamRef.current = null;
-      videoTrackRef.current = null;
+      releaseCamera();
       setStatus("verifying");
       setError("");
 
@@ -125,15 +132,20 @@ export function GuardVerifyCollectionPage() {
         const response = await verifyGuardCollection(token);
 
         if (!isCancelled) {
-          setResult(response);
-          setStatus("success");
+          verification.watch(response);
+          setStatus("monitoring");
         }
       } catch (requestError) {
         if (!isCancelled) {
-          const expiredHelp = requestError.status === 410
-            ? " Ask the resident to generate a new QR code."
-            : "";
-          setError(`${requestError.message || "Unable to verify this collection code."}${expiredHelp}`);
+          // Explicit retry retrieves the same initiated session when its acknowledgement was lost.
+          // The QR stays only in this short-lived closure, never browser storage or UI text.
+          if (requestError instanceof TypeError || requestError.status >= 500) {
+            retryVerificationRef.current = () => {
+              verifyingRef.current = false;
+              void verifyToken(token);
+            };
+          }
+          setError(guardCollectionError(requestError, { scanning: true }));
           setStatus("error");
         }
       }
@@ -142,11 +154,18 @@ export function GuardVerifyCollectionPage() {
     async function startScanner() {
       setStatus("starting");
       setError("");
-      setResult(null);
       setHasTorch(false);
       setTorchOn(false);
       setTorchMessage("");
       verifyingRef.current = false;
+      retryVerificationRef.current = null;
+
+      if (document.visibilityState === "hidden") {
+        interrupted = true;
+        setStatus("camera-paused");
+        setError("Camera paused. Start scanning again when you are ready.");
+        return;
+      }
 
       if (!navigator.mediaDevices?.getUserMedia) {
         setStatus("camera-error");
@@ -168,7 +187,7 @@ export function GuardVerifyCollectionPage() {
           }
         );
 
-        if (isCancelled) {
+        if (isCancelled || interrupted) {
           stopMediaStream(stream);
           return;
         }
@@ -177,9 +196,9 @@ export function GuardVerifyCollectionPage() {
         const activeVideoTrack = stream.getVideoTracks()[0] || null;
         videoTrackRef.current = activeVideoTrack;
 
-        await startVideoPreview(videoRef.current, stream);
+        await startVideoPreview(video, stream);
 
-        if (isCancelled) {
+        if (isCancelled || interrupted) {
           stopMediaStream(stream);
           return;
         }
@@ -189,15 +208,15 @@ export function GuardVerifyCollectionPage() {
 
         const controls = await reader.decodeFromStream(
           stream,
-          videoRef.current,
+          video,
           (scanResult, _scanError, activeControls) => {
-            if (scanResult && !isCancelled) {
+            if (scanResult && !isCancelled && !interrupted) {
               verifyToken(scanResult.getText()?.trim(), activeControls);
             }
           }
         );
 
-        if (isCancelled) {
+        if (isCancelled || interrupted || verifyingRef.current) {
           controls.stop();
           return;
         }
@@ -205,20 +224,17 @@ export function GuardVerifyCollectionPage() {
         controlsRef.current = controls;
         if (!verifyingRef.current) {
           setStatus("scanning");
+          scanTimeout = window.setTimeout(() => {
+            releaseCamera();
+            setError("No QR code detected. Improve the lighting and hold the Resident's collection QR inside the frame, then try again.");
+            setStatus("scan-error");
+          }, 25000);
         }
       } catch (cameraError) {
-        controlsRef.current?.stop?.();
-        controlsRef.current = null;
         stopMediaStream(stream || streamRef.current);
-        streamRef.current = null;
-        videoTrackRef.current = null;
+        releaseCamera();
 
-        if (videoRef.current) {
-          videoRef.current.pause();
-          videoRef.current.srcObject = null;
-        }
-
-        if (!isCancelled) {
+        if (!isCancelled && !interrupted) {
           setStatus("camera-error");
           setError(cameraErrorMessage(cameraError));
         }
@@ -227,11 +243,21 @@ export function GuardVerifyCollectionPage() {
 
     startScanner();
 
+    function onHidden() {
+      if (document.visibilityState === "hidden") {
+        interrupted = true; releaseCamera();
+        if (!verifyingRef.current) { setError("Camera paused. Start scanning again when you are ready."); setStatus("camera-paused"); }
+      }
+    }
+    document.addEventListener("visibilitychange", onHidden);
+
     return () => {
       isCancelled = true;
+      retryVerificationRef.current = null;
       releaseCamera();
+      document.removeEventListener("visibilitychange", onHidden);
     };
-  }, [scanSession]);
+  }, [scanSession, verification.sessionId]);
 
   function resetScanner() {
     controlsRef.current?.stop?.();
@@ -246,6 +272,8 @@ export function GuardVerifyCollectionPage() {
     }
 
     verifyingRef.current = false;
+    verification.reset();
+    setStatus("starting");
     setScanSession((current) => current + 1);
   }
 
@@ -272,48 +300,35 @@ export function GuardVerifyCollectionPage() {
     }
   }
 
-  const collection = result?.collection;
+  const scannerUnavailable = ["error", "camera-error", "camera-paused", "scan-error"].includes(status);
 
   return (
     <ProtectedLayout hideTopActions>
-      <section className="guard-verify-page animate-rise">
+      <section className="guard-verify-page">
         <header className="verify-page-header">
           <button type="button" onClick={() => navigate("/dashboard")} aria-label="Back to Guard Dashboard"><ArrowLeft size={19} /></button>
           <div>
-            <h1>Verify Collection</h1>
-            <p>GUARD / PARCELS / VERIFY COLLECTION</p>
+            <p>Scan a Resident&apos;s QR code to begin verification.</p>
           </div>
         </header>
 
-        {status === "success" ? (
-          <section className="verify-result-card success" role="status">
-            <span className="verify-result-icon"><Check size={34} /></span>
-            <h2>Collection successful</h2>
-            <p>{result?.message || "The selected parcels have been collected."}</p>
-            <strong>{collection?.parcel_count || collection?.parcels?.length || 0} parcels collected</strong>
-            <div className="verify-parcel-results">
-              {(collection?.parcels || []).map((parcel) => (
-                <article key={parcel.parcel_id}>
-                  <div>
-                    <span>Tracking number</span>
-                    <strong>{parcel.tracking_number}</strong>
-                  </div>
-                  <em>Collected</em>
-                </article>
-              ))}
-            </div>
-            <button type="button" onClick={resetScanner}><ScanLine size={17} /> Scan Next QR</button>
-          </section>
-        ) : status === "error" || status === "camera-error" ? (
-          <section className="verify-result-card error" role="alert">
+        {verification.sessionId ? <>
+          {verification.error && <div className="collection-message error" role="alert">{verification.error}
+            <button type="button" onClick={verification.refresh}><RefreshCw size={15} /> Refresh Status</button></div>}
+          {verification.checking && !verification.session ? <div className="guard-session-loading" role="status"><Spinner /><p>Restoring verification status...</p></div>
+            : verification.session && !verification.unavailable ? <GuardCollectionStatus session={verification.session} onScanNext={resetScanner} />
+              : <section className="guard-session-unavailable"><AlertTriangle size={32} /><h2>Verification unavailable</h2>
+                <p>Check your connection or scan a Resident&apos;s collection QR code to continue.</p><button type="button" onClick={resetScanner}><ScanLine size={17} /> Scan Next QR</button></section>}
+        </> : <>
+        {scannerUnavailable && <section className="verify-result-card error" role="alert">
             <span className="verify-result-icon"><AlertTriangle size={34} /></span>
-            <h2>{status === "camera-error" ? "Camera unavailable" : "QR verification failed"}</h2>
+            <h2>{status === "camera-paused" ? "Scanner paused" : status === "scan-error" ? "QR not detected" : status === "camera-error" ? "Camera unavailable" : "QR verification failed"}</h2>
             <p>{error}</p>
-            <button type="button" onClick={resetScanner}><RefreshCw size={17} /> Try Again</button>
-          </section>
-        ) : (
-          <>
-            <section className="verify-camera-card">
+            {retryVerificationRef.current && <button type="button" onClick={() => retryVerificationRef.current?.()}><RefreshCw size={17} /> Refresh Verification</button>}
+            <button type="button" onClick={resetScanner}><ScanLine size={17} /> {status === "camera-paused" ? "Start Scanner" : retryVerificationRef.current ? "Scan Another QR" : "Try Again"}</button>
+          </section>}
+          <div hidden={scannerUnavailable}>
+            <section className="verify-camera-card" aria-label="Collection QR scanner">
               <video
                 ref={videoRef}
                 muted
@@ -326,14 +341,14 @@ export function GuardVerifyCollectionPage() {
               {(status === "starting" || status === "verifying") && (
                 <div className="verify-camera-loading">
                   <Spinner />
-                  <span>{status === "verifying" ? "Verifying collection..." : "Starting camera..."}</span>
+                  <span>{status === "verifying" ? "Starting verification..." : "Starting camera..."}</span>
                 </div>
               )}
             </section>
 
             <div className="verify-instructions">
-              <h2>Scan the resident&apos;s QR code to verify collection</h2>
-              <p>Hold the QR code inside the frame until it is detected.</p>
+              <h2>Scan the Resident&apos;s QR code to begin verification</h2>
+              <p>Hold the QR code inside the frame. Scanning does not confirm collection.</p>
             </div>
 
             <div className="verify-camera-actions">
@@ -342,10 +357,15 @@ export function GuardVerifyCollectionPage() {
                   <Flashlight size={16} /> {torchOn ? "Torch On" : "Torch Off"}
                 </button>
               )}
-              {!hasTorch && <span><Camera size={16} /> {torchMessage || "Camera active"}</span>}
+              {!hasTorch && <span><Camera size={16} /> {status === "starting" ? "Starting camera..." : status === "verifying" ? "Camera stopped" : torchMessage || "Camera active"}</span>}
+              <button type="button" onClick={() => {
+                controlsRef.current?.stop?.(); stopMediaStream(streamRef.current);
+                if (videoRef.current) { videoRef.current.pause(); videoRef.current.srcObject = null; }
+                navigate("/dashboard");
+              }}><ArrowLeft size={16} /> Close Scanner</button>
             </div>
-          </>
-        )}
+          </div>
+        </>}
       </section>
     </ProtectedLayout>
   );

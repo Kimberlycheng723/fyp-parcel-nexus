@@ -3,6 +3,7 @@ import {
   verifyGuardCollection
 } from "../services/parcelCollection.service.js";
 import { emitToUser } from "../realtime/socket.js";
+import { COLLECTION_ERRORS } from "../utils/collectionVerification.js";
 
 function collectionErrorResponse(error) {
   const responses = {
@@ -24,7 +25,8 @@ function collectionErrorResponse(error) {
     COLLECTION_EMPTY: [409, "Collection does not contain any parcels."],
     COLLECTION_PARCEL_INVALID: [409, "Collection parcels are no longer valid."],
     PARCEL_STATE_CHANGED: [409, "One or more parcels changed before collection could be completed."],
-    COLLECTION_STATE_CHANGED: [409, "Collection token changed before verification could be completed."]
+    COLLECTION_STATE_CHANGED: [409, "Collection token changed before verification could be completed."],
+    ...COLLECTION_ERRORS
   };
   const [status, message] = responses[error] || [500, "Unable to complete parcel collection request."];
 
@@ -59,11 +61,11 @@ export async function verifyCollection(req, res) {
   const { realtime, ...responseBody } = result;
 
   if (realtime) {
-    emitToUser(
+    try { emitToUser(
       realtime.recipient_user_id,
       realtime.event,
       realtime.payload
-    );
+    ); } catch { console.error("Collection real-time delivery failed after commit."); }
   }
 
   return res.json(responseBody);

@@ -827,7 +827,7 @@ function GuardDashboard() {
             <section className="guard-action-banner">
               <div>
                 <h2>Scan, log, done.</h2>
-                <p>Log a new parcel as it arrives at the parcel room and verify parcels during resident collection.</p>
+                <p>Log parcels on arrival and scan collection QR codes to start Resident verification.</p>
               </div>
               <div className="guard-action-buttons">
                 <button
@@ -1304,6 +1304,7 @@ function ResidentDashboard() {
     try {
       const response = await createResidentCollection(selectedParcelIds);
       saveResidentCollectionSession({
+        resident_id: user.user_id,
         collection: response.collection,
         parcel_ids: selectedParcelIds,
         unit: summary?.unit || null

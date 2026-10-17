@@ -190,6 +190,10 @@ test("general answers need no database lookup and system knowledge matches imple
   for (const fact of ["2 minutes", "COLLECTED", "overdue parcels remain collectible", "10-4000", "3 JPG/JPEG/PNG", "WhatsApp and SMS are unavailable", "read-only when resolved"]) {
     assert.ok(CHATBOT_SYSTEM_INSTRUCTION.includes(fact));
   }
+  for (const fact of ["15 minutes", "START verification only", "Guard scanning does NOT collect", "Resident alone clicks Confirm Collection", "matching barcode", "explicitly upload each photo", "no partial collection or second Guard confirmation"]) {
+    assert.ok(CHATBOT_SYSTEM_INSTRUCTION.includes(fact));
+  }
+  assert.ok(!CHATBOT_SYSTEM_INSTRUCTION.includes("Only successful Guard verification"));
 });
 
 test("missing API key and invalid configured model do not call the provider", async () => {

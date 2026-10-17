@@ -23,6 +23,7 @@ frontend/.cert/
 *.log
 
 # Uploaded files
+backend/private-uploads/
 backend/uploads/*
 !backend/uploads/.gitkeep
 !backend/uploads/parcels/

@@ -144,6 +144,36 @@ export function verifyGuardCollection(token) {
   });
 }
 
+export function getActiveCollectionVerifications(options = {}) {
+  return apiRequest("/resident/collection-verifications/active", options);
+}
+
+export function getCollectionVerification(sessionId, options = {}) {
+  return apiRequest(`/collection-verifications/${sessionId}`, options);
+}
+
+export function verifyCollectionBarcode(sessionId, parcelId, input) {
+  return apiRequest(`/collection-verifications/${sessionId}/parcels/${parcelId}/barcode`, { method: "POST", body: input });
+}
+
+export function uploadCollectionPhoto(sessionId, parcelId, photo) {
+  const body = new FormData();
+  body.append("photo", photo);
+  return apiRequest(`/collection-verifications/${sessionId}/parcels/${parcelId}/photo`, { method: "PUT", body });
+}
+
+export function getCollectionPhoto(sessionId, parcelId, options = {}) {
+  return apiDownload(`/collection-verifications/${sessionId}/parcels/${parcelId}/photo`, options);
+}
+
+export function confirmCollectionVerification(sessionId) {
+  return apiRequest(`/collection-verifications/${sessionId}/confirm`, { method: "POST", body: {} });
+}
+
+export function cancelCollectionVerification(sessionId) {
+  return apiRequest(`/collection-verifications/${sessionId}/cancel`, { method: "POST", body: {} });
+}
+
 export function sendPasswordResetLink(email) {
   return apiRequest("/auth/forgot-password", {
     method: "POST",
