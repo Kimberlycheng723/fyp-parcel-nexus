@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { buildPasswordResetEmail } from "../templates/passwordResetEmail.js";
 
 let transporter;
 
@@ -41,7 +42,7 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-async function sendMail({ to, subject, text, html }) {
+async function sendMail({ to, subject, text, html, attachments }) {
   if (!isSmtpConfigured()) {
     if (process.env.NODE_ENV === "development") {
       console.warn("SMTP is not fully configured. Email was not sent.");
@@ -59,7 +60,8 @@ async function sendMail({ to, subject, text, html }) {
     to,
     subject,
     text,
-    html
+    html,
+    ...(attachments ? { attachments } : {})
   });
 
   return {
@@ -115,27 +117,7 @@ export async function sendPasswordResetEmail({ to, resetLink }) {
   return sendMail({
     to,
     subject: "Reset your Parcel Nexus password",
-    text: [
-      "Hello,",
-      "",
-      "A password reset was requested for your Parcel Nexus account.",
-      "Use the link below to reset your password:",
-      resetLink,
-      "",
-      "This reset link expires in 15 minutes.",
-      "If you did not request this, you can ignore this email.",
-      "",
-      "Parcel Nexus"
-    ].join("\n"),
-    html: `
-      <p>Hello,</p>
-      <p>A password reset was requested for your Parcel Nexus account.</p>
-      <p>Use the link below to reset your password:</p>
-      <p><a href="${resetLink}">Reset your Parcel Nexus password</a></p>
-      <p>This reset link expires in 15 minutes.</p>
-      <p>If you did not request this, you can ignore this email.</p>
-      <p>Parcel Nexus</p>
-    `
+    ...buildPasswordResetEmail(resetLink)
   });
 }
 
