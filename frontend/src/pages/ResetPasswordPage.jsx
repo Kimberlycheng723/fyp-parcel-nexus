@@ -1,113 +1,92 @@
-import { ArrowRight, CheckCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowRight } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { AuthLayout } from "../components/AuthLayout.jsx";
 import { PasswordField } from "../components/PasswordField.jsx";
 import { Spinner } from "../components/Spinner.jsx";
+import { AuthSuccessDialog } from "../components/AuthSuccessDialog.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { apiRequest, confirmProfileEmailChange } from "../services/api.js";
 import { getQueryParam, navigate } from "../utils/navigation.js";
-
-function validatePasswordForm(password, confirmPassword) {
-  if (!password || !confirmPassword) {
-    return "Both password fields are required.";
-  }
-
-  if (password !== confirmPassword) {
-    return "Passwords do not match.";
-  }
-
-  return "";
-}
+import { getPasswordFieldErrors } from "../utils/authValidation.js";
 
 export function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccessful, setIsSuccessful] = useState(false);
   const { clearSession } = useAuth();
   const token = getQueryParam("token");
-
-  useEffect(() => {
-    if (!isSuccessful) {
-      return undefined;
-    }
-
-    const timerId = window.setTimeout(() => {
-      clearSession();
-      navigate("/login");
-    }, 1500);
-
-    return () => window.clearTimeout(timerId);
-  }, [clearSession, isSuccessful]);
+  const submitting = useRef(false);
 
   async function handleSubmit(event) {
     event.preventDefault();
+    if (submitting.current || isSuccessful) return;
     setError("");
+    const validation = getPasswordFieldErrors(password, confirmPassword);
+    setFieldErrors(validation);
+    if (Object.keys(validation).length) {
+      event.currentTarget.querySelector(validation.password ? "#new-password" : "#confirm-password").focus();
+      return;
+    }
 
     if (!token) {
       setError("Reset token is missing. Please use the link from your email.");
       return;
     }
 
-    const validationMessage = validatePasswordForm(password, confirmPassword);
-
-    if (validationMessage) {
-      setError(validationMessage);
-      return;
-    }
-
+    submitting.current = true;
     try {
       setIsLoading(true);
       await apiRequest("/auth/reset-password", {
         method: "POST",
         body: { token, newPassword: password }
       });
+      clearSession();
       setIsSuccessful(true);
+      setPassword("");
+      setConfirmPassword("");
     } catch (requestError) {
-      setError(requestError.errors?.join(" ") || requestError.message);
+      if (requestError.errors?.length) setFieldErrors({ password: requestError.errors.join(" ") });
+      else setError(requestError.message);
     } finally {
+      submitting.current = false;
       setIsLoading(false);
     }
   }
 
-  if (isSuccessful) {
-    return (
-      <SuccessPanel
-        title="Password reset successful!"
-        body="Password reset successful. Please log in with your new password."
-      />
-    );
-  }
-
   return (
-    <AuthLayout>
-      <form className="auth-form" onSubmit={handleSubmit}>
-        <div className="auth-heading">
-          <h1>Reset your password</h1>
-          <p>Enter a new password for your account.</p>
-        </div>
+    <AuthLayout titleId="reset-page-title" skipTarget="#new-password">
+      <form onSubmit={handleSubmit} noValidate>
+        <h2 id="reset-page-title" tabIndex={-1}>Reset your password</h2>
+        <p className="pr-intro">Enter a new password for your account.</p>
 
-        <PasswordField id="new-password" label="New Password" value={password} onChange={setPassword} />
+        <PasswordField variant="login" showStrength autoComplete="new-password" disabled={isLoading || isSuccessful}
+          id="new-password" label="New Password" value={password} error={fieldErrors.password}
+          onChange={(value) => {setPassword(value);setFieldErrors((previous) => ({...previous, password: ""}));}} />
         <PasswordField
           id="confirm-password"
           label="Confirm Password"
+          placeholder="Re-enter your new password"
           value={confirmPassword}
-          onChange={setConfirmPassword}
+          onChange={(value) => {setConfirmPassword(value);setFieldErrors((previous) => ({...previous, confirm: ""}));}}
+          error={fieldErrors.confirm}
+          variant="login"
+          autoComplete="new-password"
+          disabled={isLoading || isSuccessful}
         />
 
-        <p className="password-guidance">
-          Password must contain at least 8 characters, including uppercase and lowercase letters, a number,
-          and a special character.
-        </p>
+        {error && <p className="auth-form-error" role="alert">{error}</p>}
 
-        {error && <p className="form-error">{error}</p>}
-
-        <button className="primary-button" type="submit" disabled={isLoading}>
+        <button className="pr-primary" type="submit" disabled={isLoading || isSuccessful}>
           {isLoading ? <Spinner label="Resetting" /> : "Reset Password"}
         </button>
       </form>
+      <AuthSuccessDialog open={isSuccessful} title="Password reset successful!"
+        message="Your password has been updated. Sign in with your new password."
+        onContinue={() => navigate("/login")} />
     </AuthLayout>
   );
 }
@@ -116,26 +95,29 @@ export function ActivateAccountPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccessful, setIsSuccessful] = useState(false);
   const token = getQueryParam("token");
+  const submitting = useRef(false);
 
   async function handleSubmit(event) {
     event.preventDefault();
+    if (submitting.current || isSuccessful) return;
     setError("");
+    const validation = getPasswordFieldErrors(password, confirmPassword);
+    setFieldErrors(validation);
+    if (Object.keys(validation).length) {
+      event.currentTarget.querySelector(validation.password ? "#activation-password" : "#activation-confirm-password").focus();
+      return;
+    }
 
     if (!token) {
       setError("Activation token is missing. Please use the link from your email.");
       return;
     }
 
-    const validationMessage = validatePasswordForm(password, confirmPassword);
-
-    if (validationMessage) {
-      setError(validationMessage);
-      return;
-    }
-
+    submitting.current = true;
     try {
       setIsLoading(true);
       await apiRequest("/auth/activate", {
@@ -143,51 +125,47 @@ export function ActivateAccountPage() {
         body: { token, newPassword: password }
       });
       setIsSuccessful(true);
+      setPassword("");
+      setConfirmPassword("");
     } catch (requestError) {
-      setError(requestError.errors?.join(" ") || requestError.message);
+      if (requestError.errors?.length) setFieldErrors({ password: requestError.errors.join(" ") });
+      else setError(requestError.message);
     } finally {
+      submitting.current = false;
       setIsLoading(false);
     }
   }
 
-  if (isSuccessful) {
-    return (
-      <SuccessPanel
-        title="Account Activated"
-        body="Your account has been activated successfully. You can now sign in to access Parcel Nexus."
-        secondaryTitle="Account activated!"
-        secondaryBody="Your account is now active. You can sign in to access the parcel management system."
-      />
-    );
-  }
-
   return (
-    <AuthLayout>
-      <form className="auth-form" onSubmit={handleSubmit}>
-        <div className="auth-heading">
-          <h1>Set your new password</h1>
-          <p>For your security, please set a new password before continuing to your account.</p>
-        </div>
+    <AuthLayout titleId="activate-page-title" skipTarget="#activation-password">
+      <form onSubmit={handleSubmit} noValidate>
+        <h2 id="activate-page-title" tabIndex={-1}>Set your new password</h2>
+        <p className="pr-intro">For your security, please set a new password before continuing to your account.</p>
 
-        <PasswordField id="activation-password" label="New Password" value={password} onChange={setPassword} />
+        <PasswordField variant="login" showStrength autoComplete="new-password" disabled={isLoading || isSuccessful}
+          id="activation-password" label="New Password" value={password} error={fieldErrors.password}
+          onChange={(value) => {setPassword(value);setFieldErrors((previous) => ({...previous, password: ""}));}} />
         <PasswordField
           id="activation-confirm-password"
           label="Confirm Password"
+          placeholder="Re-enter your new password"
           value={confirmPassword}
-          onChange={setConfirmPassword}
+          onChange={(value) => {setConfirmPassword(value);setFieldErrors((previous) => ({...previous, confirm: ""}));}}
+          error={fieldErrors.confirm}
+          variant="login"
+          autoComplete="new-password"
+          disabled={isLoading || isSuccessful}
         />
 
-        <p className="password-guidance">
-          Password must contain at least 8 characters, including uppercase and lowercase letters, a number,
-          and a special character.
-        </p>
+        {error && <p className="auth-form-error" role="alert">{error}</p>}
 
-        {error && <p className="form-error">{error}</p>}
-
-        <button className="primary-button" type="submit" disabled={isLoading}>
+        <button className="pr-primary" type="submit" disabled={isLoading || isSuccessful}>
           {isLoading ? <Spinner label="Setting password" /> : "Set Password"}
         </button>
       </form>
+      <AuthSuccessDialog open={isSuccessful} title="Account activated!"
+        message="Your account is ready. Sign in to access Parcel Nexus."
+        onContinue={() => navigate("/login")} />
     </AuthLayout>
   );
 }
@@ -234,54 +212,26 @@ export function VerifyEmailChangePage() {
     };
   }, [clearSession, token]);
 
-  if (status === "successful") {
-    return (
-      <SuccessPanel
-        title="Email verified"
-        body="Your registered email address has been updated. Please log in again with your new email."
-      />
-    );
-  }
-
   return (
-    <AuthLayout>
-      <section className="success-panel">
-        <div className="auth-heading">
-          <h1>{status === "verifying" ? "Verifying email" : "Email verification failed"}</h1>
-          <p>
+    <AuthLayout titleId="verify-email-title">
+      <section className="login-account-result" aria-live="polite">
+          <h2 id="verify-email-title" tabIndex={-1}>{status === "failed" ? "Email verification failed" : status === "verifying" ? "Verifying email" : "Verify your email"}</h2>
+          <p className="pr-intro">
             {status === "verifying"
               ? "Please wait while Parcel Nexus verifies your new email address."
-              : error || "Email verification link is invalid or expired."}
+              : "Use the verification link sent to your new email address."}
           </p>
-        </div>
+        {status === "failed" && <p className="auth-form-error" role="alert">{error || "Email verification link is invalid or expired."}</p>}
         {status === "verifying" ? <Spinner label="Verifying" /> : null}
         {status === "failed" && (
-          <button className="primary-button" type="button" onClick={() => navigate("/login")}>
+          <button className="pr-primary" type="button" onClick={() => navigate("/login")}>
             Go to Sign in <ArrowRight size={18} />
           </button>
         )}
       </section>
-    </AuthLayout>
-  );
-}
-
-function SuccessPanel({ title, body, secondaryTitle, secondaryBody }) {
-  return (
-    <AuthLayout>
-      <section className="success-panel">
-        <div className="auth-heading">
-          <h1>{title}</h1>
-          <p>{body}</p>
-        </div>
-        <div className="success-mark" aria-hidden="true">
-          <CheckCircle size={64} />
-        </div>
-        <h2>{secondaryTitle || title}</h2>
-        <p>{secondaryBody || body}</p>
-        <button className="primary-button" type="button" onClick={() => navigate("/login")}>
-          Go to Sign in <ArrowRight size={18} />
-        </button>
-      </section>
+      <AuthSuccessDialog open={status === "successful"} title="Email verified"
+        message="Your email address has been updated. Sign in again with your new email."
+        onContinue={() => navigate("/login")} />
     </AuthLayout>
   );
 }

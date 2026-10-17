@@ -7,7 +7,7 @@ import { navigate, replaceNavigate } from "../utils/navigation.js";
 const AuthContext = createContext(null);
 const SESSION_NOTICE_KEY = "parcel_nexus_session_notice";
 const SESSION_EXPIRED_EVENT = "parcel-nexus-session-expired";
-const SESSION_EXPIRED_MESSAGE = "Your session has expired. Please log in again.";
+export const SESSION_EXPIRED_MESSAGE = "You\u2019ve been logged out. Please log in again to continue.";
 
 function decodeJwtPayload(tokenValue) {
   try {
@@ -74,13 +74,13 @@ export function AuthProvider({ children }) {
     }
   }
 
-  async function login({ email, password }) {
+  async function login({ email, password, remember = true }) {
     const data = await apiRequest("/auth/login", {
       method: "POST",
       body: { email, password }
     });
 
-    setAccessToken(data.accessToken);
+    setAccessToken(data.accessToken, remember);
     setToken(data.accessToken);
     setUser(data.user);
     return data.user;

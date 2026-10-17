@@ -6,7 +6,6 @@ import { ResidentNotificationProvider } from "./context/ResidentNotificationCont
 import { AccountsPage } from "./pages/AccountsPage.jsx";
 import { AuditTrailPage } from "./pages/AuditTrailPage.jsx";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
-import { ForgotPasswordPage } from "./pages/ForgotPasswordPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { ParcelManagementPage } from "./pages/ParcelManagementPage.jsx";
 import { ParcelRegistrationPage } from "./pages/ParcelRegistrationPage.jsx";
@@ -105,18 +104,10 @@ function Router() {
     }
   }, [path, token, user, isCheckingSession]);
 
-  if (path === "/login") {
+  if (path === "/login" || path === "/forgot-password") {
     return (
       <PublicAuthRoute>
-        <LoginPage />
-      </PublicAuthRoute>
-    );
-  }
-
-  if (path === "/forgot-password") {
-    return (
-      <PublicAuthRoute>
-        <ForgotPasswordPage />
+        <LoginPage resetPassword={path === "/forgot-password"} />
       </PublicAuthRoute>
     );
   }
