@@ -161,12 +161,6 @@ export function ProfilePage() {
   return (
     <ProtectedLayout profile={profile}>
       <main className="profile-page animate-rise">
-        <div className="page-heading">
-          <span>ACCOUNT / PROFILE</span>
-          <h1>Profile & Settings</h1>
-          <p>Manage your account information and notification preferences.</p>
-        </div>
-
         <section className="settings-card">
           <div className="card-heading">
             <div>

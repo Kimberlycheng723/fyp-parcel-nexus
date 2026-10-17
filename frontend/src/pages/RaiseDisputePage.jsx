@@ -159,14 +159,6 @@ export function RaiseDisputePage() {
   return (
     <ProtectedLayout>
       <section className="raise-dispute-page animate-rise">
-        <header className="disputes-page-header compact">
-          <div>
-            <span>ACCOUNT / DISPUTES / RAISE DISPUTE</span>
-            <h1>Raise a Dispute</h1>
-            <p>Report a parcel-related issue and our team will investigate.</p>
-          </div>
-        </header>
-
         <form className="raise-dispute-form" onSubmit={handleSubmit}>
           <header>
             <h2>Dispute Details</h2>

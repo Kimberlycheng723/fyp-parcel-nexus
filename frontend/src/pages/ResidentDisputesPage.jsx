@@ -84,12 +84,7 @@ export function ResidentDisputesPage() {
   return (
     <ProtectedLayout>
       <section className="resident-disputes-page animate-rise">
-        <header className="disputes-page-header">
-          <div>
-            <span>ACCOUNT / DISPUTES</span>
-            <h1>My Disputes</h1>
-            <p>Track and view your parcel dispute history.</p>
-          </div>
+        <header className="workspace-page-actions">
           <button className="dispute-primary-button" type="button" onClick={() => navigate("/disputes/new")}>
             <Plus size={17} /> Raise a Dispute
           </button>

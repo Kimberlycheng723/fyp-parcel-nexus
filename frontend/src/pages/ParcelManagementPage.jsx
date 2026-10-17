@@ -1,5 +1,4 @@
 import {
-  Bell,
   CalendarDays,
   Check,
   ChevronDown,
@@ -18,9 +17,9 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ProtectedLayout } from "../components/ProtectedLayout.jsx";
+import { useSearchQuery } from '../hooks/useSearchQuery.js';
 import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { useResidentNotifications } from "../context/ResidentNotificationContext.jsx";
 import { apiRequest } from "../services/api.js";
 import { navigate } from "../utils/navigation.js";
 
@@ -234,7 +233,6 @@ function toDatetimeLocal(value) {
 }
 
 export function ParcelManagementPage() {
-  const { unreadCount } = useResidentNotifications();
   const { user } = useAuth();
   const canAccess = roleCanAccess(user?.role);
   const isAdmin = user?.role === "ADMIN";
@@ -242,10 +240,10 @@ export function ParcelManagementPage() {
   const [summary, setSummary] = useState(null);
   const [parcels, setParcels] = useState([]);
   const [pagination, setPagination] = useState(null);
-  const [search, setSearch] = useState("");
   const [status, setStatus] = useState("ALL");
-  const [dateRange, setDateRange] = useState("last_7_days");
+  const [dateRange, setDateRange] = useState(() => new URLSearchParams(window.location.search).get('search') ? 'all' : 'last_7_days');
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useSearchQuery({ setPage, setDateRange });
   const [limit, setLimit] = useState(5);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const [isLoadingParcels, setIsLoadingParcels] = useState(false);
@@ -444,14 +442,8 @@ export function ParcelManagementPage() {
   return (
     <ProtectedLayout hideTopActions>
       <main className="parcel-management-page animate-rise">
-        <header className="parcel-management-header">
-          <div className="page-heading parcel-management-heading">
-            <span>OPERATIONS / PARCELS</span>
-            <h1>Parcels</h1>
-            <p>View and manage all parcel records across GEM Condominium.</p>
-          </div>
-
-          {(isAdmin || isGuard) && (
+        {isGuard && <header className="workspace-page-actions">
+          {isGuard && (
             <div className="parcel-management-actions">
               {isGuard && (
                 <>
@@ -463,21 +455,9 @@ export function ParcelManagementPage() {
                   </button>
                 </>
               )}
-              <button
-                className="parcel-page-bell"
-                type="button"
-                aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
-                title="Notifications"
-                onClick={() => navigate("/notifications")}
-              >
-                <Bell size={16} />
-                {unreadCount > 0 && (
-                  <i className="notification-count-badge">{unreadCount > 99 ? "99+" : unreadCount}</i>
-                )}
-              </button>
             </div>
           )}
-        </header>
+        </header>}
 
         <SummaryCards summary={summary} isLoading={isLoadingSummary} />
 

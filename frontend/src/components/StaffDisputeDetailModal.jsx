@@ -280,7 +280,7 @@ export function StaffDisputeDetailModal({ disputeId, onClose, onChanged }) {
   );
 
   return createPortal(
-    <div className="modal-backdrop staff-dispute-modal-backdrop" role="presentation">
+    <div className="modal-backdrop staff-dispute-modal-backdrop workspace-theme-surface" role="presentation">
       <section className="staff-dispute-modal animate-modal" role="dialog" aria-modal="true" aria-labelledby="staff-dispute-title">
         <header className="staff-dispute-modal-header">
           <div>

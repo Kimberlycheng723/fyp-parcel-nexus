@@ -1678,7 +1678,7 @@ export function DashboardPage() {
         )}
 
         {isReportModalOpen && typeof document !== "undefined" && createPortal((
-          <div className="dashboard-modal-overlay" role="presentation">
+          <div className="dashboard-modal-overlay workspace-theme-surface" role="presentation">
             <form className="dashboard-report-modal" onSubmit={handleGenerateReport}>
               <div className="dashboard-report-modal-header">
                 <div>

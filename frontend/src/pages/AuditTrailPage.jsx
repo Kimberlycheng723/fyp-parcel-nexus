@@ -189,10 +189,9 @@ export function AuditTrailPage() {
 
   return <ProtectedLayout profile={user}>
     <section className="audit-page">
-      <header className="audit-page-header">
-        <div><span>INSIGHT / AUDIT TRAIL</span><h1>Audit Trail</h1><p>Recorded system activities, actions, and record changes.</p></div>
+      {isAdmin && <header className="workspace-page-actions">
         {isAdmin && <button className="secondary-button audit-export-button" type="button" disabled={exporting || loading || Boolean(error) || search.trim() !== filters.search} onClick={downloadCsv}><Download size={16} aria-hidden="true" />{exporting ? "Exporting..." : "Export CSV"}</button>}
-      </header>
+      </header>}
 
       <div className="audit-filters" aria-label="Audit Trail filters">
         <label className="audit-search audit-control"><span className="sr-only">Search audit logs</span><Search size={17} aria-hidden="true" /><input type="search" maxLength={120} placeholder="Search tracking, unit, actor, details..." value={search} onChange={(event) => setSearch(event.target.value)} />{search && <button type="button" title="Clear search" aria-label="Clear search" onClick={() => setSearch("")}><X size={16} /></button>}</label>

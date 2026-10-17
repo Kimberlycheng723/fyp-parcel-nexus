@@ -1,24 +1,26 @@
 import {
-  Bell,
-  Box,
+  Package,
   Building2,
   Bot,
   ClipboardList,
   Gauge,
   LogOut,
-  Menu,
   Settings,
   ScanLine,
   User,
   Users,
   AlertCircle,
+  Menu,
   X
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useAuth } from "../context/AuthContext.jsx";
 import { useResidentNotifications } from "../context/ResidentNotificationContext.jsx";
 import { getCurrentPath, navigate } from "../utils/navigation.js";
+import { WorkspaceHeader } from './WorkspaceHeader.jsx';
+import { useSidebarIndicator } from '../hooks/useSidebarIndicator.js';
+import { useWorkspaceTheme } from '../hooks/useWorkspaceTheme.js';
 
 const ROLE_LABELS = {
   SUPER_ADMIN: "Super Admin",
@@ -41,8 +43,8 @@ const MENU_GROUPS = {
       label: "Operations",
       items: [
         { key: "dashboard", label: "Dashboard", icon: Gauge, path: "/dashboard" },
-        { key: "parcels", label: "Parcels", icon: Box, path: "/parcels" },
-        { key: "disputes", label: "Disputes", icon: AlertCircle, path: "/disputes" }
+        { key: "parcels", label: "Parcels", icon: Package, path: "/parcels" },
+        { key: "disputes", label: "Disputes", icon: AlertCircle, path: "/disputes" },
       ]
     },
     {
@@ -69,9 +71,9 @@ const MENU_GROUPS = {
       label: "Operations",
       items: [
         { key: "dashboard", label: "Dashboard", icon: Gauge, path: "/dashboard" },
-        { key: "parcels", label: "Parcels", icon: Box, path: "/parcels" },
+        { key: "parcels", label: "Parcels", icon: Package, path: "/parcels" },
         { key: "verify-collection", label: "Verify Collection", icon: ScanLine, path: "/verify-collection" },
-        { key: "disputes", label: "Disputes", icon: AlertCircle, path: "/disputes" }
+        { key: "disputes", label: "Disputes", icon: AlertCircle, path: "/disputes" },
       ]
     },
     {
@@ -120,27 +122,38 @@ function displayName(profile) {
   return profile?.email || "User";
 }
 
-export function ProtectedLayout({ profile, children, hideTopActions = false }) {
+export function ProtectedLayout({ profile, children, dashboardVariant = false }) {
   const { logout, user } = useAuth();
   const { unreadCount } = useResidentNotifications();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isRailCollapsed, setIsRailCollapsed] = useState(() => {
+    try { return sessionStorage.getItem('parcel_nexus_rail') === 'collapsed'; } catch { return false; }
+  });
+  const navRef = useRef(null);
+  const workspaceRef = useRef(null), railToggleRef = useRef(null), railPosition = useRef(null);
+  useLayoutEffect(() => {
+    const before = railPosition.current;
+    railPosition.current = null;
+    if (!before || matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
+    const animations = [workspaceRef.current, railToggleRef.current].map((node, index) => {
+      const after = node.getBoundingClientRect();
+      return node.animate([{ transform: `translateX(${before[index].left - after.left}px)`, ...(index ? {} : { opacity: .92 }) }, { transform: "translateX(0)", ...(index ? {} : { opacity: 1 }) }], { duration: 280, easing: "cubic-bezier(.22,1,.36,1)" });
+    });
+    return () => animations.forEach((animation) => animation.cancel());
+  }, [isRailCollapsed]);
   const sidebarUser = profile || user || {};
+  const [theme, setTheme] = useWorkspaceTheme(sidebarUser.user_id || user?.user_id);
   const role = sidebarUser?.role || "ACCOUNT";
   const roleLabel = ROLE_LABELS[role] || role.replace("_", " ");
   const menuGroups = MENU_GROUPS[role] || [];
+  const hasFlatNavigation = ["ADMIN", "GUARD", "RESIDENT"].includes(role);
   const currentPath = getCurrentPath();
+  useSidebarIndicator(navRef, { path: currentPath, role, collapsed: isRailCollapsed, open: isSidebarOpen });
+  useEffect(() => {
+    try { sessionStorage.setItem('parcel_nexus_rail', isRailCollapsed ? 'collapsed' : 'expanded'); } catch { /* Storage is optional for navigation. */ }
+  }, [isRailCollapsed]);
   const residentUnitCode = sidebarUser?.unit?.full_unit_code || sidebarUser?.unit_full_code;
-  const mobileTitle = currentPath === "/chatbot" ? "AI Chatbot" : currentPath === "/audit-logs" ? "Audit Trail" : currentPath === "/notifications"
-    ? "Notifications"
-    : currentPath === "/disputes/new"
-      ? "Raise Dispute"
-      : currentPath.startsWith("/disputes")
-        ? "Disputes"
-        : role === "RESIDENT" && currentPath === "/dashboard"
-          ? "Parcels"
-          : "GEM";
-  const shouldShowNotifications = ["SUPER_ADMIN", "ADMIN", "GUARD", "RESIDENT"].includes(role);
 
   useEffect(() => {
     function closeSidebarOnEscape(event) {
@@ -170,8 +183,30 @@ export function ProtectedLayout({ profile, children, hideTopActions = false }) {
     logout();
   }
 
+  function renderMenuItem(item) {
+    const Icon = item.icon;
+    const isActive = item.path === currentPath
+      || (item.path === "/parcels" && currentPath.startsWith("/parcels"))
+      || (item.path === "/disputes" && currentPath.startsWith("/disputes"));
+    return (
+      <button
+        type="button"
+        className={`nav-item ${isActive ? "active" : ""} ${item.muted ? "is-muted" : ""}`}
+        title={item.title || item.label}
+        aria-current={isActive ? 'page' : undefined}
+        onClick={() => handleNavigate(item.path)}
+        key={item.key}
+      >
+        <Icon size={18} /> {item.label}
+        {item.count && (
+          <span className={`nav-count ${item.darkCount ? "dark" : ""}`}>{item.count}</span>
+        )}
+      </button>
+    );
+  }
+
   return (
-    <main className="app-shell">
+    <main className={`app-shell parcel-workspace-shell${dashboardVariant ? " admin-dashboard-shell" : ""}${isRailCollapsed ? " workspace-rail-collapsed" : ""}`}>
       <button
         className={`sidebar-scrim ${isSidebarOpen ? "show" : ""}`}
         type="button"
@@ -181,64 +216,57 @@ export function ProtectedLayout({ profile, children, hideTopActions = false }) {
 
       <aside className={`sidebar ${isSidebarOpen ? "open" : ""}`}>
         <div className="sidebar-brand">
-          <strong>GEM</strong>
-          <span>{roleLabel}</span>
+          <strong>
+            <button ref={railToggleRef} type="button" className="workspace-rail-toggle"
+              aria-label={isRailCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={isRailCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-controls="workspace-sidebar-navigation"
+              aria-expanded={!isRailCollapsed} onClick={(event) => {
+                if (event.detail) railPosition.current = [workspaceRef.current.getBoundingClientRect(), railToggleRef.current.getBoundingClientRect()];
+                setIsRailCollapsed((value) => !value);
+              }}><Menu size={22} aria-hidden="true" /></button>
+            <span className="workspace-brand-name">GEMS</span>
+          </strong>
+          {role !== 'ADMIN' && <span>{roleLabel}</span>}
           <button className="sidebar-close-button" type="button" onClick={() => setIsSidebarOpen(false)} aria-label="Close menu">
             <X size={18} />
           </button>
         </div>
 
-        <nav className="sidebar-nav" aria-label="Main navigation">
-          {menuGroups.map((group) => (
+
+        <nav ref={navRef} id="workspace-sidebar-navigation" className="sidebar-nav" aria-label="Main navigation">
+          <span className="liquid-nav-indicator" aria-hidden="true" hidden />
+          {hasFlatNavigation ? menuGroups.flatMap((group) => group.items).map(renderMenuItem) : menuGroups.map((group) => (
             <div className="nav-group" key={group.label}>
               <p>{group.label}</p>
-              {group.items.map((item) => {
-                const Icon = item.icon;
-                const isActive = item.path === currentPath
-                  || (item.path === "/parcels" && currentPath.startsWith("/parcels"))
-                  || (item.path === "/disputes" && currentPath.startsWith("/disputes"));
-                return (
-                  <button
-                    type="button"
-                    className={`nav-item ${isActive ? "active" : ""} ${item.muted ? "is-muted" : ""}`}
-                    title={item.title || item.label}
-                    onClick={() => handleNavigate(item.path)}
-                    key={item.key}
-                  >
-                    <Icon size={18} /> {item.label}
-                    {item.count && (
-                      <span className={`nav-count ${item.darkCount ? "dark" : ""}`}>
-                        {item.count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+              {group.items.map(renderMenuItem)}
             </div>
           ))}
 
-          <div className="nav-group">
+          {!hasFlatNavigation && <div className="nav-group">
             <p>Account</p>
-          </div>
+          </div>}
           {role === "RESIDENT" && (
             <button
               type="button"
               className={`nav-item ${currentPath.startsWith("/disputes") ? "active" : ""}`}
+              title="Disputes"
+              aria-current={currentPath.startsWith('/disputes') ? 'page' : undefined}
               onClick={() => handleNavigate("/disputes")}
             >
               <AlertCircle size={18} /> Disputes
             </button>
           )}
-          <button type="button" className={`nav-item ${currentPath === "/profile" ? "active" : ""}`} onClick={() => handleNavigate("/profile")}>
+          <button type="button" title="Profile" className={`nav-item ${currentPath === "/profile" ? "active" : ""}`} aria-current={currentPath === '/profile' ? 'page' : undefined} onClick={() => handleNavigate("/profile")}>
             <User size={18} /> Profile
           </button>
-          <button type="button" className="nav-item danger" onClick={handleLogout}>
+          <button type="button" title="Logout" className="nav-item danger" onClick={handleLogout}>
             <LogOut size={18} /> Logout
           </button>
         </nav>
 
         {role === "RESIDENT" && residentUnitCode ? (
-          <div className="sidebar-footer resident-unit-footer">
+          <div className="sidebar-footer resident-unit-footer" title={`Unit ${residentUnitCode}`}>
             <span className="resident-unit-icon"><Building2 size={20} /></span>
             <div>
               <span>Unit</span>
@@ -256,44 +284,10 @@ export function ProtectedLayout({ profile, children, hideTopActions = false }) {
         )}
       </aside>
 
-      <section className="workspace">
-        <div className="mobile-topbar">
-          <div className="mobile-topbar-brand">
-            <button className="mobile-menu-button" type="button" onClick={() => setIsSidebarOpen(true)} aria-label="Open menu">
-              <Menu size={20} />
-            </button>
-            <strong>{mobileTitle}</strong>
-            <span>{roleLabel}</span>
-          </div>
-          {shouldShowNotifications && (
-            <button
-              className="mobile-topbar-bell"
-              type="button"
-              title="Notifications"
-              aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
-              onClick={() => handleNavigate("/notifications")}
-            >
-              <Bell size={17} />
-              {unreadCount > 0 && <i className="notification-count-badge">{unreadCount > 99 ? "99+" : unreadCount}</i>}
-            </button>
-          )}
-        </div>
-
-        {!hideTopActions && shouldShowNotifications && (
-          <div className="top-actions">
-            <button
-              className="icon-button"
-              type="button"
-              title="Notifications"
-              aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
-              onClick={() => handleNavigate("/notifications")}
-            >
-              <Bell size={18} />
-              {unreadCount > 0 && <span className="notification-count-badge">{unreadCount > 99 ? "99+" : unreadCount}</span>}
-            </button>
-          </div>
-        )}
-        {children}
+      <section ref={workspaceRef} className="workspace">
+        <WorkspaceHeader path={currentPath} role={role} unreadCount={unreadCount} onOpenMenu={() => setIsSidebarOpen(true)}
+          theme={theme} onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')} />
+        <div className={'workspace-page-content' + (dashboardVariant ? ' is-dashboard' : '')}>{children}</div>
       </section>
 
       {isLogoutModalOpen && (

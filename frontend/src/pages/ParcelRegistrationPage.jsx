@@ -760,12 +760,6 @@ export function ParcelRegistrationPage() {
           >
             <ArrowLeft size={20} />
           </button>
-          <div>
-            <h1>Log New Parcel</h1>
-            <p>
-              Guard <ChevronRight size={12} /> Parcels <ChevronRight size={12} /> New session
-            </p>
-          </div>
         </header>
 
         <div className="parcel-step-bar">

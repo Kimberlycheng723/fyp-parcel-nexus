@@ -1,10 +1,7 @@
 import {
   AlertCircle,
-  CalendarDays,
   ChevronDown,
-  FileImage,
   Filter,
-  GripVertical,
   RefreshCw,
   Search,
   UserCheck
@@ -13,16 +10,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ProtectedLayout } from "../components/ProtectedLayout.jsx";
 import { StaffDisputeDetailModal } from "../components/StaffDisputeDetailModal.jsx";
+import { StaffDisputeCard } from "../components/StaffDisputeCard.jsx";
 import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { getDisputes, transitionDispute } from "../services/api.js";
 import { acquireRealtimeSocket, releaseRealtimeSocket } from "../services/socket.js";
 import {
   DISPUTE_ISSUE_TYPES,
-  disputeIssueLabel,
-  disputeStatusLabel,
-  formatMalaysiaDate
+  disputeStatusLabel
 } from "../utils/disputes.js";
+import { getQueryParam } from "../utils/navigation.js";
 
 const LIFECYCLE_COLUMNS = Object.freeze([
   { status: "OPEN", label: "Open", tone: "open" },
@@ -44,64 +41,12 @@ const ROLE_TRANSITIONS = Object.freeze({
   })
 });
 
-function initials(name) {
-  return String(name || "?")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-}
-
 function canMove(role, dispute, targetStatus, userId) {
   if (!ROLE_TRANSITIONS[role]?.[dispute.status]?.includes(targetStatus)) return false;
   if (["IN_REVIEW_GUARD", "IN_REVIEW_ADMIN"].includes(dispute.status)) {
     return dispute.assigned_handler?.user_id === userId;
   }
   return true;
-}
-
-function StaffDisputeCard({ dispute, role, userId, onOpen, onDragStart, onDragEnd }) {
-  const draggable = (ROLE_TRANSITIONS[role]?.[dispute.status] || []).some((target) => (
-    canMove(role, dispute, target, userId)
-  ));
-
-  return (
-    <article
-      className="staff-dispute-card"
-      draggable={draggable}
-      tabIndex={0}
-      onClick={() => onOpen(dispute.dispute_id)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") onOpen(dispute.dispute_id);
-      }}
-      onDragStart={(event) => onDragStart(event, dispute)}
-      onDragEnd={onDragEnd}
-    >
-      <div className="staff-dispute-card-heading">
-        <span>{dispute.dispute_reference}</span>
-        {draggable && <GripVertical size={15} aria-label="Drag dispute" />}
-      </div>
-      <div className="staff-dispute-card-tags">
-        <span className={`staff-issue-badge issue-${dispute.issue_type.toLowerCase()}`}>{disputeIssueLabel(dispute.issue_type)}</span>
-        {dispute.evidence_count > 0 && <span title={`${dispute.evidence_count} evidence image(s)`}><FileImage size={13} /> {dispute.evidence_count}</span>}
-      </div>
-      <strong className="staff-dispute-tracking" title={dispute.parcel.tracking_number}>{dispute.parcel.tracking_number}</strong>
-      <dl className="staff-dispute-card-details">
-        <div><dt>Courier</dt><dd>{dispute.parcel.courier_name}</dd></div>
-        <div><dt>Unit</dt><dd>{dispute.resident?.unit_full_code || dispute.parcel.unit_full_code}</dd></div>
-      </dl>
-      <footer>
-        <span><CalendarDays size={13} /> {formatMalaysiaDate(dispute.created_at)}</span>
-        <span className="staff-card-handler" title={dispute.assigned_handler?.name || "Unassigned"}>
-          <i>{initials(dispute.assigned_handler?.name)}</i>
-          {dispute.assigned_handler?.name || "Unassigned"}
-        </span>
-      </footer>
-      <small>Latest activity {formatMalaysiaDate(dispute.latest_activity_at, { hour: "2-digit", minute: "2-digit" })}</small>
-    </article>
-  );
 }
 
 export function StaffDisputesPage() {
@@ -114,7 +59,10 @@ export function StaffDisputesPage() {
   const [assignment, setAssignment] = useState("");
   const [sort, setSort] = useState("LATEST_ACTIVITY");
   const [statusView, setStatusView] = useState("");
-  const [selectedDisputeId, setSelectedDisputeId] = useState(null);
+  const [selectedDisputeId, setSelectedDisputeId] = useState(() => {
+    const id = getQueryParam('dispute_id');
+    return /^[0-9a-f-]{36}$/i.test(id || '') ? id : null;
+  });
   const [draggedDispute, setDraggedDispute] = useState(null);
   const [dragTarget, setDragTarget] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -243,8 +191,7 @@ export function StaffDisputesPage() {
   return (
     <ProtectedLayout>
       <section className="staff-disputes-page animate-rise">
-        <header className="staff-disputes-header">
-          <div><span>OPERATIONS / DISPUTES</span><h1>Disputes</h1><p>Review and resolve parcel-related issues raised by Residents.</p></div>
+        <header className="workspace-page-actions">
           <div className="staff-dispute-summary"><strong>{total}</strong><span>shown</span><i /> <strong>{itemsByStatus.ESCALATED?.length || 0}</strong><span>escalated</span></div>
         </header>
 
@@ -294,8 +241,7 @@ export function StaffDisputesPage() {
                       {items.length === 0 ? <p>No {column.label.toLowerCase()} disputes.</p> : items.map((dispute) => (
                         <StaffDisputeCard
                           dispute={dispute}
-                          role={user.role}
-                          userId={user.user_id}
+                          draggable={(ROLE_TRANSITIONS[user.role]?.[dispute.status] || []).some(target => canMove(user.role, dispute, target, user.user_id))}
                           onOpen={setSelectedDisputeId}
                           onDragStart={startDrag}
                           onDragEnd={endDrag}

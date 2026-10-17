@@ -115,7 +115,7 @@ function EditDisputeModal({ dispute, evidenceImages, onClose, onUpdated }) {
   }
 
   return createPortal(
-    <div className="modal-backdrop dispute-workspace-modal-backdrop" role="presentation">
+    <div className="modal-backdrop dispute-workspace-modal-backdrop workspace-theme-surface" role="presentation">
       <form className="dispute-edit-modal animate-modal" role="dialog" aria-modal="true" aria-labelledby="edit-dispute-title" onSubmit={handleSubmit}>
         <header>
           <div><h2 id="edit-dispute-title">Edit Dispute</h2><p>Only open disputes can be edited. The related parcel cannot be changed.</p></div>
@@ -195,7 +195,7 @@ function DeleteDisputeModal({ dispute, onClose }) {
   }
 
   return createPortal(
-    <div className="modal-backdrop dispute-workspace-modal-backdrop" role="presentation">
+    <div className="modal-backdrop dispute-workspace-modal-backdrop workspace-theme-surface" role="presentation">
       <section className="dispute-delete-modal animate-modal" role="dialog" aria-modal="true" aria-labelledby="delete-dispute-title">
         <span><Trash2 size={24} /></span>
         <h2 id="delete-dispute-title">Delete this dispute?</h2>

@@ -123,7 +123,7 @@ export function ResidentNotificationProvider({ children }) {
       {children}
       {realtimeToast && (
         <aside
-          className="resident-realtime-toast"
+          className="resident-realtime-toast workspace-theme-surface"
           role="status"
           aria-live="polite"
           aria-atomic="true"

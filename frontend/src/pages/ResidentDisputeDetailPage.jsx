@@ -109,7 +109,6 @@ export function ResidentDisputeDetailPage({ disputeId }) {
           <>
             <header className="resident-dispute-detail-header">
               <div>
-                <span>ACCOUNT / DISPUTES / {dispute.dispute_reference}</span>
                 <div className="resident-dispute-title-line">
                   <h1>{disputeIssueLabel(dispute.issue_type)}</h1>
                   <span className={`dispute-status ${statusTone(dispute.status)}`}>{disputeStatusLabel(dispute.status)}</span>

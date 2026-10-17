@@ -134,13 +134,8 @@ function ChatbotConversation() {
   const cannotSend = isSending || isDenied || isCoolingDown || !draft.trim() || draft.length > CHATBOT_LIMITS.message;
 
   return (
-    <section className="chatbot-page" aria-labelledby="chatbot-title">
-      <header className="chatbot-header">
-        <div>
-          <span>ASSISTANCE / AI CHATBOT</span>
-          <h1 id="chatbot-title">AI Chatbot</h1>
-          <p>Ask questions about your parcels and learn how to use Parcel Nexus.</p>
-        </div>
+    <section className="chatbot-page" aria-label="AI Chatbot conversation">
+      <header className="workspace-page-actions">
         <button className="secondary-button chatbot-new-button" type="button" onClick={startNewConversation}
           disabled={!messages.length && !draft && !error && !isSending}>
           <Plus size={17} /> New Conversation

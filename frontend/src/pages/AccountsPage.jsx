@@ -19,6 +19,7 @@ import {
 import { useEffect, useState } from "react";
 
 import { ProtectedLayout } from "../components/ProtectedLayout.jsx";
+import { useSearchQuery } from '../hooks/useSearchQuery.js';
 import { Spinner } from "../components/Spinner.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { apiRequest } from "../services/api.js";
@@ -274,7 +275,7 @@ export function AccountsPage() {
   const [users, setUsers] = useState([]);
   const [counts, setCounts] = useState({ ADMIN: 0, GUARD: 0, RESIDENT: 0 });
   const [pagination, setPagination] = useState(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useSearchQuery();
   const [status, setStatus] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -286,9 +287,6 @@ export function AccountsPage() {
   const [openMenuId, setOpenMenuId] = useState(null);
 
   const visibleRoles = requesterRole === "SUPER_ADMIN" ? ["ADMIN"] : ["GUARD", "RESIDENT"];
-  const description = requesterRole === "SUPER_ADMIN"
-    ? "Manage admin access to the Parcel Nexus system."
-    : "Manage guard and residents access to the Parcel Management System.";
 
   useEffect(() => {
     if (requesterRole === "SUPER_ADMIN") {
@@ -464,14 +462,6 @@ export function AccountsPage() {
   return (
     <ProtectedLayout>
       <main className="accounts-page animate-rise">
-        <div className="accounts-heading-row">
-          <div className="page-heading accounts-heading">
-            <span>DIRECTORY / ACCOUNTS</span>
-            <h1>Accounts</h1>
-            <p>{description}</p>
-          </div>
-        </div>
-
         {requesterRole === "SUPER_ADMIN" && (
           <div className="accounts-tabs single-tab">
             <button className="active" type="button">

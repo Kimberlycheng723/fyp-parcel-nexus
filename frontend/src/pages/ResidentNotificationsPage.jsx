@@ -324,12 +324,7 @@ export function ResidentNotificationsPage() {
   return (
     <ProtectedLayout profile={layoutProfile} hideTopActions>
       <section className="notifications-page animate-rise">
-        <header className="notifications-header">
-          <div>
-            <span>NOTIFICATIONS</span>
-            <h1>Notifications</h1>
-            <p>{isResident ? "Stay updated on your parcels and disputes." : "Stay updated on dispute activity."}</p>
-          </div>
+        <header className="workspace-page-actions">
           <div className="notifications-header-actions">
             <button
               className="notifications-mark-all"
@@ -344,17 +339,6 @@ export function ResidentNotificationsPage() {
                   <CheckCheck size={16} />
                   Mark all as read
                 </>
-              )}
-            </button>
-            <button
-              className="notifications-page-bell"
-              type="button"
-              aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
-              title="Notifications"
-            >
-              <Bell size={17} />
-              {unreadCount > 0 && (
-                <i className="notification-count-badge">{unreadCount > 99 ? "99+" : unreadCount}</i>
               )}
             </button>
           </div>
