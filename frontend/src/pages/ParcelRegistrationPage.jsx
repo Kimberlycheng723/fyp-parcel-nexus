@@ -17,6 +17,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ProtectedLayout } from "../components/ProtectedLayout.jsx";
 import { Spinner } from "../components/Spinner.jsx";
+import { GuidedParcelCamera } from "../components/GuidedParcelCamera.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { apiRequest, getActiveParcelRooms } from "../services/api.js";
 import { navigate } from "../utils/navigation.js";
@@ -177,10 +178,6 @@ export function ParcelRegistrationPage() {
   const [uploadedPhoto, setUploadedPhoto] = useState(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [cameraError, setCameraError] = useState("");
-  const [capturedPhoto, setCapturedPhoto] = useState(null);
-  const videoRef = useRef(null);
-  const cameraStreamRef = useRef(null);
   const [parcelFormError, setParcelFormError] = useState("");
   const [sessionParcels, setSessionParcels] = useState([]);
   const [sessionStartedAt, setSessionStartedAt] = useState(() => new Date());
@@ -217,14 +214,6 @@ export function ParcelRegistrationPage() {
   );
   const dateTimeParts = useMemo(() => formatDateTimeParts(sessionStartedAt), [sessionStartedAt]);
   const canFinishWithRooms = !isLoadingRooms && !roomLoadError && sessionHasActiveRooms(sessionParcels, activeRooms);
-
-  useEffect(() => {
-    if (!isCameraOpen || !videoRef.current || !cameraStreamRef.current) {
-      return;
-    }
-
-    videoRef.current.srcObject = cameraStreamRef.current;
-  }, [isCameraOpen, cameraStreamRef.current]);
 
   async function loadRooms() {
     const sequence = ++roomRequestSequence.current;
@@ -374,7 +363,6 @@ export function ParcelRegistrationPage() {
 
   useEffect(() => {
     return () => {
-      stopCamera();
       objectUrlsRef.current.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
       objectUrlsRef.current.clear();
     };
@@ -485,130 +473,6 @@ export function ParcelRegistrationPage() {
     }
   }
 
-  async function handlePhotoChange(event) {
-    const file = event.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
-
-    if (photoPreviewUrl) {
-      URL.revokeObjectURL(photoPreviewUrl);
-      objectUrlsRef.current.delete(photoPreviewUrl);
-    }
-
-    if (capturedPhoto?.previewUrl) {
-      URL.revokeObjectURL(capturedPhoto.previewUrl);
-      objectUrlsRef.current.delete(capturedPhoto.previewUrl);
-      setCapturedPhoto(null);
-    }
-
-    const nextPreviewUrl = URL.createObjectURL(file);
-    objectUrlsRef.current.add(nextPreviewUrl);
-    await uploadPhotoFile(file, nextPreviewUrl);
-
-    if (isCameraOpen) {
-      stopCamera();
-      setCapturedPhoto(null);
-      setCameraError("");
-      setIsCameraOpen(false);
-    }
-  }
-
-  function stopCamera() {
-    cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
-    cameraStreamRef.current = null;
-  }
-
-  async function openCamera() {
-    setCameraError("");
-    setCapturedPhoto(null);
-
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setCameraError("Camera is not available in this browser. Please upload an image file instead.");
-      setIsCameraOpen(true);
-      return;
-    }
-
-    try {
-      stopCamera();
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" }
-        },
-        audio: false
-      });
-      cameraStreamRef.current = stream;
-      setIsCameraOpen(true);
-    } catch (error) {
-      setCameraError("Camera permission was denied or unavailable. You can still upload an image file.");
-      setIsCameraOpen(true);
-    }
-  }
-
-  function closeCamera() {
-    stopCamera();
-
-    if (capturedPhoto?.previewUrl) {
-      URL.revokeObjectURL(capturedPhoto.previewUrl);
-      objectUrlsRef.current.delete(capturedPhoto.previewUrl);
-    }
-
-    setCapturedPhoto(null);
-    setCameraError("");
-    setIsCameraOpen(false);
-  }
-
-  function captureCameraPhoto() {
-    const video = videoRef.current;
-
-    if (!video) {
-      setCameraError("Camera preview is not ready yet.");
-      return;
-    }
-
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
-    const context = canvas.getContext("2d");
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        setCameraError("Unable to capture photo. Please try again or upload a file.");
-        return;
-      }
-
-      if (capturedPhoto?.previewUrl) {
-        URL.revokeObjectURL(capturedPhoto.previewUrl);
-        objectUrlsRef.current.delete(capturedPhoto.previewUrl);
-      }
-
-      const file = new File([blob], `parcel-photo-${Date.now()}.jpg`, { type: "image/jpeg" });
-      const previewUrl = URL.createObjectURL(blob);
-      objectUrlsRef.current.add(previewUrl);
-      setCapturedPhoto({ file, previewUrl });
-    }, "image/jpeg", 0.9);
-  }
-
-  async function useCapturedPhoto() {
-    if (!capturedPhoto?.file) {
-      setCameraError("Capture a photo first.");
-      return;
-    }
-
-    if (photoPreviewUrl) {
-      URL.revokeObjectURL(photoPreviewUrl);
-      objectUrlsRef.current.delete(photoPreviewUrl);
-    }
-
-    const previewUrl = capturedPhoto.previewUrl;
-    setCapturedPhoto(null);
-    stopCamera();
-    setIsCameraOpen(false);
-    await uploadPhotoFile(capturedPhoto.file, previewUrl);
-  }
-
   async function uploadPhotoFile(file, previewUrl) {
     setUploadedPhoto(null);
     setParcelFormError("");
@@ -640,11 +504,23 @@ export function ParcelRegistrationPage() {
     }
   }
 
-  
+  async function useGuidedPhoto(file) {
+    setIsCameraOpen(false);
+    if (photoPreviewUrl) {
+      URL.revokeObjectURL(photoPreviewUrl);
+      objectUrlsRef.current.delete(photoPreviewUrl);
+    }
+    const nextPreviewUrl = URL.createObjectURL(file);
+    objectUrlsRef.current.add(nextPreviewUrl);
+    await uploadPhotoFile(file, nextPreviewUrl);
+  }
 
-  
+  async function handlePhotoChange(event) {
+    const file = event.target.files?.[0];
+    if (file) await useGuidedPhoto(file);
+  }
 
-  
+  function openCamera() { setIsCameraOpen(true); }
 
   function clearPhoto({ revoke = true } = {}) {
     if (photoPreviewUrl && revoke) {
@@ -1069,7 +945,6 @@ export function ParcelRegistrationPage() {
                     className="hidden-file-input"
                     type="file"
                     accept="image/jpeg,image/jpg,image/png,image/webp"
-                    capture="environment"
                     onChange={handlePhotoChange}
                   />
                   <div className={`photo-capture-box ${photoPreviewUrl ? "has-preview" : ""}`}>
@@ -1273,48 +1148,11 @@ export function ParcelRegistrationPage() {
           </div>
         )}
 
-        {isCameraOpen && (
-          <div className="modal-backdrop parcel-modal-backdrop">
-            <div className="parcel-camera-modal animate-modal">
-              <header>
-                <div>
-                  <h2>Capture parcel photo</h2>
-                  <p>Use camera when available, or upload an image file instead.</p>
-                </div>
-                <button type="button" onClick={closeCamera} aria-label="Close camera">
-                  <X size={18} />
-                </button>
-              </header>
-
-              <div className="camera-preview-area">
-                {cameraError ? (
-                  <div className="camera-error-state">
-                    <strong>Camera unavailable</strong>
-                    <p>{cameraError}</p>
-                  </div>
-                ) : capturedPhoto?.previewUrl ? (
-                  <img src={capturedPhoto.previewUrl} alt="Captured parcel" />
-                ) : (
-                  <video ref={videoRef} autoPlay playsInline muted />
-                )}
-              </div>
-
-              <footer>
-                {capturedPhoto?.previewUrl ? (
-                  <>
-                    <button className="parcel-primary-button compact" type="button" onClick={useCapturedPhoto} disabled={isUploadingPhoto}>
-                      {isUploadingPhoto ? <Spinner label="Uploading" /> : <><Check size={16} /> Use photo</>}
-                    </button>
-                  </>
-                ) : (
-                  <button className="parcel-primary-button compact" type="button" onClick={captureCameraPhoto} disabled={Boolean(cameraError)}>
-                    <Camera size={16} /> Capture photo
-                  </button>
-                )}
-              </footer>
-            </div>
-          </div>
-        )}
+        {isCameraOpen && <GuidedParcelCamera
+          onClose={() => setIsCameraOpen(false)}
+          onUse={(file) => void useGuidedPhoto(file)}
+          onUpload={() => fileInputRef.current?.click()}
+        />}
 
         {isFinishModalOpen && (
           <div className="modal-backdrop parcel-modal-backdrop">

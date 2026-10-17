@@ -1,0 +1,24 @@
+.guided-parcel-camera { width: min(720px, calc(100% - 24px)); max-height: calc(100svh - 24px); margin: auto; padding: 24px; border: 0; border-radius: 8px; background: var(--workspace-dark-surface, #fff); color: #1d2a4b; overflow-y: auto; font-family: "Parcel Login DM Sans", sans-serif; }
+.guided-parcel-camera::backdrop { background: #101828ad; }
+.guided-parcel-camera header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.guided-parcel-camera h2 { margin: 0; font-size: 20px; line-height: 1.4; font-weight: 600; }
+.guided-parcel-camera button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px; border: 1px solid var(--workspace-dark-border, #d5dcec); border-radius: 6px; background: var(--workspace-dark-surface, #fff); color: #1d2a4b; font: 600 13px/1.4 "Parcel Login DM Sans", sans-serif; }
+.guided-parcel-camera header button { width: 44px; padding: 0; flex-shrink: 0; }
+.guided-parcel-camera button:hover:not(:disabled) { background: var(--workspace-dark-soft, #f1f4fb); }
+.guided-parcel-camera button:focus-visible { outline: 2px solid #303fcf; outline-offset: 3px; }
+.guided-parcel-camera button:disabled { opacity: .55; cursor: not-allowed; }
+.guided-parcel-camera .guided-camera-primary { background: #303fcf; border-color: #303fcf; color: #fff; }
+.guided-parcel-camera .guided-camera-primary:hover:not(:disabled) { background: #2734b5; }
+.guided-camera-instruction { color: var(--workspace-dark-muted, #53638a); font-size: 14px; line-height: 1.6; margin: 12px 0 20px; }
+.guided-camera-stage { position: relative; margin: 0 auto; max-width: 100%; background: #151a23; border-radius: 6px; overflow: hidden; }
+.guided-camera-stage video, .guided-camera-stage img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.guided-camera-frame { position: absolute; inset: 12%; border: 1px dashed var(--workspace-dark-border, #fff); pointer-events: none; box-shadow: 0 0 0 3000px #0003; }
+.guided-camera-frame i { position: absolute; width: 24px; height: 24px; border: solid var(--workspace-dark-border, #fff); border-width: 0; }
+.guided-camera-frame i:nth-child(1) { left: -2px; top: -2px; border-left-width: 3px; border-top-width: 3px; }
+.guided-camera-frame i:nth-child(2) { right: -2px; top: -2px; border-right-width: 3px; border-top-width: 3px; }
+.guided-camera-frame i:nth-child(3) { left: -2px; bottom: -2px; border-left-width: 3px; border-bottom-width: 3px; }
+.guided-camera-frame i:nth-child(4) { right: -2px; bottom: -2px; border-right-width: 3px; border-bottom-width: 3px; }
+.guided-camera-status { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-size: 14px; }
+.guided-camera-error { color: #b42318; font-size: 13px; line-height: 1.6; margin: 16px 0 0; }
+.guided-parcel-camera footer { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+@media (max-width: 500px) { .guided-parcel-camera { padding: 18px; } .guided-parcel-camera h2 { font-size: 18px; } .guided-parcel-camera footer button { flex: 1; } }
